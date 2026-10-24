@@ -3,9 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
+  /// Familia tipográfica Outfit, guardada aparte para reutilizarla
+  /// en el estilo de los botones.
+  static final String? _font = GoogleFonts.outfit().fontFamily;
+
   static ThemeData get light => ThemeData(
         useMaterial3: true,
-        fontFamily: GoogleFonts.outfit().fontFamily,
+        fontFamily: _font,
         scaffoldBackgroundColor: AppColors.cream,
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.gold,
@@ -36,11 +40,25 @@ class AppTheme {
             backgroundColor: AppColors.brown,
             foregroundColor: AppColors.cream,
             minimumSize: const Size.fromHeight(56),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(28),
+            shape: const StadiumBorder(),
+            textStyle: TextStyle(
+              fontFamily: _font,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
-            textStyle:
-                const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.brown,
+            minimumSize: const Size.fromHeight(56),
+            side: const BorderSide(color: AppColors.border, width: 1.5),
+            shape: const StadiumBorder(),
+            textStyle: TextStyle(
+              fontFamily: _font,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       );

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../shared/widgets/app_logo.dart';
+import '../../../shared/widgets/decor_circle.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -16,7 +18,7 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    // Más adelante aquí se revisará si ya hay sesión guardada
+    // Más adelante aquí se revisará si ya hay una sesión guardada.
     _timer = Timer(const Duration(milliseconds: 2500), () {
       if (mounted) context.go('/welcome');
     });
@@ -30,70 +32,134 @@ class _SplashPageState extends State<SplashPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Factor de escala: el diseño de Figma mide 390 px de ancho.
+    final s = MediaQuery.sizeOf(context).width / 390;
+
     return Scaffold(
       body: Container(
         width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [AppColors.cream, AppColors.creamDark],
+            colors: [AppColors.cream, AppColors.creamSplashEnd],
           ),
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              const Spacer(flex: 3),
-              TweenAnimationBuilder<double>(
+        child: Stack(
+          children: [
+            // Círculos decorativos
+            Positioned(
+              left: -170 * s,
+              top: -190 * s,
+              child: DecorCircle(
+                diameter: 440 * s,
+                color: AppColors.gold.withValues(alpha: 0.14),
+              ),
+            ),
+            Positioned(
+              right: -140 * s,
+              bottom: -116 * s,
+              child: DecorCircle(
+                diameter: 340 * s,
+                color: AppColors.brown.withValues(alpha: 0.08),
+              ),
+            ),
+            Positioned(
+              left: -70 * s,
+              bottom: 24 * s,
+              child: DecorCircle(
+                diameter: 180 * s,
+                color: AppColors.gold.withValues(alpha: 0.12),
+              ),
+            ),
+
+            // Logo + eslogan, con animación de entrada
+            Align(
+              alignment: const Alignment(0, 0.07),
+              child: TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0, end: 1),
                 duration: const Duration(milliseconds: 900),
                 curve: Curves.easeOut,
                 builder: (context, value, child) => Opacity(
                   opacity: value,
-                  child: Transform.scale(scale: 0.9 + 0.1 * value, child: child),
+                  child: Transform.scale(
+                    scale: 0.92 + 0.08 * value,
+                    child: child,
+                  ),
                 ),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Image.asset(
-                      'assets/images/logo_costa_de_oro.png',
-                      width: 280,
-                      errorBuilder: (context, error, stack) => const Icon(
-                        Icons.image_not_supported_outlined,
-                        size: 80,
-                        color: AppColors.muted,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    AppLogo(width: 200 * s),
+                    SizedBox(height: 22 * s),
+                    Text(
                       'Licores importados premium',
                       style: TextStyle(
                         fontSize: 15,
-                        color: AppColors.brown,
                         letterSpacing: 0.5,
+                        color: AppColors.brown.withValues(alpha: 0.75),
                       ),
                     ),
                   ],
                 ),
               ),
-              const Spacer(flex: 3),
-              const SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  color: AppColors.gold,
+            ),
+
+            // Puntos de carga
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 98 * s,
+              child: const Center(child: _LoadingDots()),
+            ),
+
+            // Versión
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 49 * s,
+              child: Center(
+                child: Text(
+                  'Versión 1.0.0',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.brown.withValues(alpha: 0.5),
+                  ),
                 ),
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'Versión 1.0.0',
-                style: TextStyle(fontSize: 12, color: AppColors.muted),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+/// Los tres puntos dorados de abajo (el primero más grande y opaco).
+class _LoadingDots extends StatelessWidget {
+  const _LoadingDots();
+
+  Widget _dot(double size, double alpha) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: AppColors.gold.withValues(alpha: alpha),
+          shape: BoxShape.circle,
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _dot(10, 1),
+        const SizedBox(width: 8),
+        _dot(8, 0.55),
+        const SizedBox(width: 8),
+        _dot(8, 0.3),
+      ],
     );
   }
 }
