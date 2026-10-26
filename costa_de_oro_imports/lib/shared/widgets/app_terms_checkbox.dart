@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart'; // <-- IMPORT
 import '../../app/theme/app_colors.dart';
 
 class AppTermsCheckbox extends StatefulWidget {
@@ -46,52 +47,50 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start, // <-- Alinea el checkbox arriba
+          // Centra verticalmente el checkbox con el texto
+          crossAxisAlignment: CrossAxisAlignment.center, 
           children: [
-            // Checkbox con un pequeño padding superior para alinear con la primera línea de texto
-            Padding(
-              padding: const EdgeInsets.only(top: 2.0),
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => widget.onChanged(!widget.value),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: widget.value ? AppColors.gold : Colors.white,
-                    borderRadius: BorderRadius.circular(6), // Un poco menos redondo se ve más moderno
-                    border: Border.all(
-                      color: widget.errorText != null ? Colors.red : AppColors.gold,
-                      width: 1.5,
-                    ),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => widget.onChanged(!widget.value),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: widget.value ? AppColors.gold : Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: widget.errorText != null ? Colors.red : AppColors.gold,
+                    width: 1.5,
                   ),
-                  child: widget.value
-                      ? const Icon(Icons.check, size: 16, color: Colors.white)
-                      : null,
                 ),
+                child: widget.value
+                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                    : null,
               ),
             ),
-            SizedBox(width: 12 * s), // Un poco más de espacio
+            SizedBox(width: 12 * s),
             Expanded(
               child: Text.rich(
                 TextSpan(
-                  style: const TextStyle(
-                    fontSize: 13,
+                  style: GoogleFonts.poppins( // <-- TIPOGRAFÍA APLICADA
+                    fontSize: 12 * s, // Ajustado ligeramente para pantallas pequeñas
                     color: AppColors.brown,
-                    height: 1.4, // Mejora el espacio entre líneas
+                    fontWeight: FontWeight.w500, 
+                    height: 1.2, 
                   ),
                   children: [
-                    const TextSpan(text: 'Acepto los '),
+                    const TextSpan(text: 'Keep me '),
                     TextSpan(
-                      text: 'términos y condiciones',
-                      recognizer: _termsRecognizer, // <-- Enlace nativo y clickeable
-                      style: const TextStyle(
+                      text: 'signed in',
+                      recognizer: _termsRecognizer,
+                      style: GoogleFonts.poppins( // <-- TIPOGRAFÍA APLICADA
                         color: AppColors.goldDark,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700, // Enlace más grueso
                         decoration: TextDecoration.underline,
-                        decorationColor: AppColors.goldDark, // Subrayado del mismo color
-                        decorationThickness: 1.2,
+                        decorationColor: AppColors.goldDark,
+                        decorationThickness: 1.5, 
                       ),
                     ),
                     const TextSpan(text: '.'),
@@ -101,12 +100,17 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
             ),
           ],
         ),
+        // Si hay un error (ej. no aceptó los términos), se muestra debajo
         if (widget.errorText != null)
           Padding(
-            padding: EdgeInsets.only(top: 8 * s, left: 34 * s), // Alineado con el texto, no con el checkbox
+            padding: EdgeInsets.only(top: 8 * s, left: 34 * s),
             child: Text(
               widget.errorText!,
-              style: const TextStyle(color: Colors.red, fontSize: 12),
+              style: GoogleFonts.poppins(
+                color: Colors.red, 
+                fontSize: 11 * s,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
       ],
