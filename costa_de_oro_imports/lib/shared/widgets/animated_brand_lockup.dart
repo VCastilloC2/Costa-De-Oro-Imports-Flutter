@@ -1,14 +1,15 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart'; 
-import 'package:google_fonts/google_fonts.dart';
 import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_fonts.dart'; // <-- IMPORT DE APP FONTS
 
 class AnimatedBrandLockup extends StatefulWidget {
   const AnimatedBrandLockup({
     super.key,
     required this.logoWidth,
     this.play = true,
+    this.startFormed = false,
     this.textScale = 1.0,
     this.duration = const Duration(milliseconds: 3000), 
     this.onFinished,
@@ -16,6 +17,7 @@ class AnimatedBrandLockup extends StatefulWidget {
 
   final double logoWidth;
   final bool play;
+  final bool startFormed;
   final double textScale;
   final Duration duration;
   final VoidCallback? onFinished;
@@ -44,18 +46,25 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
     super.initState();
     _c = AnimationController(vsync: this, duration: widget.duration);
     _sway = AnimationController(vsync: this, duration: const Duration(seconds: 5)); 
+    
+    // Si nace formado, ponemos el valor en 1 de una vez
+    if (widget.startFormed) {
+      _c.value = 1;
+      _sway.repeat(reverse: true);
+      _started = true;
+    }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _maybeStart();
+    if (!widget.startFormed) _maybeStart();
   }
 
   @override
   void didUpdateWidget(covariant AnimatedBrandLockup oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!oldWidget.play && widget.play) _maybeStart();
+    if (!oldWidget.play && widget.play && !widget.startFormed) _maybeStart();
   }
 
   void _maybeStart() {
@@ -112,11 +121,13 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
     );
   }
 
-  TextStyle _nameStyle(double spacing) => GoogleFonts.poppins(
-        fontSize: 26 * widget.textScale,
-        fontWeight: FontWeight.w800,
-        letterSpacing: spacing,
+  // --- TIPOGRAFÍA GEIST APLICADA ---
+  TextStyle _nameStyle(double spacing) => AppFonts.style(
+        size: 26 * widget.textScale,
+        weight: FontWeight.w800,
         color: const Color(0xFFFFE066),
+        letterSpacing: spacing,
+      ).copyWith(
         shadows: [
           Shadow(
             color: Colors.black.withValues(alpha: 0.8),
@@ -126,11 +137,12 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
         ],
       );
 
-  TextStyle _subStyle(double spacing) => GoogleFonts.poppins(
-        fontSize: 11 * widget.textScale,
-        fontWeight: FontWeight.w700,
-        letterSpacing: spacing,
+  TextStyle _subStyle(double spacing) => AppFonts.style(
+        size: 13 * widget.textScale,
+        weight: FontWeight.w700,
         color: const Color(0xFFFFC107),
+        letterSpacing: spacing,
+      ).copyWith(
         shadows: [
           Shadow(
             color: Colors.black.withValues(alpha: 0.8),
@@ -157,9 +169,6 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
         final name = _t(0.60, 0.95, Curves.easeInOutQuad);
         final sub = _t(0.65, 1.00, Curves.easeInOutQuad);
         final line = _t(0.75, 1.00, Curves.easeInOutQuad);
-        
-        // --- EL DESTELLO AHORA ES MÁS LENTO ---
-        // Empieza en el 60% en lugar del 85%, dándole 1.2 segundos de recorrido
         final shine = _t(0.60, 1.00, Curves.easeInOutSine); 
 
         final swing = math.sin(_sway.value * 2 * math.pi);

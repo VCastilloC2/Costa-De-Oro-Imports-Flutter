@@ -1,8 +1,8 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart'; // <-- IMPORT
 import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_fonts.dart'; // <-- NUEVO IMPORT
 
 class AppTermsCheckbox extends StatefulWidget {
   final bool value;
@@ -74,10 +74,10 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
             Expanded(
               child: Text.rich(
                 TextSpan(
-                  style: GoogleFonts.poppins( // <-- TIPOGRAFÍA APLICADA
-                    fontSize: 12 * s, // Ajustado ligeramente para pantallas pequeñas
+                  style: AppFonts.style( // <-- TIPOGRAFÍA GLOBAL
+                    size: 13 * s, 
                     color: AppColors.brown,
-                    fontWeight: FontWeight.w500, 
+                    weight: FontWeight.w500, 
                     height: 1.2, 
                   ),
                   children: [
@@ -85,9 +85,12 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
                     TextSpan(
                       text: 'signed in',
                       recognizer: _termsRecognizer,
-                      style: GoogleFonts.poppins( // <-- TIPOGRAFÍA APLICADA
+                      // Usamos AppFonts y le añadimos el subrayado con copyWith
+                      style: AppFonts.style(
+                        size: 13 * s,
                         color: AppColors.goldDark,
-                        fontWeight: FontWeight.w700, // Enlace más grueso
+                        weight: FontWeight.w500, 
+                      ).copyWith(
                         decoration: TextDecoration.underline,
                         decorationColor: AppColors.goldDark,
                         decorationThickness: 1.5, 
@@ -106,10 +109,10 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
             padding: EdgeInsets.only(top: 8 * s, left: 34 * s),
             child: Text(
               widget.errorText!,
-              style: GoogleFonts.poppins(
+              style: AppFonts.style(
                 color: Colors.red, 
-                fontSize: 11 * s,
-                fontWeight: FontWeight.w500,
+                size: 11 * s,
+                weight: FontWeight.w500,
               ),
             ),
           ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_fonts.dart'; 
 import '../../../shared/widgets/animated_brand_lockup.dart';
 import '../../../shared/widgets/brand_intro_overlay.dart';
 
@@ -115,7 +115,7 @@ class _WelcomePageState extends State<WelcomePage>
                 children: [
                   SizedBox(height: 16 * s),
 
-                  // EL LOGO DESTINO: Solo se muestra si el Overlay NO está presente (ej. segunda visita)
+                  // EL LOGO DESTINO
                   if (!_showOverlay)
                     AnimatedBrandLockup(logoWidth: 120 * s, play: false), 
                   
@@ -129,11 +129,12 @@ class _WelcomePageState extends State<WelcomePage>
                         Text(
                           'Cada ocasión\nmerece lo mejor',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            fontSize: 34 * s,
-                            height: 1.2,
-                            fontWeight: FontWeight.w700,
+                          style: AppFonts.style( // 
+                            size: 34 * s,
+                            weight: FontWeight.w700,
                             color: Colors.white,
+                            height: 1.2,
+                          ).copyWith(
                             shadows: [
                               Shadow(
                                 color: Colors.black.withValues(alpha: 0.8),
@@ -148,11 +149,12 @@ class _WelcomePageState extends State<WelcomePage>
                           'Descubre whiskys, tequilas y vinos importados '
                           'y recíbelos en la puerta de tu casa.',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14 * s,
-                            height: 1.4,
-                            fontWeight: FontWeight.w500,
+                          style: AppFonts.style( 
+                            size: 15 * s,
+                            weight: FontWeight.w500,
                             color: Colors.white.withValues(alpha: 0.9),
+                            height: 1.4,
+                          ).copyWith(
                             shadows: [
                               Shadow(
                                 color: Colors.black.withValues(alpha: 0.8),
@@ -180,7 +182,6 @@ class _WelcomePageState extends State<WelcomePage>
             Positioned.fill(
               child: BrandIntroOverlay(
                 onReveal: _startReveal,
-                // Ya no hay onDone. El overlay se queda para siempre en la pantalla.
               ),
             ),
         ],
@@ -223,13 +224,13 @@ class _StartButton extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Expanded(
+                Expanded(
                   child: Center(
                     child: Text(
                       'Get Started',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
+                      style: AppFonts.style( // <-- TIPOGRAFÍA GEIST
+                        size: 20,
+                        weight: FontWeight.w700,
                         color: AppColors.brownDark,
                         letterSpacing: 0.5,
                       ),

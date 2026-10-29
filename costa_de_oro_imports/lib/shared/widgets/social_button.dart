@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart'; // <-- IMPORT DE GOOGLE FONTS
 import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_fonts.dart';
 
 /// Botón blanco con borde para iniciar sesión con Google, Apple, etc.
 class SocialButton extends StatelessWidget {
@@ -23,12 +23,13 @@ class SocialButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         backgroundColor: Colors.white,
         foregroundColor: AppColors.brownDark,
-        side: const BorderSide(color: AppColors.border, width: 1.5),
+        side: const BorderSide(color: AppColors.beige, width: 1.2), // Borde igual al input
+        // --- AQUÍ ESTÁ LA CORRECCIÓN ---
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15), 
+          borderRadius: BorderRadius.circular(20), // Mismo redondeo que inputs y botón principal
         ),
-        // ---------------------------------
-        padding: const EdgeInsets.symmetric(vertical: 14), 
+        fixedSize: const Size(double.infinity, 62), // Misma altura que los inputs
+        padding: EdgeInsets.zero,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -36,11 +37,10 @@ class SocialButton extends StatelessWidget {
           SvgPicture.asset(iconAsset, width: 22, height: 22),
           const SizedBox(width: 10),
           Text(
-            label,
-            style: GoogleFonts.poppins( // <-- TIPOGRAFÍA POPPINS
-              fontSize: 18, 
-              fontWeight: FontWeight.w600, // Ajustado para que no sea tan tosco como w700
-              color: AppColors.brownDark,
+            label, 
+            style: AppFonts.style(
+              size: 18, 
+              weight: FontWeight.w600,
             ),
           ),
         ],

@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
 class DecorCircle extends StatelessWidget {
-  const DecorCircle({super.key, required this.diameter, required this.color});
-
   final double diameter;
-  final Color color;
+  final Color? color; // Hacemos el color opcional
+  final Gradient? gradient; // Nueva propiedad para el degradado
+
+  const DecorCircle({
+    super.key,
+    required this.diameter,
+    this.color,
+    this.gradient,
+  }) : assert(color != null || gradient != null, 'Debes proporcionar color o gradient');
 
   @override
   Widget build(BuildContext context) {
@@ -12,7 +18,11 @@ class DecorCircle extends StatelessWidget {
       child: Container(
         width: diameter,
         height: diameter,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: gradient == null ? color : null,
+          gradient: gradient,
+        ),
       ),
     );
   }

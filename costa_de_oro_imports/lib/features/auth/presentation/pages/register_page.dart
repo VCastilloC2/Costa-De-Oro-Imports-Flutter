@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../app/theme/app_colors.dart';
-import '../../../../shared/widgets/app_text_field.dart';
+import '../../../../app/theme/app_fonts.dart';
+import '../../../../shared/widgets/app_svg_icon.dart';
 import '../../../../shared/widgets/app_terms_checkbox.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/decor_circle.dart';
 import '../../../../shared/widgets/social_button.dart';
 
@@ -16,13 +17,11 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMixin {
-  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
   // --- LLAVES PARA VALIDACIÓN ---
-  final _nameKey = GlobalKey<AppTextFieldState>();
   final _emailKey = GlobalKey<AppTextFieldState>();
   final _passwordKey = GlobalKey<AppTextFieldState>();
   final _confirmPasswordKey = GlobalKey<AppTextFieldState>();
@@ -82,18 +81,12 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
 
   @override
   void dispose() {
-    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _entryController.dispose();
     _floatController.dispose();
     super.dispose();
-  }
-
-  String? _validateName(String? value) {
-    if (value == null || value.trim().isEmpty) return 'El nombre es obligatorio';
-    return null;
   }
 
   String? _validateEmail(String? value) {
@@ -125,38 +118,69 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            // 1. Círculos de fondo
+            // --- CÍRCULOS DE FONDO DEGRADADOS (Iguales al Login) ---
             Positioned(
               top: -70 * s,
               right: -70 * s,
               child: DecorCircle(
-                diameter: 240 * s,
-                color: AppColors.beige.withValues(alpha: 0.4),
+                diameter: 280 * s, 
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.gold.withValues(alpha: 0.25),
+                    AppColors.gold.withValues(alpha: 0.0),
+                  ],
+                ),
               ),
             ),
+
             Positioned(
-              top: 250 * s,
-              left: -50 * s,
+              top: 180 * s, 
+              left: -60 * s,
               child: DecorCircle(
-                diameter: 140 * s,
-                color: AppColors.beige.withValues(alpha: 0.3),
+                diameter: 160 * s,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.beige.withValues(alpha: 0.6),
+                    AppColors.beige.withValues(alpha: 0.0),
+                  ],
+                ),
               ),
             ),
+
             Positioned(
               bottom: -40 * s,
               right: -40 * s,
               child: DecorCircle(
-                diameter: 160 * s,
-                color: AppColors.beige.withValues(alpha: 0.4),
+                diameter: 220 * s,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.goldLight.withValues(alpha: 0.3),
+                    AppColors.goldLight.withValues(alpha: 0.0),
+                  ],
+                ),
               ),
             ),
 
-            // 2. CONTENIDO PRINCIPAL
+            Positioned(
+              top: 400 * s,
+              right: -80 * s,
+              child: DecorCircle(
+                diameter: 250 * s,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.beige.withValues(alpha: 0.4),
+                    AppColors.beige.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+
+            // --- CONTENIDO PRINCIPAL ---
             SafeArea(
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    // --- TARJETA SUPERIOR (Limpia, sin logo ni mancha) ---
+                    // --- TARJETA SUPERIOR ---
                     FadeTransition(
                       opacity: _cardFade,
                       child: SlideTransition(
@@ -171,7 +195,7 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                           },
                           child: Container(
                             width: double.infinity,
-                            height: 210 * s,
+                            height: 185 * s, 
                             margin: EdgeInsets.only(top: 16 * s, left: 16 * s, right: 16 * s, bottom: 24 * s),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(32 * s),
@@ -194,30 +218,30 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                             ),
                             clipBehavior: Clip.antiAlias,
                             child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 24 * s, vertical: 20 * s),
+                              padding: EdgeInsets.symmetric(horizontal: 24 * s, vertical: 16 * s),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
                                     'Costa de Oro.',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 28 * s,
-                                      fontWeight: FontWeight.w800,
+                                    style: AppFonts.style(
+                                      size: 32, 
+                                      weight: FontWeight.w800,
                                       color: AppColors.creamText,
                                     ),
                                   ),
                                   SizedBox(height: 4 * s),
                                   Text(
                                     'Los mejores licores,\ndirecto a tu puerta.',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 13 * s,
-                                      fontWeight: FontWeight.w500,
+                                    style: AppFonts.style(
+                                      size: 15, 
+                                      weight: FontWeight.w600,
                                       color: AppColors.creamText.withValues(alpha: 0.9),
                                       height: 1.3,
                                     ),
                                   ),
-                                  SizedBox(height: 16 * s),
+                                  SizedBox(height: 12 * s),
                                   Container(
                                     padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 6 * s),
                                     decoration: BoxDecoration(
@@ -226,10 +250,10 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                                     ),
                                     child: Text(
                                       'Envío en 24h • Premium',
-                                      style: GoogleFonts.poppins(
+                                      style: AppFonts.style(
+                                        size: 13, 
+                                        weight: FontWeight.w600,
                                         color: AppColors.brownDark,
-                                        fontSize: 11 * s,
-                                        fontWeight: FontWeight.w700,
                                       ),
                                     ),
                                   ),
@@ -253,10 +277,10 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                               child: Column(
                                 children: [
                                   Text(
-                                    'Crea tu cuenta',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 28 * s,
-                                      fontWeight: FontWeight.w800,
+                                    'Create Account',
+                                    style: AppFonts.style(
+                                      size: 35, 
+                                      weight: FontWeight.w700,
                                       color: AppColors.brownDark,
                                     ),
                                   ),
@@ -264,9 +288,9 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                                   Text(
                                     'Solo necesitamos unos segundos para empezar.',
                                     textAlign: TextAlign.center,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14 * s,
-                                      fontWeight: FontWeight.w500,
+                                    style: AppFonts.style(
+                                      size: 18,
+                                      weight: FontWeight.w600,
                                       color: AppColors.brown.withValues(alpha: 0.7),
                                     ),
                                   ),
@@ -275,23 +299,7 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                             ),
                           ),
                           
-                          SizedBox(height: 32 * s),
-
-                          // --- INPUT NOMBRE ---
-                          FadeTransition(
-                            opacity: _inputsFade,
-                            child: SlideTransition(
-                              position: _inputsSlide,
-                              child: AppTextField(
-                                key: _nameKey,
-                                hint: 'Nombre',
-                                controller: _nameController,
-                                validator: _validateName,
-                                prefixIcon: const Icon(Icons.person_outline),
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 16 * s),
+                          SizedBox(height: 22 * s),
 
                           // --- INPUT EMAIL ---
                           FadeTransition(
@@ -300,11 +308,12 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                               position: _inputsSlide,
                               child: AppTextField(
                                 key: _emailKey,
-                                hint: 'Email',
+                                label: 'Email',
+                                hint: 'Enter you email',
                                 controller: _emailController,
                                 keyboardType: TextInputType.emailAddress,
                                 validator: _validateEmail,
-                                prefixIcon: const Icon(Icons.mail_outline),
+                                prefixIcon: const AppSvgIcon(AppSvgIcon.mail),
                               ),
                             ),
                           ),
@@ -317,15 +326,16 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                               position: _inputsSlide,
                               child: AppTextField(
                                 key: _passwordKey,
-                                hint: 'Contraseña',
+                                label: 'Password',
+                                hint: 'Enter you Password',
                                 controller: _passwordController,
                                 obscureText: _obscurePassword,
                                 validator: _validatePassword,
-                                prefixIcon: const Icon(Icons.lock_outline),
+                                prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
                                 suffixIcon: GestureDetector(
                                   onTap: () => setState(() => _obscurePassword = !_obscurePassword),
-                                  child: Icon(
-                                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                  child: AppSvgIcon(
+                                    _obscurePassword ? AppSvgIcon.eyeOff : AppSvgIcon.eye,
                                   ),
                                 ),
                               ),
@@ -340,15 +350,16 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                               position: _inputsSlide,
                               child: AppTextField(
                                 key: _confirmPasswordKey,
-                                hint: 'Repetir contraseña',
+                                label: 'Confirm Password',
+                                hint: 'Confirm you Password',
                                 controller: _confirmPasswordController,
                                 obscureText: _obscureConfirmPassword,
                                 validator: _validateConfirmPassword,
-                                prefixIcon: const Icon(Icons.lock_outline),
+                                prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
                                 suffixIcon: GestureDetector(
                                   onTap: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                                  child: Icon(
-                                    _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                  child: AppSvgIcon(
+                                    _obscureConfirmPassword ? AppSvgIcon.eyeOff : AppSvgIcon.eye,
                                   ),
                                 ),
                               ),
@@ -372,12 +383,13 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                                   ),
                                   SizedBox(height: 24 * s),
                                   
+                                  // BOTÓN CON DEGRADADO
                                   SizedBox(
                                     width: double.infinity,
-                                    height: 56 * s,
+                                    height: 62,
                                     child: DecoratedBox(
                                       decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(15 * s),
+                                        borderRadius: BorderRadius.circular(30),
                                         gradient: const LinearGradient(
                                           begin: Alignment.centerLeft,
                                           end: Alignment.centerRight,
@@ -392,20 +404,18 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                                         onPressed: () {
                                           FocusScope.of(context).unfocus();
                                           
-                                          final isNameValid = _nameKey.currentState?.validate() ?? false;
                                           final isEmailValid = _emailKey.currentState?.validate() ?? false;
                                           final isPasswordValid = _passwordKey.currentState?.validate() ?? false;
                                           final isConfirmValid = _confirmPasswordKey.currentState?.validate() ?? false;
 
-                                          if (isNameValid && isEmailValid && isPasswordValid && isConfirmValid && _acceptTerms) {
+                                          if (isEmailValid && isPasswordValid && isConfirmValid && _acceptTerms) {
                                             final payload = {
-                                              "nombre": _nameController.text,
                                               "email": _emailController.text,
                                               "password": _passwordController.text,
                                               "termsAccepted": true,
                                               "termsVersion": "1.0"
                                             };
-                                            print('Enviando a Spring Boot: $payload');
+                                            debugPrint('Enviando a Spring Boot: $payload');
                                           } else if (!_acceptTerms) {
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               const SnackBar(content: Text('Debes aceptar los términos y condiciones')),
@@ -417,16 +427,16 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                                           shadowColor: Colors.transparent,
                                           elevation: 0,
                                           padding: EdgeInsets.zero,
-                                          minimumSize: const Size(0, 0),
+                                          minimumSize: Size.zero,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(28 * s),
+                                            borderRadius: BorderRadius.circular(16),
                                           ),
                                         ),
                                         child: Text(
                                           'Registrarse',
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 16 * s,
-                                            fontWeight: FontWeight.w700,
+                                          style: AppFonts.style(
+                                            size: 20,
+                                            weight: FontWeight.w600,
                                             color: AppColors.creamText,
                                           ),
                                         ),
@@ -453,10 +463,10 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                                         padding: EdgeInsets.symmetric(horizontal: 16 * s),
                                         child: Text(
                                           'Or continue with',
-                                          style: GoogleFonts.poppins(
+                                          style: AppFonts.style(
+                                            size: 15,
+                                            weight: FontWeight.w500,
                                             color: AppColors.muted,
-                                            fontSize: 12 * s,
-                                            fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                       ),
@@ -489,16 +499,17 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                                     child: Text.rich(
                                       TextSpan(
                                         text: '¿Ya tienes una cuenta? ',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 14 * s,
-                                          fontWeight: FontWeight.w500,
+                                        style: AppFonts.style(
+                                          size: 16,
+                                          weight: FontWeight.w500,
                                           color: AppColors.brown.withValues(alpha: 0.75),
                                         ),
                                         children: [
                                           TextSpan(
                                             text: 'Inicia sesión',
-                                            style: GoogleFonts.poppins(
-                                              fontWeight: FontWeight.w700,
+                                            style: AppFonts.style(
+                                              size: 16,
+                                              weight: FontWeight.w700,
                                               color: AppColors.goldDark,
                                             ),
                                           ),

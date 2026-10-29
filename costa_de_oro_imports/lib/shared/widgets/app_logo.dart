@@ -7,7 +7,7 @@ class AppLogo extends StatelessWidget {
   const AppLogo({
     super.key, 
     required this.width, 
-    this.color, // <-- ESTE ERA EL PARÁMETRO QUE FALTABA
+    this.color, //
   });
 
   /// Ancho que ocupa el logo en pantalla.
