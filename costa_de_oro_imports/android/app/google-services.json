@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "183133000087",
+    "project_id": "costa-de-oro-imports-93a1a",
+    "storage_bucket": "costa-de-oro-imports-93a1a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:183133000087:android:335a49d47900a09cb7f4d2",
+        "android_client_info": {
+          "package_name": "com.example.costa_de_oro_imports"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDY7p1m8qRXctQ7s-H-Oim_oZeCPwsWhUI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
