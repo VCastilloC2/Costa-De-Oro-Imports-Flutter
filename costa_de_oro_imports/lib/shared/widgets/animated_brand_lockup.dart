@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart'; 
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../app/theme/app_colors.dart';
-import '../../app/theme/app_fonts.dart'; // <-- IMPORT DE APP FONTS
+import '../../app/theme/app_fonts.dart';
 
 class AnimatedBrandLockup extends StatefulWidget {
   const AnimatedBrandLockup({
@@ -11,7 +11,9 @@ class AnimatedBrandLockup extends StatefulWidget {
     this.play = true,
     this.startFormed = false,
     this.textScale = 1.0,
-    this.duration = const Duration(milliseconds: 3000), 
+    this.showText = true,
+    this.showHalo = true, // <-- NUEVO
+    this.duration = const Duration(milliseconds: 3000),
     this.onFinished,
   });
 
@@ -19,6 +21,12 @@ class AnimatedBrandLockup extends StatefulWidget {
   final bool play;
   final bool startFormed;
   final double textScale;
+  final bool showText;
+
+  /// false: no dibuja el halo dorado detrás del sol (útil sobre fondos
+  /// dorados, donde el halo le quita contraste al sol y a la palmera).
+  final bool showHalo; // <-- NUEVO
+
   final Duration duration;
   final VoidCallback? onFinished;
 
@@ -45,9 +53,11 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
   void initState() {
     super.initState();
     _c = AnimationController(vsync: this, duration: widget.duration);
-    _sway = AnimationController(vsync: this, duration: const Duration(seconds: 5)); 
-    
-    // Si nace formado, ponemos el valor en 1 de una vez
+    _sway = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    );
+
     if (widget.startFormed) {
       _c.value = 1;
       _sway.repeat(reverse: true);
@@ -97,7 +107,7 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
       Interval(begin, end, curve: curve).transform(_c.value);
 
   Widget _layer(String asset, double w, double h) => SvgPicture.asset(
-        'assets/icons/$asset', 
+        'assets/icons/$asset',
         width: w,
         height: h,
         fit: BoxFit.fill,
@@ -113,7 +123,7 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
         end: Alignment(x0 + 0.7, 0.5),
         colors: [
           Colors.white.withValues(alpha: 0),
-          Colors.white.withValues(alpha: 0.6), 
+          Colors.white.withValues(alpha: 0.6),
           Colors.white.withValues(alpha: 0),
         ],
       ).createShader(rect),
@@ -121,7 +131,6 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
     );
   }
 
-  // --- TIPOGRAFÍA GEIST APLICADA ---
   TextStyle _nameStyle(double spacing) => AppFonts.style(
         size: 26 * widget.textScale,
         weight: FontWeight.w800,
@@ -138,7 +147,7 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
       );
 
   TextStyle _subStyle(double spacing) => AppFonts.style(
-        size: 13 * widget.textScale,
+        size: 11 * widget.textScale,
         weight: FontWeight.w700,
         color: const Color(0xFFFFC107),
         letterSpacing: spacing,
@@ -162,14 +171,14 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
       animation: Listenable.merge([_c, _sway]),
       builder: (context, _) {
         // --- LÍNEA DE TIEMPO ---
-        final wave = _t(0.00, 0.40, Curves.easeInOutSine); 
-        final palm = _t(0.25, 0.75, Curves.elasticOut); 
-        final halo = _t(0.50, 0.85, Curves.easeInOutSine);        
-        final sun = _t(0.55, 0.90, Curves.easeInOutSine);  
+        final wave = _t(0.00, 0.40, Curves.easeInOutSine);
+        final palm = _t(0.25, 0.75, Curves.elasticOut);
+        final halo = _t(0.50, 0.85, Curves.easeInOutSine);
+        final sun = _t(0.55, 0.90, Curves.easeInOutSine);
         final name = _t(0.60, 0.95, Curves.easeInOutQuad);
         final sub = _t(0.65, 1.00, Curves.easeInOutQuad);
         final line = _t(0.75, 1.00, Curves.easeInOutQuad);
-        final shine = _t(0.60, 1.00, Curves.easeInOutSine); 
+        final shine = _t(0.60, 1.00, Curves.easeInOutSine);
 
         final swing = math.sin(_sway.value * 2 * math.pi);
 
@@ -210,14 +219,14 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
                 ),
               ),
 
-              // PALMERA (Con rebote elástico)
+              // PALMERA (con rebote elástico)
               Opacity(
                 opacity: palm.clamp(0.0, 1.0),
                 child: Transform.rotate(
                   angle: 0.035 * swing,
                   alignment: _palmBase,
                   child: Transform.scale(
-                    scale: (0.4 + 0.6 * palm).clamp(0.0, 1.15), 
+                    scale: (0.4 + 0.6 * palm).clamp(0.0, 1.15),
                     alignment: _palmBase,
                     child: _layer('logo_palm.svg', w, h),
                   ),
@@ -234,26 +243,28 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              Positioned(
-                left: w * _sunX - r,
-                top: h * _sunY - r,
-                width: r * 2,
-                height: r * 2,
-                child: Opacity(
-                  opacity: (halo * (0.9 + 0.1 * swing)).clamp(0.0, 1.0),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          AppColors.gold.withValues(alpha: 0.4), 
-                          Colors.transparent,
-                        ],
+              // HALO dorado detrás del sol (se puede apagar con showHalo)
+              if (widget.showHalo) // <-- NUEVO
+                Positioned(
+                  left: w * _sunX - r,
+                  top: h * _sunY - r,
+                  width: r * 2,
+                  height: r * 2,
+                  child: Opacity(
+                    opacity: (halo * (0.9 + 0.1 * swing)).clamp(0.0, 1.0),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            AppColors.gold.withValues(alpha: 0.4),
+                            Colors.transparent,
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
               _shimmer(mark, shine),
             ],
           ),
@@ -263,30 +274,32 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
           mainAxisSize: MainAxisSize.min,
           children: [
             logo,
-            SizedBox(height: 8 * ts),
-            Opacity(
-              opacity: name,
-              child: Text(
-                'Costa de Oro',
-                style: _nameStyle((6 - 5.5 * name) * ts),
+            if (widget.showText) ...[
+              SizedBox(height: 8 * ts),
+              Opacity(
+                opacity: name,
+                child: Text(
+                  'Costa de Oro',
+                  style: _nameStyle((6 - 5.5 * name) * ts),
+                ),
               ),
-            ),
-            Opacity(
-              opacity: sub,
-              child: Text(
-                'IMPORTS',
-                style: _subStyle((14 - 9 * sub) * ts),
+              Opacity(
+                opacity: sub,
+                child: Text(
+                  'IMPORTS',
+                  style: _subStyle((14 - 9 * sub) * ts),
+                ),
               ),
-            ),
-            SizedBox(height: 10 * ts),
-            Opacity(
-              opacity: line,
-              child: SizedBox(
-                width: 56 * ts * line,
-                height: 1.5,
-                child: const ColoredBox(color: AppColors.gold),
+              SizedBox(height: 10 * ts),
+              Opacity(
+                opacity: line,
+                child: SizedBox(
+                  width: 56 * ts * line,
+                  height: 1.5,
+                  child: const ColoredBox(color: AppColors.gold),
+                ),
               ),
-            ),
+            ],
           ],
         );
       },
