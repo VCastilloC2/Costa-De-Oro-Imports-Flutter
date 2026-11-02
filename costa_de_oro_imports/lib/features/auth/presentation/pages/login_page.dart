@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
+import '../../data/auth_repository.dart';
+import '../../../../core/network/api_client.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
@@ -26,6 +29,33 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   bool _obscurePassword = true;
   bool _acceptTerms = false;
+  bool _isLoading = false;
+  final _auth = AuthRepository(ApiClient());
+
+  Future<void> _login() async {
+    if (_isLoading) return;
+    FocusScope.of(context).unfocus();
+    final emailValid = _emailKey.currentState?.validate() ?? false;
+    final passwordValid = _passwordKey.currentState?.validate() ?? false;
+    if (!emailValid || !passwordValid) return;
+    setState(() => _isLoading = true);
+    try {
+      await _auth.login(_emailController.text, _passwordController.text);
+      if (!mounted) return;
+      context.go('/home');
+    } on DioException catch (error) {
+      if (!mounted) return;
+      final detail = error.response?.data is Map
+          ? (error.response?.data['detail']?.toString() ?? 'No fue posible iniciar sesión')
+          : 'No fue posible conectar con el servidor';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(detail)));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   // --- CONTROLADORES DE ANIMACIÓN ---
   late AnimationController _entryController;
@@ -109,7 +139,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     if (value == null || value.trim().isEmpty) {
       return 'El correo es obligatorio';
     }
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    final emailRegex = RegExp(r'^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$', caseSensitive: false);
     if (!emailRegex.hasMatch(value.trim())) {
       return 'That email doesn\'t look right';
     }
@@ -370,16 +400,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                         ),
                                       ),
                                       child: ElevatedButton(
-                                        onPressed: () {
-                                          FocusScope.of(context).unfocus();
-
-                                          final isEmailValid = _emailKey.currentState?.validate() ?? false;
-                                          final isPasswordValid = _passwordKey.currentState?.validate() ?? false;
-
-                                          if (isEmailValid && isPasswordValid && _acceptTerms) {
-                                            debugPrint('Login válido - Conectando...');
-                                          }
-                                        },
+                                        onPressed: _isLoading ? null : _login,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.transparent,
                                           shadowColor: Colors.transparent,
@@ -390,8 +411,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                             borderRadius: BorderRadius.circular(16),
                                           ),
                                         ),
-                                        child: Text(
-                                          'Sign in',
+                                        child: _isLoading
+                                            ? const CircularProgressIndicator(color: AppColors.creamText)
+                                            : Text(
+                                          'Iniciar sesión',
                                           style: AppFonts.style(
                                             size: 20,
                                             weight: FontWeight.w600,
