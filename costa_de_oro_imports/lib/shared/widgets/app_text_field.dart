@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_fonts.dart';
 
@@ -166,7 +167,8 @@ class AppTextFieldState extends State<AppTextField> {
                                 if (widget.prefixIcon != null)
                                   Padding(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 16),
+                                      horizontal: 16,
+                                    ),
                                     child: widget.prefixIcon,
                                   ),
                                 Expanded(
@@ -185,8 +187,7 @@ class AppTextFieldState extends State<AppTextField> {
                                       ),
                                       onChanged: (val) {
                                         if (widget.validator != null) {
-                                          final error =
-                                              widget.validator!(val);
+                                          final error = widget.validator!(val);
                                           setState(() {
                                             _errorText = error;
                                           });
@@ -220,7 +221,8 @@ class AppTextFieldState extends State<AppTextField> {
                                 if (widget.suffixIcon != null)
                                   Padding(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 16),
+                                      horizontal: 16,
+                                    ),
                                     child: widget.suffixIcon,
                                   ),
                               ],

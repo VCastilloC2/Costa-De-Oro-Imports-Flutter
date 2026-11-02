@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_fonts.dart';
 import 'animated_brand_lockup.dart';
@@ -38,12 +39,8 @@ class AuthHeaderCard extends StatelessWidget {
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF1E130C),
-                  AppColors.brown,
-                  Color(0xFFD4AF37),
-                ],
-                stops: [0.0, 0.7, 1.0], 
+                colors: [Color(0xFF1E130C), AppColors.brown, Color(0xFFD4AF37)],
+                stops: [0.0, 0.7, 1.0],
               ),
               boxShadow: [
                 BoxShadow(
@@ -82,7 +79,7 @@ class AuthHeaderCard extends StatelessWidget {
                 // 2. EL LOGO (Centrado Verticalmente como en tu 2da imagen)
                 Positioned(
                   right: 10 * s,
-                  top: 0,    // <-- Vuelve al centro vertical
+                  top: 0, // <-- Vuelve al centro vertical
                   bottom: 0, // <-- Vuelve al centro vertical
                   child: Center(
                     child: AnimatedBrandLockup(
@@ -90,7 +87,7 @@ class AuthHeaderCard extends StatelessWidget {
                       startFormed: true,
                       play: play,
                       showText: false,
-                      showHalo: false, 
+                      showHalo: false,
                     ),
                   ),
                 ),
@@ -101,7 +98,9 @@ class AuthHeaderCard extends StatelessWidget {
                     left: 28 * s,
                     top: 24 * s,
                     bottom: 24 * s,
-                    right: 160 * s, // Margen de seguridad para que no choque con el logo
+                    right:
+                        160 *
+                        s, // Margen de seguridad para que no choque con el logo
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,25 +109,26 @@ class AuthHeaderCard extends StatelessWidget {
                       // TÍTULO
                       Text(
                         'Costa de Oro.',
-                        style: AppFonts.style(
-                          size: 28 * s,
-                          weight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.5,
-                          height: 1.1,
-                        ).copyWith(
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withValues(alpha: 0.5),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
+                        style:
+                            AppFonts.style(
+                              size: 28 * s,
+                              weight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                              height: 1.1,
+                            ).copyWith(
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withValues(alpha: 0.5),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
                       ),
-                      
+
                       SizedBox(height: 10 * s),
-                      
+
                       // LÍNEA DORADA
                       Container(
                         width: 40 * s,
@@ -145,9 +145,9 @@ class AuthHeaderCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      
-                      SizedBox(height: 14 * s), 
-                      
+
+                      SizedBox(height: 14 * s),
+
                       // SUBTÍTULO
                       Text(
                         'Los mejores licores,\ndirecto a tu puerta.',
@@ -155,16 +155,16 @@ class AuthHeaderCard extends StatelessWidget {
                           size: 14 * s,
                           weight: FontWeight.w500,
                           color: Colors.white.withValues(alpha: 0.75),
-                          height: 1.4, 
+                          height: 1.4,
                         ),
                       ),
-                      
-                      SizedBox(height: 22 * s), 
-                      
+
+                      SizedBox(height: 22 * s),
+
                       // BADGE (Etiqueta refinada)
                       Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: 12 * s, 
+                          horizontal: 12 * s,
                           vertical: 6 * s,
                         ),
                         decoration: BoxDecoration(
@@ -180,14 +180,14 @@ class AuthHeaderCard extends StatelessWidget {
                           children: [
                             Icon(
                               Icons.local_shipping_outlined,
-                              size: 14 * s, 
+                              size: 14 * s,
                               color: AppColors.goldLight,
                             ),
                             SizedBox(width: 6 * s),
                             Text(
                               'Envío en 24h • Premium',
                               style: AppFonts.style(
-                                size: 11 * s, 
+                                size: 11 * s,
                                 weight: FontWeight.w600,
                                 color: Colors.white,
                                 letterSpacing: 0.2,

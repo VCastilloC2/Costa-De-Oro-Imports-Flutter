@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../app/theme/app_colors.dart';
 
 class TermsPage extends StatelessWidget {
@@ -24,12 +25,19 @@ class TermsPage extends StatelessWidget {
             children: [
               // --- HEADER PERSONALIZADO ---
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16 * s, vertical: 12 * s),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 16 * s,
+                  vertical: 12 * s,
+                ),
                 child: Row(
                   children: [
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.brown, size: 20),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new,
+                        color: AppColors.brown,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -43,7 +51,7 @@ class TermsPage extends StatelessWidget {
                   ],
                 ),
               ),
-              
+
               // --- CONTENIDO ---
               Expanded(
                 child: SingleChildScrollView(
@@ -58,11 +66,17 @@ class TermsPage extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: AppColors.gold.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20 * s),
-                          border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+                          border: Border.all(
+                            color: AppColors.gold.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: Column(
                           children: [
-                            const Icon(Icons.gavel_rounded, color: AppColors.goldDark, size: 40),
+                            const Icon(
+                              Icons.gavel_rounded,
+                              color: AppColors.goldDark,
+                              size: 40,
+                            ),
                             SizedBox(height: 12 * s),
                             Text(
                               'Reglas de la casa',
@@ -76,19 +90,26 @@ class TermsPage extends StatelessWidget {
                             Text(
                               'Para que todos disfruten de la mejor experiencia (y de los mejores licores), aquí te contamos cómo funciona Costa de Oro.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 14 * s, color: AppColors.brown),
+                              style: TextStyle(
+                                fontSize: 14 * s,
+                                color: AppColors.brown,
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      
+
                       SizedBox(height: 24 * s),
-                      
+
                       Text(
                         'Última actualización: 24 de Octubre de 2026',
-                        style: TextStyle(fontSize: 12 * s, color: AppColors.muted, fontStyle: FontStyle.italic),
+                        style: TextStyle(
+                          fontSize: 12 * s,
+                          color: AppColors.muted,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
-                      
+
                       SizedBox(height: 16 * s),
 
                       // Tarjetas de los Términos
@@ -140,7 +161,10 @@ class TermsPage extends StatelessWidget {
                           ),
                           child: Text(
                             'Entendido',
-                            style: TextStyle(fontSize: 16 * s, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              fontSize: 16 * s,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
