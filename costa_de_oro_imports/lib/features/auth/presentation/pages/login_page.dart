@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+
+import 'dart:async';
+
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
+
 import '../../data/auth_repository.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../home/application/dashboard_controller.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
@@ -13,14 +19,15 @@ import '../../../../shared/widgets/auth_header_card.dart'; // <-- IMPORTANTE: Wi
 import '../../../../shared/widgets/decor_circle.dart';
 import '../../../../shared/widgets/social_button.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
+class _LoginPageState extends ConsumerState<LoginPage>
+    with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -42,16 +49,21 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     try {
       await _auth.login(_emailController.text, _passwordController.text);
       if (!mounted) return;
+      // Set isLoading before navigation so Home renders its skeleton immediately.
+      unawaited(ref.read(dashboardProvider.notifier).load(force: true));
       context.go('/home');
     } on DioException catch (error) {
       if (!mounted) return;
       final detail = error.response?.data is Map
-          ? (error.response?.data['detail']?.toString() ?? 'No fue posible iniciar sesión')
+          ? (error.response?.data['detail']?.toString() ??
+                'No fue posible iniciar sesión')
           : 'No fue posible conectar con el servidor';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(detail)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(detail)));
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -139,7 +151,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     if (value == null || value.trim().isEmpty) {
       return 'El correo es obligatorio';
     }
-    final emailRegex = RegExp(r'^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$', caseSensitive: false);
+    final emailRegex = RegExp(
+      r'^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$',
+      caseSensitive: false,
+    );
     if (!emailRegex.hasMatch(value.trim())) {
       return 'That email doesn\'t look right';
     }
@@ -181,7 +196,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
             // 2. Círculo justo debajo del cuadrado a la izquierda
             Positioned(
-              top: 180 * s, 
+              top: 180 * s,
               left: -60 * s,
               child: DecorCircle(
                 diameter: 160 * s,
@@ -271,7 +286,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                   Text(
                                     'Welcome Back!',
                                     style: AppFonts.style(
-                                      size: 35, 
+                                      size: 35,
                                       weight: FontWeight.w700,
                                       color: AppColors.brownDark,
                                     ),
@@ -283,7 +298,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                     style: AppFonts.style(
                                       size: 18,
                                       weight: FontWeight.w600,
-                                      color: AppColors.brown.withValues(alpha: 0.7),
+                                      color: AppColors.brown.withValues(
+                                        alpha: 0.7,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -348,7 +365,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               child: Column(
                                 children: [
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
                                       Expanded(
                                         child: AppTermsCheckbox(
@@ -363,11 +381,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                       ),
                                       SizedBox(width: 12 * s),
                                       TextButton(
-                                        onPressed: () => context.push('/forgot-password'),
+                                        onPressed: () =>
+                                            context.push('/forgot-password'),
                                         style: TextButton.styleFrom(
                                           padding: EdgeInsets.zero,
                                           minimumSize: Size.zero,
-                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
                                         ),
                                         child: Text(
                                           'Forgot Password?',
@@ -408,19 +428,23 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                           padding: EdgeInsets.zero,
                                           minimumSize: Size.zero,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(16),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
                                           ),
                                         ),
                                         child: _isLoading
-                                            ? const CircularProgressIndicator(color: AppColors.creamText)
+                                            ? const CircularProgressIndicator(
+                                                color: AppColors.creamText,
+                                              )
                                             : Text(
-                                          'Iniciar sesión',
-                                          style: AppFonts.style(
-                                            size: 20,
-                                            weight: FontWeight.w600,
-                                            color: AppColors.creamText,
-                                          ),
-                                        ),
+                                                'Iniciar sesión',
+                                                style: AppFonts.style(
+                                                  size: 20,
+                                                  weight: FontWeight.w600,
+                                                  color: AppColors.creamText,
+                                                ),
+                                              ),
                                       ),
                                     ),
                                   ),
@@ -447,7 +471,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                         ),
                                       ),
                                       Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 16 * s),
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 16 * s,
+                                        ),
                                         child: Text(
                                           'Or continue with',
                                           style: AppFonts.style(
@@ -479,7 +505,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                       Expanded(
                                         child: SocialButton(
                                           label: 'Apple',
-                                          iconAsset: 'assets/icons/Apple_light.svg',
+                                          iconAsset:
+                                              'assets/icons/Apple_light.svg',
                                           onPressed: () {},
                                         ),
                                       ),
@@ -494,7 +521,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                         style: AppFonts.style(
                                           size: 16,
                                           weight: FontWeight.w500,
-                                          color: AppColors.brown.withValues(alpha: 0.75),
+                                          color: AppColors.brown.withValues(
+                                            alpha: 0.75,
+                                          ),
                                         ),
                                         children: [
                                           TextSpan(
