@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 
@@ -9,6 +8,7 @@ import '../../features/auth/presentation/pages/terms_page.dart';
 import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/presentation/pages/verify_code_page.dart';
 import '../../features/auth/presentation/pages/reset_password_page.dart';
+import '../../features/home/presentation/home_page.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/welcome',
@@ -25,6 +25,7 @@ final appRouter = GoRouter(
       path: '/register',
       builder: (context, state) => const RegisterPage(),
     ),
+    GoRoute(path: '/home', builder: (context, state) => const HomePage()),
     GoRoute(
       path: '/terms',
       builder: (context, state) => const TermsPage(),

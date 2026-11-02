@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
+import '../../data/auth_repository.dart';
+import '../../../../core/network/api_client.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
@@ -21,6 +24,13 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _idNumberController = TextEditingController();
+  final _auth = AuthRepository(ApiClient());
+  String _idType = 'CC';
+  bool _isLoading = false;
 
   final _emailKey = GlobalKey<AppTextFieldState>();
   final _passwordKey = GlobalKey<AppTextFieldState>();
@@ -72,6 +82,10 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _phoneController.dispose();
+    _idNumberController.dispose();
     _entryController.dispose();
     _floatController.dispose();
     super.dispose();
@@ -79,15 +93,62 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
 
   String? _validateEmail(String? value) {
     if (value == null || value.trim().isEmpty) return 'El correo es obligatorio';
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    final emailRegex = RegExp(r'^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$', caseSensitive: false);
     if (!emailRegex.hasMatch(value.trim())) return 'That email doesn\'t look right';
     return null;
   }
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) return 'La contraseña es obligatoria';
-    if (value.length < 6) return 'Debe tener al menos 6 caracteres';
     return null;
+  }
+
+  Future<void> _register() async {
+    FocusScope.of(context).unfocus();
+    final valid = (_emailKey.currentState?.validate() ?? false) &&
+        (_passwordKey.currentState?.validate() ?? false) &&
+        (_confirmPasswordKey.currentState?.validate() ?? false);
+    if (!valid) return;
+    if (_firstNameController.text.trim().isEmpty ||
+        _lastNameController.text.trim().isEmpty ||
+        _phoneController.text.trim().length < 5 ||
+        _idNumberController.text.trim().length < 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Completa nombres, apellidos, teléfono e identificación.')),
+      );
+      return;
+    }
+    if (!_acceptTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes aceptar los términos y condiciones')),
+      );
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      await _auth.register({
+        'correo': _emailController.text.trim(),
+        'password': _passwordController.text,
+        'tipoIdentificacion': _idType,
+        'numeroIdentificacion': _idNumberController.text.trim(),
+        'nombres': _firstNameController.text.trim(),
+        'apellidos': _lastNameController.text.trim(),
+        'telefono': _phoneController.text.trim(),
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cuenta creada. Ya puedes iniciar sesión.')),
+      );
+      context.go('/login');
+    } on DioException catch (error) {
+      if (!mounted) return;
+      final detail = error.response?.data is Map
+          ? error.response?.data['detail']?.toString() ?? 'No fue posible crear la cuenta'
+          : 'No fue posible conectar con el servidor';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(detail)));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   String? _validateConfirmPassword(String? value) {
@@ -143,6 +204,25 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                           ),
                           SizedBox(height: 22 * s),
 
+                          AppTextField(label: 'Nombres', hint: 'Tus nombres', controller: _firstNameController),
+                          SizedBox(height: 16 * s),
+                          AppTextField(label: 'Apellidos', hint: 'Tus apellidos', controller: _lastNameController),
+                          SizedBox(height: 16 * s),
+                          AppTextField(label: 'Teléfono', hint: 'Número de contacto', controller: _phoneController, keyboardType: TextInputType.phone),
+                          SizedBox(height: 16 * s),
+                          DropdownButtonFormField<String>(
+                            initialValue: _idType,
+                            decoration: const InputDecoration(labelText: 'Tipo de identificación'),
+                            items: const ['CC', 'CE', 'DE', 'NIT', 'PP', 'TE', 'TI']
+                                .map((value) => DropdownMenuItem(value: value, child: Text(value)))
+                                .toList(),
+                            onChanged: (value) { if (value != null) setState(() => _idType = value); },
+                          ),
+                          SizedBox(height: 16 * s),
+                          AppTextField(label: 'Número de identificación', hint: 'Número de documento', controller: _idNumberController),
+                          SizedBox(height: 16 * s),
+
+                          // --- INPUT EMAIL ---
                           FadeTransition(
                             opacity: _inputsFade,
                             child: SlideTransition(
@@ -229,23 +309,27 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                                         ),
                                       ),
                                       child: ElevatedButton(
-                                        onPressed: () {
-                                          FocusScope.of(context).unfocus();
-                                          final isEmailValid = _emailKey.currentState?.validate() ?? false;
-                                          final isPasswordValid = _passwordKey.currentState?.validate() ?? false;
-                                          final isConfirmValid = _confirmPasswordKey.currentState?.validate() ?? false;
-
-                                          if (isEmailValid && isPasswordValid && isConfirmValid && _acceptTerms) {
-                                            debugPrint('Enviando a Spring Boot...');
-                                          } else if (!_acceptTerms) {
-                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Debes aceptar los términos y condiciones')));
-                                          }
-                                        },
+                                        onPressed: _isLoading ? null : _register,
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.transparent, shadowColor: Colors.transparent, elevation: 0, padding: EdgeInsets.zero, minimumSize: Size.zero,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                          backgroundColor: Colors.transparent,
+                                          shadowColor: Colors.transparent,
+                                          elevation: 0,
+                                          padding: EdgeInsets.zero,
+                                          minimumSize: Size.zero,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
                                         ),
-                                        child: Text('Register', style: AppFonts.style(size: 20, weight: FontWeight.w600, color: AppColors.creamText)),
+                                        child: _isLoading
+                                            ? const CircularProgressIndicator(color: AppColors.creamText)
+                                            : Text(
+                                                'Registrarse',
+                                                style: AppFonts.style(
+                                                  size: 20,
+                                                  weight: FontWeight.w600,
+                                                  color: AppColors.creamText,
+                                                ),
+                                              ),
                                       ),
                                     ),
                                   ),
