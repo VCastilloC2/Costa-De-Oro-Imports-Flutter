@@ -1,12 +1,11 @@
-import 'dart:ui'; 
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+
 import 'animated_brand_lockup.dart';
 
 class BrandIntroOverlay extends StatefulWidget {
-  const BrandIntroOverlay({
-    super.key,
-    required this.onReveal,
-  });
+  const BrandIntroOverlay({super.key, required this.onReveal});
 
   final VoidCallback onReveal;
 
@@ -64,7 +63,8 @@ class _BrandIntroOverlayState extends State<BrandIntroOverlay>
           Curves.easeInOutCubic.transform(v),
         );
 
-        final currentWidth = 260 * s - (140 * s * Curves.easeInOutCubic.transform(v));
+        final currentWidth =
+            260 * s - (140 * s * Curves.easeInOutCubic.transform(v));
 
         final isDone = v >= 0.99;
 
@@ -86,9 +86,10 @@ class _BrandIntroOverlayState extends State<BrandIntroOverlay>
                       ImageFiltered(
                         imageFilter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                         child: Image.asset(
-                          'assets/images/welcome.jpg', 
+                          'assets/images/welcome.jpg',
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stack) => Container(color: const Color(0xFF14100C)),
+                          errorBuilder: (context, error, stack) =>
+                              Container(color: const Color(0xFF14100C)),
                         ),
                       ),
                       Container(
@@ -106,7 +107,7 @@ class _BrandIntroOverlayState extends State<BrandIntroOverlay>
                     ],
                   ),
                 ),
-                
+
                 // LOGO
                 Align(
                   alignment: alignment ?? Alignment.center,

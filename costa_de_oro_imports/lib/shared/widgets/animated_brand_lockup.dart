@@ -1,6 +1,8 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_fonts.dart';
 
@@ -107,11 +109,11 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
       Interval(begin, end, curve: curve).transform(_c.value);
 
   Widget _layer(String asset, double w, double h) => SvgPicture.asset(
-        'assets/icons/$asset',
-        width: w,
-        height: h,
-        fit: BoxFit.fill,
-      );
+    'assets/icons/$asset',
+    width: w,
+    height: h,
+    fit: BoxFit.fill,
+  );
 
   Widget _shimmer(Widget child, double p) {
     if (p <= 0 || p >= 1) return child;
@@ -131,7 +133,8 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
     );
   }
 
-  TextStyle _nameStyle(double spacing) => AppFonts.style(
+  TextStyle _nameStyle(double spacing) =>
+      AppFonts.style(
         size: 26 * widget.textScale,
         weight: FontWeight.w800,
         color: const Color(0xFFFFE066),
@@ -146,7 +149,8 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
         ],
       );
 
-  TextStyle _subStyle(double spacing) => AppFonts.style(
+  TextStyle _subStyle(double spacing) =>
+      AppFonts.style(
         size: 11 * widget.textScale,
         weight: FontWeight.w700,
         color: const Color(0xFFFFC107),
@@ -285,10 +289,7 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
               ),
               Opacity(
                 opacity: sub,
-                child: Text(
-                  'IMPORTS',
-                  style: _subStyle((14 - 9 * sub) * ts),
-                ),
+                child: Text('IMPORTS', style: _subStyle((14 - 9 * sub) * ts)),
               ),
               SizedBox(height: 10 * ts),
               Opacity(

@@ -10,7 +10,10 @@ class DecorCircle extends StatelessWidget {
     required this.diameter,
     this.color,
     this.gradient,
-  }) : assert(color != null || gradient != null, 'Debes proporcionar color o gradient');
+  }) : assert(
+         color != null || gradient != null,
+         'Debes proporcionar color o gradient',
+       );
 
   @override
   Widget build(BuildContext context) {
