@@ -16,6 +16,9 @@ jobs:
   build:
     name: Build, Analyze and Test Flutter
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: costa_de_oro_imports
 
     steps:
       # Descargar el código del repositorio
