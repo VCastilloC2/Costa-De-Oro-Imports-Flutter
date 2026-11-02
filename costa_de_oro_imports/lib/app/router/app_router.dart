@@ -1,6 +1,5 @@
 import 'package:go_router/go_router.dart';
 
-
 import '../../features/welcome/presentation/welcome_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
@@ -13,31 +12,25 @@ import '../../features/home/presentation/home_page.dart';
 final appRouter = GoRouter(
   initialLocation: '/welcome',
   routes: [
-    GoRoute(
-      path: '/welcome',
-      builder: (context, state) => const WelcomePage(),
-    ),
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const LoginPage(),
-    ),
+    GoRoute(path: '/welcome', builder: (context, state) => const WelcomePage()),
+    GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterPage(),
     ),
     GoRoute(path: '/home', builder: (context, state) => const HomePage()),
+    GoRoute(path: '/terms', builder: (context, state) => const TermsPage()),
     GoRoute(
-      path: '/terms',
-      builder: (context, state) => const TermsPage(),
+      path: '/forgot-password',
+      builder: (context, state) => const ForgotPasswordPage(),
     ),
-    GoRoute(path: '/forgot-password',
-    builder: (context, state) => const ForgotPasswordPage(),
+    GoRoute(
+      path: '/verify-code',
+      builder: (context, state) => const VerifyCodePage(),
     ),
-    GoRoute(path:  '/verify-code',
-    builder: (context, state) => const VerifyCodePage(),
-    ),
-    GoRoute(path: '/reset-password',
-    builder: (context, state) => const ResetPasswordPage(),
+    GoRoute(
+      path: '/reset-password',
+      builder: (context, state) => const ResetPasswordPage(),
     ),
   ],
   debugLogDiagnostics: true,

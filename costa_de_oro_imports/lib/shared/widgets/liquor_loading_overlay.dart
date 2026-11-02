@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_fonts.dart';
 
@@ -30,9 +31,10 @@ class _LiquorLoadingOverlayState extends State<LiquorLoadingOverlay>
       duration: const Duration(milliseconds: 2500),
     )..repeat(reverse: true); // Se llena y se vacía suavemente
 
-    _fillAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _fillAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -46,7 +48,9 @@ class _LiquorLoadingOverlayState extends State<LiquorLoadingOverlay>
     final s = MediaQuery.sizeOf(context).width / 390;
 
     return Material(
-      color: AppColors.cream.withValues(alpha: 0.95), // Fondo crema semitransparente
+      color: AppColors.cream.withValues(
+        alpha: 0.95,
+      ), // Fondo crema semitransparente
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -73,7 +77,7 @@ class _LiquorLoadingOverlayState extends State<LiquorLoadingOverlay>
                       ),
                     ),
                   ),
-                  
+
                   // 2. El líquido dorado que sube
                   AnimatedBuilder(
                     animation: _fillAnimation,
@@ -86,15 +90,16 @@ class _LiquorLoadingOverlayState extends State<LiquorLoadingOverlay>
                         child: Container(
                           width: double.infinity,
                           // La altura del líquido depende de la animación
-                          height: (130 * s) * _fillAnimation.value, 
+                          height: (130 * s) * _fillAnimation.value,
                           decoration: const BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                               colors: [
                                 AppColors.goldLight, // Color claro arriba
-                                AppColors.gold,      // Dorado fuerte abajo
-                                AppColors.brownDark, // Sombra en el fondo del vaso
+                                AppColors.gold, // Dorado fuerte abajo
+                                AppColors
+                                    .brownDark, // Sombra en el fondo del vaso
                               ],
                             ),
                           ),
@@ -105,9 +110,9 @@ class _LiquorLoadingOverlayState extends State<LiquorLoadingOverlay>
                 ],
               ),
             ),
-            
+
             SizedBox(height: 40 * s),
-            
+
             // --- TEXTOS ---
             Text(
               widget.title,

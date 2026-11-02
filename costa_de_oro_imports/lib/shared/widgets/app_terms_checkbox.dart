@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_fonts.dart'; // <-- NUEVO IMPORT
 
@@ -48,7 +49,7 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
       children: [
         Row(
           // Centra verticalmente el checkbox con el texto
-          crossAxisAlignment: CrossAxisAlignment.center, 
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -61,7 +62,9 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
                   color: widget.value ? AppColors.gold : Colors.white,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: widget.errorText != null ? Colors.red : AppColors.gold,
+                    color: widget.errorText != null
+                        ? Colors.red
+                        : AppColors.gold,
                     width: 1.5,
                   ),
                 ),
@@ -74,11 +77,12 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
             Expanded(
               child: Text.rich(
                 TextSpan(
-                  style: AppFonts.style( // <-- TIPOGRAFÍA GLOBAL
-                    size: 13 * s, 
+                  style: AppFonts.style(
+                    // <-- TIPOGRAFÍA GLOBAL
+                    size: 13 * s,
                     color: AppColors.brown,
-                    weight: FontWeight.w500, 
-                    height: 1.2, 
+                    weight: FontWeight.w500,
+                    height: 1.2,
                   ),
                   children: [
                     const TextSpan(text: 'Keep me '),
@@ -86,15 +90,16 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
                       text: 'signed in',
                       recognizer: _termsRecognizer,
                       // Usamos AppFonts y le añadimos el subrayado con copyWith
-                      style: AppFonts.style(
-                        size: 13 * s,
-                        color: AppColors.goldDark,
-                        weight: FontWeight.w500, 
-                      ).copyWith(
-                        decoration: TextDecoration.underline,
-                        decorationColor: AppColors.goldDark,
-                        decorationThickness: 1.5, 
-                      ),
+                      style:
+                          AppFonts.style(
+                            size: 13 * s,
+                            color: AppColors.goldDark,
+                            weight: FontWeight.w500,
+                          ).copyWith(
+                            decoration: TextDecoration.underline,
+                            decorationColor: AppColors.goldDark,
+                            decorationThickness: 1.5,
+                          ),
                     ),
                     const TextSpan(text: '.'),
                   ],
@@ -110,7 +115,7 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
             child: Text(
               widget.errorText!,
               style: AppFonts.style(
-                color: Colors.red, 
+                color: Colors.red,
                 size: 11 * s,
                 weight: FontWeight.w500,
               ),

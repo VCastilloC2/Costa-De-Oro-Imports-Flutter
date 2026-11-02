@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
 import '../../../../shared/widgets/auth_header_card.dart';
@@ -83,8 +84,9 @@ class _VerifyCodePageState extends State<VerifyCodePage>
     _resendFade = fadeAt(0.7, 1.0);
     _resendSlide = slideAt(0.7, 1.0);
 
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _entryController.forward());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _entryController.forward(),
+    );
   }
 
   @override
@@ -280,8 +282,9 @@ class _VerifyCodePageState extends State<VerifyCodePage>
                                   style: AppFonts.style(
                                     size: 17,
                                     weight: FontWeight.w500,
-                                    color:
-                                        AppColors.brown.withValues(alpha: 0.7),
+                                    color: AppColors.brown.withValues(
+                                      alpha: 0.7,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -357,8 +360,9 @@ class _VerifyCodePageState extends State<VerifyCodePage>
                                   style: AppFonts.style(
                                     size: 17,
                                     weight: FontWeight.w500,
-                                    color:
-                                        AppColors.brown.withValues(alpha: 0.7),
+                                    color: AppColors.brown.withValues(
+                                      alpha: 0.7,
+                                    ),
                                   ),
                                   children: [
                                     TextSpan(

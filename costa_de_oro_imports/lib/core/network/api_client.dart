@@ -3,22 +3,28 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiClient {
   ApiClient({Dio? dio, FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage(),
-        dio = dio ?? Dio(BaseOptions(
-          baseUrl: baseUrl,
-          connectTimeout: const Duration(seconds: 20),
-          receiveTimeout: const Duration(seconds: 30),
-          headers: const {'Accept': 'application/json'},
-        )) {
-    this.dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final token = await _storage.read(key: accessTokenKey);
-        if (token != null && token.isNotEmpty) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        handler.next(options);
-      },
-    ));
+    : _storage = storage ?? const FlutterSecureStorage(),
+      dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              baseUrl: baseUrl,
+              connectTimeout: const Duration(seconds: 20),
+              receiveTimeout: const Duration(seconds: 30),
+              headers: const {'Accept': 'application/json'},
+            ),
+          ) {
+    this.dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await _storage.read(key: accessTokenKey);
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          handler.next(options);
+        },
+      ),
+    );
   }
 
   static const baseUrl = 'https://costa-de-oro-imports-python-vatg.vercel.app';

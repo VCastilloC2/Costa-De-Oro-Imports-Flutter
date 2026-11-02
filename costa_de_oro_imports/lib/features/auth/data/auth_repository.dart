@@ -5,10 +5,12 @@ class AuthRepository {
   final ApiClient api;
 
   Future<Map<String, dynamic>> login(String email, String password) async {
-    return _saveSession(await api.post(
-      '/auth/login',
-      data: {'correo': email.trim(), 'password': password},
-    ));
+    return _saveSession(
+      await api.post(
+        '/auth/login',
+        data: {'correo': email.trim(), 'password': password},
+      ),
+    );
   }
 
   Future<Map<String, dynamic>> loginWithGoogle(String idToken) async =>
@@ -28,7 +30,9 @@ class AuthRepository {
   }
 
   Future<Map<String, dynamic>> register(Map<String, dynamic> payload) async =>
-      Map<String, dynamic>.from(await api.post('/auth/registro', data: payload) as Map);
+      Map<String, dynamic>.from(
+        await api.post('/auth/registro', data: payload) as Map,
+      );
 
   Future<Map<String, dynamic>> profile() async =>
       Map<String, dynamic>.from(await api.get('/perfil') as Map);

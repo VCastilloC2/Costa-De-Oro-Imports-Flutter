@@ -15,21 +15,25 @@ class AppSvgIcon extends StatelessWidget {
       'fill="none" stroke="#000" stroke-width="1.6" '
       'stroke-linecap="round" stroke-linejoin="round">';
 
-  static const mail = '$_open'
+  static const mail =
+      '$_open'
       '<rect width="20" height="16" x="2" y="4" rx="3"/>'
       '<path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>';
 
-  static const lock = '$_open'
+  static const lock =
+      '$_open'
       '<rect width="18" height="11" x="3" y="11" rx="3"/>'
       '<path d="M7 11V7a5 5 0 0 1 10 0v4"/>'
       '<path d="M12 16v.01"/></svg>';
 
-  static const eye = '$_open'
+  static const eye =
+      '$_open'
       '<path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 '
       '1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/>'
       '<circle cx="12" cy="12" r="3"/></svg>';
 
-  static const eyeOff = '$_open'
+  static const eyeOff =
+      '$_open'
       '<path d="M10.73 5.08a10.74 10.74 0 0 1 11.21 6.57 1 1 0 0 1 0 .7 '
       '10.75 10.75 0 0 1-1.44 2.49"/>'
       '<path d="M14.08 14.16a3 3 0 0 1-4.24-4.24"/>'

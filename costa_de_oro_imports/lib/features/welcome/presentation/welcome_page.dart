@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_fonts.dart'; 
+import '../../../app/theme/app_fonts.dart';
 import '../../../shared/widgets/animated_brand_lockup.dart';
 import '../../../shared/widgets/brand_intro_overlay.dart';
 
@@ -88,7 +89,8 @@ class _WelcomePageState extends State<WelcomePage>
               'assets/images/welcome.jpg',
               fit: BoxFit.cover,
               filterQuality: FilterQuality.high,
-              errorBuilder: (context, error, stack) => Container(color: Colors.black),
+              errorBuilder: (context, error, stack) =>
+                  Container(color: Colors.black),
             ),
           ),
           Container(
@@ -117,52 +119,55 @@ class _WelcomePageState extends State<WelcomePage>
 
                   // EL LOGO DESTINO
                   if (!_showOverlay)
-                    AnimatedBrandLockup(logoWidth: 120 * s, play: false), 
-                  
+                    AnimatedBrandLockup(logoWidth: 120 * s, play: false),
+
                   const Spacer(),
 
                   _reveal(
-                    0.20, 
+                    0.20,
                     0.60,
                     Column(
                       children: [
                         Text(
                           'Cada ocasión\nmerece lo mejor',
                           textAlign: TextAlign.center,
-                          style: AppFonts.style( // 
-                            size: 34 * s,
-                            weight: FontWeight.w700,
-                            color: Colors.white,
-                            height: 1.2,
-                          ).copyWith(
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withValues(alpha: 0.8),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
+                          style:
+                              AppFonts.style(
+                                //
+                                size: 34 * s,
+                                weight: FontWeight.w700,
+                                color: Colors.white,
+                                height: 1.2,
+                              ).copyWith(
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withValues(alpha: 0.8),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
                         ),
                         const SizedBox(height: 12),
                         Text(
                           'Descubre whiskys, tequilas y vinos importados '
                           'y recíbelos en la puerta de tu casa.',
                           textAlign: TextAlign.center,
-                          style: AppFonts.style( 
-                            size: 15 * s,
-                            weight: FontWeight.w500,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            height: 1.4,
-                          ).copyWith(
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withValues(alpha: 0.8),
-                                blurRadius: 8,
-                                offset: const Offset(0, 1),
+                          style:
+                              AppFonts.style(
+                                size: 15 * s,
+                                weight: FontWeight.w500,
+                                color: Colors.white.withValues(alpha: 0.9),
+                                height: 1.4,
+                              ).copyWith(
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withValues(alpha: 0.8),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
                         ),
                       ],
                     ),
@@ -179,11 +184,7 @@ class _WelcomePageState extends State<WelcomePage>
 
           // CAPA DE PRESENTACIÓN
           if (_showOverlay)
-            Positioned.fill(
-              child: BrandIntroOverlay(
-                onReveal: _startReveal,
-              ),
-            ),
+            Positioned.fill(child: BrandIntroOverlay(onReveal: _startReveal)),
         ],
       ),
     );
@@ -228,7 +229,8 @@ class _StartButton extends StatelessWidget {
                   child: Center(
                     child: Text(
                       'Get Started',
-                      style: AppFonts.style( // <-- TIPOGRAFÍA GEIST
+                      style: AppFonts.style(
+                        // <-- TIPOGRAFÍA GEIST
                         size: 20,
                         weight: FontWeight.w700,
                         color: AppColors.brownDark,
