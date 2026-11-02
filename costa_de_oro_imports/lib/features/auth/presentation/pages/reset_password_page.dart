@@ -149,7 +149,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> with TickerProvid
                                   ),
                                   validator: (val) {
                                     if (val == null || val.isEmpty) return 'La contraseña es obligatoria';
-                                    if (val.length < 6) return 'Debe tener al menos 6 caracteres';
                                     return null;
                                   },
                                 ),

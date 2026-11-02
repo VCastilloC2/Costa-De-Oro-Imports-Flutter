@@ -100,8 +100,6 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) return 'La contraseña es obligatoria';
-    if (value.length < 10) return 'Debe tener al menos 10 caracteres';
-    if (value.length > 128) return 'No puede superar los 128 caracteres';
     return null;
   }
 

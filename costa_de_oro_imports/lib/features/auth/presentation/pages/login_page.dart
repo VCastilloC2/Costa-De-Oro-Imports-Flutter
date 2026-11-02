@@ -163,7 +163,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) return 'La contraseña es obligatoria';
-    if (value.length < 6) return 'Debe tener al menos 6 caracteres';
     return null;
   }
 
