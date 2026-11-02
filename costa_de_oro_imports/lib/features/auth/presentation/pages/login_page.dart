@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; 
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
@@ -6,10 +7,16 @@ import '../../../../app/theme/app_fonts.dart';
 import '../../../../shared/widgets/app_svg_icon.dart';
 import '../../../../shared/widgets/app_terms_checkbox.dart';
 import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/auth_header_card.dart'; // <-- IMPORTANTE: Widget compartido
+import '../../../../shared/widgets/auth_header_card.dart';
+import '../../../../shared/widgets/auth_loading_overlay.dart';
 import '../../../../shared/widgets/decor_circle.dart';
 import '../../../../shared/widgets/social_button.dart';
 
+/// ============================================================================
+/// PANTALLA DE INICIO DE SESIÓN
+/// ============================================================================
+/// Gestiona la autenticación del usuario, validaciones en tiempo real y la
+/// transición al Dashboard.
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -26,6 +33,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   bool _obscurePassword = true;
   bool _acceptTerms = false;
+
+  /// Se activa al iniciar sesión. Mientras sea true, ningún campo de esta
+  /// pantalla puede recibir foco, así el teclado no puede reabrirse cuando se
+  /// cierra la animación de carga y se navega al Dashboard.
+  bool _leaving = false;
 
   // --- CONTROLADORES DE ANIMACIÓN ---
   late AnimationController _entryController;
@@ -106,13 +118,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'El correo es obligatorio';
-    }
+    if (value == null || value.trim().isEmpty) return 'El correo es obligatorio';
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value.trim())) {
-      return 'That email doesn\'t look right';
-    }
+    if (!emailRegex.hasMatch(value.trim())) return 'Correo inválido';
     return null;
   }
 
@@ -122,90 +130,82 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     return null;
   }
 
+  /// ==========================================================================
+  /// LÓGICA DE INICIO DE SESIÓN
+  /// ==========================================================================
+  Future<void> _submit() async {
+    // 1. Quitamos el foco visualmente
+    FocusScope.of(context).unfocus();
+    
+    // 2. Forzamos al sistema operativo a ocultar el teclado
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+
+    final isEmailValid = _emailKey.currentState?.validate() ?? false;
+    final isPasswordValid = _passwordKey.currentState?.validate() ?? false;
+    
+    if (!(isEmailValid && isPasswordValid && _acceptTerms)) return;
+
+    // 3. Bloqueamos el foco de esta pantalla mientras dura la carga y la
+    //    navegación. Así ningún campo puede recuperar el foco (y abrir el
+    //    teclado) al cerrarse la animación.
+    setState(() => _leaving = true);
+
+    // 4. Mostramos la pantalla de carga
+    try {
+      await showAuthLoading<void>(
+        context,
+        loadingText: 'Iniciando sesión',
+        successText: '¡Bienvenido!',
+        task: () async {
+          // Simulación de llamada al backend (Spring Boot)
+          await Future<void>.delayed(const Duration(milliseconds: 1500));
+        },
+      );
+    } catch (_) {
+      // Si falló el inicio de sesión, el formulario vuelve a ser editable.
+      if (mounted) setState(() => _leaving = false);
+      rethrow;
+    }
+
+    if (!mounted) return;
+    
+    // 4. Aseguramos que el teclado siga cerrado antes de ir al Dashboard
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+    context.go('/dashboard');
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = MediaQuery.sizeOf(context).width / 390;
 
-    return Scaffold(
+    return ExcludeFocus(
+      excluding: _leaving,
+      child: Scaffold(
       backgroundColor: AppColors.cream,
       body: SizedBox.expand(
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            // --- CÍRCULOS DE FONDO DEGRADADOS ---
-
-            // 1. Círculo superior derecho (Dorado)
+            // --- CÍRCULOS DECORATIVOS ---
             Positioned(
-              top: -70 * s,
-              right: -70 * s,
+              top: -70 * s, right: -70 * s,
               child: DecorCircle(
                 diameter: 280 * s,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.gold.withValues(alpha: 0.25),
-                    AppColors.gold.withValues(alpha: 0.0),
-                  ],
-                ),
+                gradient: RadialGradient(colors: [AppColors.gold.withValues(alpha: 0.25), AppColors.gold.withValues(alpha: 0.0)]),
               ),
             ),
-
-            // 2. Círculo justo debajo del cuadrado a la izquierda
             Positioned(
-              top: 180 * s, 
-              left: -60 * s,
+              top: 180 * s, left: -60 * s,
               child: DecorCircle(
                 diameter: 160 * s,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.beige.withValues(alpha: 0.6),
-                    AppColors.beige.withValues(alpha: 0.0),
-                  ],
-                ),
+                gradient: RadialGradient(colors: [AppColors.beige.withValues(alpha: 0.6), AppColors.beige.withValues(alpha: 0.0)]),
               ),
             ),
-
-            // 3. Círculo abajo a la derecha (Dorado suave)
             Positioned(
-              bottom: -40 * s,
-              right: -40 * s,
+              bottom: -40 * s, right: -40 * s,
               child: DecorCircle(
                 diameter: 220 * s,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.goldLight.withValues(alpha: 0.3),
-                    AppColors.goldLight.withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-
-            // 4. Círculo medio a la derecha
-            Positioned(
-              top: 400 * s,
-              right: -80 * s,
-              child: DecorCircle(
-                diameter: 250 * s,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.beige.withValues(alpha: 0.4),
-                    AppColors.beige.withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-
-            // 5. Círculo abajo a la izquierda
-            Positioned(
-              bottom: 50 * s,
-              left: -70 * s,
-              child: DecorCircle(
-                diameter: 200 * s,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.gold.withValues(alpha: 0.15),
-                    AppColors.gold.withValues(alpha: 0.0),
-                  ],
-                ),
+                gradient: RadialGradient(colors: [AppColors.goldLight.withValues(alpha: 0.3), AppColors.goldLight.withValues(alpha: 0.0)]),
               ),
             ),
 
@@ -214,20 +214,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    // --- TARJETA SUPERIOR COMPARTIDA ---
-                    // Aquí llamamos al widget AuthHeaderCard
+                    // Tarjeta superior
                     FadeTransition(
                       opacity: _cardFade,
                       child: SlideTransition(
                         position: _cardSlide,
-                        child: AuthHeaderCard(
-                          floatAnimation: _floatAnimation,
-                          s: s,
-                        ),
+                        child: AuthHeaderCard(floatAnimation: _floatAnimation, s: s),
                       ),
                     ),
 
-                    // --- FORMULARIO ---
+                    // Formulario
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16 * s),
                       child: Column(
@@ -238,32 +234,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               position: _titleSlide,
                               child: Column(
                                 children: [
-                                  Text(
-                                    'Welcome Back!',
-                                    style: AppFonts.style(
-                                      size: 35, 
-                                      weight: FontWeight.w700,
-                                      color: AppColors.brownDark,
-                                    ),
-                                  ),
+                                  Text('Welcome Back!', style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark)),
                                   SizedBox(height: 8 * s),
-                                  Text(
-                                    'Ingresa para disfrutar de tu licor favorito.',
-                                    textAlign: TextAlign.center,
-                                    style: AppFonts.style(
-                                      size: 18,
-                                      weight: FontWeight.w600,
-                                      color: AppColors.brown.withValues(alpha: 0.7),
-                                    ),
-                                  ),
+                                  Text('Ingresa para disfrutar de tu licor favorito.', textAlign: TextAlign.center, style: AppFonts.style(size: 18, weight: FontWeight.w600, color: AppColors.brown.withValues(alpha: 0.7))),
                                 ],
                               ),
                             ),
                           ),
-
                           SizedBox(height: 22 * s),
 
-                          // --- INPUT EMAIL ---
                           FadeTransition(
                             opacity: _emailFade,
                             child: SlideTransition(
@@ -271,7 +250,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               child: AppTextField(
                                 key: _emailKey,
                                 label: 'Email',
-                                hint: 'Enter you email',
+                                hint: 'Enter your email',
                                 controller: _emailController,
                                 keyboardType: TextInputType.emailAddress,
                                 validator: _validateEmail,
@@ -279,10 +258,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               ),
                             ),
                           ),
-
                           SizedBox(height: 16 * s),
 
-                          // --- INPUT CONTRASEÑA ---
                           FadeTransition(
                             opacity: _passwordFade,
                             child: SlideTransition(
@@ -290,25 +267,18 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               child: AppTextField(
                                 key: _passwordKey,
                                 label: 'Password',
-                                hint: 'Enter you Password',
+                                hint: 'Enter your password',
                                 controller: _passwordController,
                                 obscureText: _obscurePassword,
                                 validator: _validatePassword,
                                 prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
                                 suffixIcon: GestureDetector(
-                                  onTap: () => setState(
-                                    () => _obscurePassword = !_obscurePassword,
-                                  ),
-                                  child: AppSvgIcon(
-                                    _obscurePassword
-                                        ? AppSvgIcon.eyeOff
-                                        : AppSvgIcon.eye,
-                                  ),
+                                  onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                                  child: AppSvgIcon(_obscurePassword ? AppSvgIcon.eyeOff : AppSvgIcon.eye),
                                 ),
                               ),
                             ),
                           ),
-
                           SizedBox(height: 16 * s),
 
                           FadeTransition(
@@ -324,9 +294,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                         child: AppTermsCheckbox(
                                           value: _acceptTerms,
                                           onChanged: (val) {
-                                            setState(() {
-                                              _acceptTerms = val;
-                                            });
+                                            setState(() => _acceptTerms = val);
                                             FocusScope.of(context).unfocus();
                                           },
                                         ),
@@ -334,25 +302,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                       SizedBox(width: 12 * s),
                                       TextButton(
                                         onPressed: () => context.push('/forgot-password'),
-                                        style: TextButton.styleFrom(
-                                          padding: EdgeInsets.zero,
-                                          minimumSize: Size.zero,
-                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                        ),
-                                        child: Text(
-                                          'Forgot Password?',
-                                          style: AppFonts.style(
-                                            size: 16,
-                                            weight: FontWeight.w500,
-                                            color: AppColors.goldDark,
-                                          ),
-                                        ),
+                                        style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                                        child: Text('Forgot Password?', style: AppFonts.style(size: 16, weight: FontWeight.w500, color: AppColors.goldDark)),
                                       ),
                                     ],
                                   ),
                                   SizedBox(height: 24 * s),
 
-                                  // BOTÓN CON DEGRADADO
                                   SizedBox(
                                     width: double.infinity,
                                     height: 62,
@@ -360,44 +316,17 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(30),
                                         gradient: const LinearGradient(
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
-                                          colors: [
-                                            AppColors.brownDark,
-                                            AppColors.brown,
-                                            AppColors.goldLight,
-                                          ],
+                                          begin: Alignment.centerLeft, end: Alignment.centerRight,
+                                          colors: [AppColors.brownDark, AppColors.brown, AppColors.goldLight],
                                         ),
                                       ),
                                       child: ElevatedButton(
-                                        onPressed: () {
-                                          FocusScope.of(context).unfocus();
-
-                                          final isEmailValid = _emailKey.currentState?.validate() ?? false;
-                                          final isPasswordValid = _passwordKey.currentState?.validate() ?? false;
-
-                                          if (isEmailValid && isPasswordValid && _acceptTerms) {
-                                            debugPrint('Login válido - Conectando...');
-                                          }
-                                        },
+                                        onPressed: _submit,
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.transparent,
-                                          shadowColor: Colors.transparent,
-                                          elevation: 0,
-                                          padding: EdgeInsets.zero,
-                                          minimumSize: Size.zero,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(16),
-                                          ),
+                                          backgroundColor: Colors.transparent, shadowColor: Colors.transparent, elevation: 0, padding: EdgeInsets.zero, minimumSize: Size.zero,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                         ),
-                                        child: Text(
-                                          'Sign in',
-                                          style: AppFonts.style(
-                                            size: 20,
-                                            weight: FontWeight.w600,
-                                            color: AppColors.creamText,
-                                          ),
-                                        ),
+                                        child: Text('Sign in', style: AppFonts.style(size: 20, weight: FontWeight.w600, color: AppColors.creamText)),
                                       ),
                                     ),
                                   ),
@@ -408,7 +337,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
                           SizedBox(height: 32 * s),
 
-                          // Redes sociales y pie
+                          // Redes sociales
                           FadeTransition(
                             opacity: _socialsFade,
                             child: SlideTransition(
@@ -417,49 +346,20 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                 children: [
                                   Row(
                                     children: [
-                                      const Expanded(
-                                        child: Divider(
-                                          color: AppColors.border,
-                                          thickness: 1.5,
-                                        ),
-                                      ),
+                                      const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
                                       Padding(
                                         padding: EdgeInsets.symmetric(horizontal: 16 * s),
-                                        child: Text(
-                                          'Or continue with',
-                                          style: AppFonts.style(
-                                            size: 15,
-                                            weight: FontWeight.w500,
-                                            color: AppColors.muted,
-                                          ),
-                                        ),
+                                        child: Text('Or continue with', style: AppFonts.style(size: 15, weight: FontWeight.w500, color: AppColors.muted)),
                                       ),
-                                      const Expanded(
-                                        child: Divider(
-                                          color: AppColors.border,
-                                          thickness: 1.5,
-                                        ),
-                                      ),
+                                      const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
                                     ],
                                   ),
                                   SizedBox(height: 24 * s),
                                   Row(
                                     children: [
-                                      Expanded(
-                                        child: SocialButton(
-                                          label: 'Google',
-                                          iconAsset: 'assets/icons/google.svg',
-                                          onPressed: () {},
-                                        ),
-                                      ),
+                                      Expanded(child: SocialButton(label: 'Google', iconAsset: 'assets/icons/google.svg', onPressed: () {})),
                                       SizedBox(width: 16 * s),
-                                      Expanded(
-                                        child: SocialButton(
-                                          label: 'Apple',
-                                          iconAsset: 'assets/icons/Apple_light.svg',
-                                          onPressed: () {},
-                                        ),
-                                      ),
+                                      Expanded(child: SocialButton(label: 'Apple', iconAsset: 'assets/icons/Apple_light.svg', onPressed: () {})),
                                     ],
                                   ),
                                   SizedBox(height: 32 * s),
@@ -468,20 +368,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                     child: Text.rich(
                                       TextSpan(
                                         text: '¿No tienes una cuenta? ',
-                                        style: AppFonts.style(
-                                          size: 16,
-                                          weight: FontWeight.w500,
-                                          color: AppColors.brown.withValues(alpha: 0.75),
-                                        ),
+                                        style: AppFonts.style(size: 16, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.75)),
                                         children: [
-                                          TextSpan(
-                                            text: 'Regístrate',
-                                            style: AppFonts.style(
-                                              size: 16,
-                                              weight: FontWeight.w700,
-                                              color: AppColors.goldDark,
-                                            ),
-                                          ),
+                                          TextSpan(text: 'Regístrate', style: AppFonts.style(size: 16, weight: FontWeight.w700, color: AppColors.goldDark)),
                                         ],
                                       ),
                                     ),
@@ -501,6 +390,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           ],
         ),
       ),
+    ),
     );
   }
 }
