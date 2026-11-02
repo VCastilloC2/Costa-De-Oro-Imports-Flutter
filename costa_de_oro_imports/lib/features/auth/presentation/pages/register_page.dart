@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../../shared/widgets/app_svg_icon.dart';
 import '../../../../shared/widgets/app_terms_checkbox.dart';
 import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/auth_header_card.dart'; 
+import '../../../../shared/widgets/auth_header_card.dart';
+import '../../../../shared/widgets/auth_loading_overlay.dart';
 import '../../../../shared/widgets/decor_circle.dart';
 import '../../../../shared/widgets/social_button.dart';
+import '../providers/auth_controller.dart';
 
-class RegisterPage extends StatefulWidget {
+class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
 
   @override
-  State<RegisterPage> createState() => _RegisterPageState();
+  ConsumerState<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMixin {
+class _RegisterPageState extends ConsumerState<RegisterPage> with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -29,6 +34,7 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
+  bool _leaving = false;
 
   late AnimationController _entryController;
   late AnimationController _floatController;
@@ -96,215 +102,260 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
     return null;
   }
 
+  // ---------------------------------------------------------------------------
+  // LÓGICA DE REGISTRO CONECTADA A LA API
+  // ---------------------------------------------------------------------------
+  Future<void> _submit() async {
+    if (_leaving) return;
+
+    FocusScope.of(context).unfocus();
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+
+    final isEmailValid = _emailKey.currentState?.validate() ?? false;
+    final isPasswordValid = _passwordKey.currentState?.validate() ?? false;
+    final isConfirmValid = _confirmPasswordKey.currentState?.validate() ?? false;
+
+    if (!(isEmailValid && isPasswordValid && isConfirmValid)) return;
+
+    if (!_acceptTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes aceptar los términos y condiciones')),
+      );
+      return;
+    }
+
+    setState(() => _leaving = true);
+
+    try {
+      await showAuthLoading<void>(
+        context,
+        loadingText: 'Creando cuenta',
+        successText: '¡Bienvenido!',
+        task: () => ref.read(authControllerProvider.notifier).register(
+              correo: _emailController.text,
+              password: _passwordController.text,
+            ),
+      );
+    } on ApiException catch (e) {
+      _showError(e.message);
+      return;
+    } catch (_) {
+      _showError('Ocurrió un error inesperado.');
+      return;
+    }
+
+    if (!mounted) return;
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+    context.go('/dashboard');
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    setState(() => _leaving = false);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red.shade700, behavior: SnackBarBehavior.floating));
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = MediaQuery.sizeOf(context).width / 390;
 
-    return Scaffold(
-      backgroundColor: AppColors.cream,
-      body: SizedBox.expand(
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // Círculos
-            Positioned(top: -70 * s, right: -70 * s, child: DecorCircle(diameter: 280 * s, gradient: RadialGradient(colors: [AppColors.gold.withValues(alpha: 0.25), AppColors.gold.withValues(alpha: 0.0)]))),
-            Positioned(top: 180 * s, left: -60 * s, child: DecorCircle(diameter: 160 * s, gradient: RadialGradient(colors: [AppColors.beige.withValues(alpha: 0.6), AppColors.beige.withValues(alpha: 0.0)]))),
-            Positioned(bottom: -40 * s, right: -40 * s, child: DecorCircle(diameter: 220 * s, gradient: RadialGradient(colors: [AppColors.goldLight.withValues(alpha: 0.3), AppColors.goldLight.withValues(alpha: 0.0)]))),
+    return ExcludeFocus(
+      excluding: _leaving,
+      child: Scaffold(
+        backgroundColor: AppColors.cream,
+        body: SizedBox.expand(
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(top: -70 * s, right: -70 * s, child: DecorCircle(diameter: 280 * s, gradient: RadialGradient(colors: [AppColors.gold.withValues(alpha: 0.25), AppColors.gold.withValues(alpha: 0.0)]))),
+              Positioned(top: 180 * s, left: -60 * s, child: DecorCircle(diameter: 160 * s, gradient: RadialGradient(colors: [AppColors.beige.withValues(alpha: 0.6), AppColors.beige.withValues(alpha: 0.0)]))),
+              Positioned(bottom: -40 * s, right: -40 * s, child: DecorCircle(diameter: 220 * s, gradient: RadialGradient(colors: [AppColors.goldLight.withValues(alpha: 0.3), AppColors.goldLight.withValues(alpha: 0.0)]))),
 
-            SafeArea(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // Tarjeta superior compartida
-                    FadeTransition(
-                      opacity: _cardFade,
-                      child: SlideTransition(
-                        position: _cardSlide,
-                        child: AuthHeaderCard(floatAnimation: _floatAnimation, s: s),
+              SafeArea(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      FadeTransition(
+                        opacity: _cardFade,
+                        child: SlideTransition(
+                          position: _cardSlide,
+                          child: AuthHeaderCard(floatAnimation: _floatAnimation, s: s),
+                        ),
                       ),
-                    ),
 
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16 * s),
-                      child: Column(
-                        children: [
-                          FadeTransition(
-                            opacity: _titleFade,
-                            child: SlideTransition(
-                              position: _titleSlide,
-                              child: Column(
-                                children: [
-                                  Text('Create Account', style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark)),
-                                  SizedBox(height: 8 * s),
-                                  Text('Solo necesitamos unos segundos para empezar.', textAlign: TextAlign.center, style: AppFonts.style(size: 18, weight: FontWeight.w600, color: AppColors.brown.withValues(alpha: 0.7))),
-                                ],
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 22 * s),
-
-                          FadeTransition(
-                            opacity: _inputsFade,
-                            child: SlideTransition(
-                              position: _inputsSlide,
-                              child: AppTextField(
-                                key: _emailKey,
-                                label: 'Email',
-                                hint: 'Enter you email',
-                                controller: _emailController,
-                                keyboardType: TextInputType.emailAddress,
-                                validator: _validateEmail,
-                                prefixIcon: const AppSvgIcon(AppSvgIcon.mail),
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 16 * s),
-
-                          FadeTransition(
-                            opacity: _inputsFade,
-                            child: SlideTransition(
-                              position: _inputsSlide,
-                              child: AppTextField(
-                                key: _passwordKey,
-                                label: 'Password',
-                                hint: 'Enter you Password',
-                                controller: _passwordController,
-                                obscureText: _obscurePassword,
-                                validator: _validatePassword,
-                                prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
-                                suffixIcon: GestureDetector(
-                                  onTap: () => setState(() => _obscurePassword = !_obscurePassword),
-                                  child: AppSvgIcon(_obscurePassword ? AppSvgIcon.eyeOff : AppSvgIcon.eye),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16 * s),
+                        child: Column(
+                          children: [
+                            FadeTransition(
+                              opacity: _titleFade,
+                              child: SlideTransition(
+                                position: _titleSlide,
+                                child: Column(
+                                  children: [
+                                    Text('Create Account', style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark)),
+                                    SizedBox(height: 8 * s),
+                                    Text('Solo necesitamos unos segundos para empezar.', textAlign: TextAlign.center, style: AppFonts.style(size: 18, weight: FontWeight.w600, color: AppColors.brown.withValues(alpha: 0.7))),
+                                  ],
                                 ),
                               ),
                             ),
-                          ),
-                          SizedBox(height: 16 * s),
+                            SizedBox(height: 22 * s),
 
-                          FadeTransition(
-                            opacity: _inputsFade,
-                            child: SlideTransition(
-                              position: _inputsSlide,
-                              child: AppTextField(
-                                key: _confirmPasswordKey,
-                                label: 'Confirm Password',
-                                hint: 'Confirm your Password',
-                                controller: _confirmPasswordController,
-                                obscureText: _obscureConfirmPassword,
-                                validator: _validateConfirmPassword,
-                                prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
-                                suffixIcon: GestureDetector(
-                                  onTap: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                                  child: AppSvgIcon(_obscureConfirmPassword ? AppSvgIcon.eyeOff : AppSvgIcon.eye),
+                            FadeTransition(
+                              opacity: _inputsFade,
+                              child: SlideTransition(
+                                position: _inputsSlide,
+                                child: AppTextField(
+                                  key: _emailKey,
+                                  label: 'Email',
+                                  hint: 'Enter you email',
+                                  controller: _emailController,
+                                  keyboardType: TextInputType.emailAddress,
+                                  validator: _validateEmail,
+                                  prefixIcon: const AppSvgIcon(AppSvgIcon.mail),
                                 ),
                               ),
                             ),
-                          ),
-                          SizedBox(height: 16 * s),
+                            SizedBox(height: 16 * s),
 
-                          FadeTransition(
-                            opacity: _buttonsFade,
-                            child: SlideTransition(
-                              position: _buttonsSlide,
-                              child: Column(
-                                children: [
-                                  AppTermsCheckbox(
-                                    value: _acceptTerms,
-                                    onChanged: (val) {
-                                      setState(() => _acceptTerms = val);
-                                      FocusScope.of(context).unfocus();
-                                    },
+                            FadeTransition(
+                              opacity: _inputsFade,
+                              child: SlideTransition(
+                                position: _inputsSlide,
+                                child: AppTextField(
+                                  key: _passwordKey,
+                                  label: 'Password',
+                                  hint: 'Enter you Password',
+                                  controller: _passwordController,
+                                  obscureText: _obscurePassword,
+                                  validator: _validatePassword,
+                                  prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
+                                  suffixIcon: GestureDetector(
+                                    onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                                    child: AppSvgIcon(_obscurePassword ? AppSvgIcon.eyeOff : AppSvgIcon.eye),
                                   ),
-                                  SizedBox(height: 24 * s),
-                                  
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 62,
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(30),
-                                        gradient: const LinearGradient(
-                                          begin: Alignment.centerLeft, end: Alignment.centerRight,
-                                          colors: [AppColors.brownDark, AppColors.brown, AppColors.goldLight],
-                                        ),
-                                      ),
-                                      child: ElevatedButton(
-                                        onPressed: () {
-                                          FocusScope.of(context).unfocus();
-                                          final isEmailValid = _emailKey.currentState?.validate() ?? false;
-                                          final isPasswordValid = _passwordKey.currentState?.validate() ?? false;
-                                          final isConfirmValid = _confirmPasswordKey.currentState?.validate() ?? false;
-
-                                          if (isEmailValid && isPasswordValid && isConfirmValid && _acceptTerms) {
-                                            debugPrint('Enviando a Spring Boot...');
-                                          } else if (!_acceptTerms) {
-                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Debes aceptar los términos y condiciones')));
-                                          }
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.transparent, shadowColor: Colors.transparent, elevation: 0, padding: EdgeInsets.zero, minimumSize: Size.zero,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                        ),
-                                        child: Text('Register', style: AppFonts.style(size: 20, weight: FontWeight.w600, color: AppColors.creamText)),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
-                          ),
-                          SizedBox(height: 22 * s),
+                            SizedBox(height: 16 * s),
 
-                          FadeTransition(
-                            opacity: _socialsFade,
-                            child: SlideTransition(
-                              position: _socialsSlide,
-                              child: Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
-                                      Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 16 * s),
-                                        child: Text('Or continue with', style: AppFonts.style(size: 15, weight: FontWeight.w500, color: AppColors.muted)),
-                                      ),
-                                      const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
-                                    ],
+                            FadeTransition(
+                              opacity: _inputsFade,
+                              child: SlideTransition(
+                                position: _inputsSlide,
+                                child: AppTextField(
+                                  key: _confirmPasswordKey,
+                                  label: 'Confirm Password',
+                                  hint: 'Confirm your Password',
+                                  controller: _confirmPasswordController,
+                                  obscureText: _obscureConfirmPassword,
+                                  validator: _validateConfirmPassword,
+                                  prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
+                                  suffixIcon: GestureDetector(
+                                    onTap: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                                    child: AppSvgIcon(_obscureConfirmPassword ? AppSvgIcon.eyeOff : AppSvgIcon.eye),
                                   ),
-                                  SizedBox(height: 24 * s),
-                                  Row(
-                                    children: [
-                                      Expanded(child: SocialButton(label: 'Google', iconAsset: 'assets/icons/google.svg', onPressed: () {})),
-                                      SizedBox(width: 16 * s),
-                                      Expanded(child: SocialButton(label: 'Apple', iconAsset: 'assets/icons/Apple_light.svg', onPressed: () {})),
-                                    ],
-                                  ),
-                                  SizedBox(height: 22 * s),
-                                  GestureDetector(
-                                    onTap: () => context.go('/login'),
-                                    child: Text.rich(
-                                      TextSpan(
-                                        text: '¿Ya tienes una cuenta? ',
-                                        style: AppFonts.style(size: 16, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.75)),
-                                        children: [
-                                          TextSpan(text: 'Inicia sesión', style: AppFonts.style(size: 16, weight: FontWeight.w700, color: AppColors.goldDark)),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(height: 40 * s),
-                                ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                            SizedBox(height: 16 * s),
+
+                            FadeTransition(
+                              opacity: _buttonsFade,
+                              child: SlideTransition(
+                                position: _buttonsSlide,
+                                child: Column(
+                                  children: [
+                                    AppTermsCheckbox(
+                                      value: _acceptTerms,
+                                      onChanged: (val) {
+                                        setState(() => _acceptTerms = val);
+                                        FocusScope.of(context).unfocus();
+                                      },
+                                    ),
+                                    SizedBox(height: 24 * s),
+                                    
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 62,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(30),
+                                          gradient: const LinearGradient(
+                                            begin: Alignment.centerLeft, end: Alignment.centerRight,
+                                            colors: [AppColors.brownDark, AppColors.brown, AppColors.goldLight],
+                                          ),
+                                        ),
+                                        child: ElevatedButton(
+                                          onPressed: _leaving ? null : _submit,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.transparent, shadowColor: Colors.transparent, elevation: 0, padding: EdgeInsets.zero, minimumSize: Size.zero,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                          ),
+                                          child: Text('Register', style: AppFonts.style(size: 20, weight: FontWeight.w600, color: AppColors.creamText)),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 22 * s),
+
+                            FadeTransition(
+                              opacity: _socialsFade,
+                              child: SlideTransition(
+                                position: _socialsSlide,
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
+                                        Padding(
+                                          padding: EdgeInsets.symmetric(horizontal: 16 * s),
+                                          child: Text('Or continue with', style: AppFonts.style(size: 15, weight: FontWeight.w500, color: AppColors.muted)),
+                                        ),
+                                        const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
+                                      ],
+                                    ),
+                                    SizedBox(height: 24 * s),
+                                    Row(
+                                      children: [
+                                        Expanded(child: SocialButton(label: 'Google', iconAsset: 'assets/icons/google.svg', onPressed: () {})),
+                                        SizedBox(width: 16 * s),
+                                        Expanded(child: SocialButton(label: 'Apple', iconAsset: 'assets/icons/Apple_light.svg', onPressed: () {})),
+                                      ],
+                                    ),
+                                    SizedBox(height: 22 * s),
+                                    GestureDetector(
+                                      onTap: () => context.go('/login'),
+                                      child: Text.rich(
+                                        TextSpan(
+                                          text: '¿Ya tienes una cuenta? ',
+                                          style: AppFonts.style(size: 16, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.75)),
+                                          children: [
+                                            TextSpan(text: 'Inicia sesión', style: AppFonts.style(size: 16, weight: FontWeight.w700, color: AppColors.goldDark)),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(height: 40 * s),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

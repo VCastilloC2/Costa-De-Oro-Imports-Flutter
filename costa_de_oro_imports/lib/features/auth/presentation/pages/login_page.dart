@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; 
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
@@ -11,20 +12,23 @@ import '../../../../shared/widgets/auth_header_card.dart';
 import '../../../../shared/widgets/auth_loading_overlay.dart';
 import '../../../../shared/widgets/decor_circle.dart';
 import '../../../../shared/widgets/social_button.dart';
+import 'package:costa_de_oro_imports/core/network/api_exception.dart';
+import 'package:costa_de_oro_imports/features/auth/presentation/providers/auth_controller.dart';
 
 /// ============================================================================
 /// PANTALLA DE INICIO DE SESIÓN
 /// ============================================================================
 /// Gestiona la autenticación del usuario, validaciones en tiempo real y la
 /// transición al Dashboard.
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
+class _LoginPageState extends ConsumerState<LoginPage>
+    with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -150,21 +154,23 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     //    teclado) al cerrarse la animación.
     setState(() => _leaving = true);
 
-    // 4. Mostramos la pantalla de carga
+    // 4. Mostramos la pantalla de carga mientras se llama a la API real
     try {
       await showAuthLoading<void>(
         context,
         loadingText: 'Iniciando sesión',
         successText: '¡Bienvenido!',
-        task: () async {
-          // Simulación de llamada al backend (Spring Boot)
-          await Future<void>.delayed(const Duration(milliseconds: 1500));
-        },
+        task: () => ref.read(authControllerProvider.notifier).login(
+              correo: _emailController.text,
+              password: _passwordController.text,
+            ),
       );
+    } on ApiException catch (e) {
+      _showLoginError(e.message);
+      return;
     } catch (_) {
-      // Si falló el inicio de sesión, el formulario vuelve a ser editable.
-      if (mounted) setState(() => _leaving = false);
-      rethrow;
+      _showLoginError('Ocurrió un error inesperado. Inténtalo de nuevo.');
+      return;
     }
 
     if (!mounted) return;
@@ -172,6 +178,22 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     // 4. Aseguramos que el teclado siga cerrado antes de ir al Dashboard
     SystemChannels.textInput.invokeMethod('TextInput.hide');
     context.go('/dashboard');
+  }
+
+  /// Si falló el inicio de sesión, el formulario vuelve a ser editable y se
+  /// muestra el motivo (contraseña incorrecta, sin conexión, etc.).
+  void _showLoginError(String message) {
+    if (!mounted) return;
+    setState(() => _leaving = false);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   @override
