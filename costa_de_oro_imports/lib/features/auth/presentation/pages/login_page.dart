@@ -6,6 +6,7 @@ import '../../../../app/theme/app_fonts.dart';
 import '../../../../shared/widgets/app_svg_icon.dart';
 import '../../../../shared/widgets/app_terms_checkbox.dart';
 import '../../../../shared/widgets/app_text_field.dart';
+import '../../../../shared/widgets/auth_header_card.dart'; // <-- IMPORTANTE: Widget compartido
 import '../../../../shared/widgets/decor_circle.dart';
 import '../../../../shared/widgets/social_button.dart';
 
@@ -148,7 +149,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               ),
             ),
 
-            // 2. Círculo justo debajo del cuadrado a la izquierda (Ajustado a la nueva altura de 185)
+            // 2. Círculo justo debajo del cuadrado a la izquierda
             Positioned(
               top: 180 * s, 
               left: -60 * s,
@@ -178,7 +179,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               ),
             ),
 
-            // 4. NUEVO: Círculo medio a la derecha (Da equilibrio)
+            // 4. Círculo medio a la derecha
             Positioned(
               top: 400 * s,
               right: -80 * s,
@@ -193,7 +194,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               ),
             ),
 
-            // 5. NUEVO: Círculo abajo a la izquierda (Cerca del botón y redes)
+            // 5. Círculo abajo a la izquierda
             Positioned(
               bottom: 50 * s,
               left: -70 * s,
@@ -213,101 +214,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    // --- TARJETA SUPERIOR ---
+                    // --- TARJETA SUPERIOR COMPARTIDA ---
+                    // Aquí llamamos al widget AuthHeaderCard
                     FadeTransition(
                       opacity: _cardFade,
                       child: SlideTransition(
                         position: _cardSlide,
-                        child: AnimatedBuilder(
-                          animation: _floatAnimation,
-                          builder: (context, child) {
-                            return Transform.translate(
-                              offset: Offset(0, _floatAnimation.value),
-                              child: child,
-                            );
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            height: 185 * s, 
-                            margin: EdgeInsets.only(
-                              top: 16 * s,
-                              left: 16 * s,
-                              right: 16 * s,
-                              bottom: 24 * s,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(32 * s),
-                              gradient: const LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  AppColors.brownDark,
-                                  AppColors.brown,
-                                  AppColors.goldLight,
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color:
-                                      AppColors.brown.withValues(alpha: 0.3),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 24 * s,
-                                vertical: 16 * s,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Costa de Oro.',
-                                    style: AppFonts.style(
-                                      size: 32, 
-                                      weight: FontWeight.w800,
-                                      color: AppColors.creamText,
-                                    ),
-                                  ),
-                                  SizedBox(height: 4 * s),
-                                  Text(
-                                    'Los mejores licores,\ndirecto a tu puerta.',
-                                    style: AppFonts.style(
-                                      size: 15, 
-                                      weight: FontWeight.w600,
-                                      color: AppColors.creamText
-                                          .withValues(alpha: 0.9),
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                  SizedBox(height: 12 * s),
-                                  Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 12 * s,
-                                      vertical: 6 * s,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius:
-                                          BorderRadius.circular(20 * s),
-                                    ),
-                                    child: Text(
-                                      'Envío en 24h • Premium',
-                                      style: AppFonts.style(
-                                        size: 13, 
-                                        weight: FontWeight.w600,
-                                        color: AppColors.brownDark,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                        child: AuthHeaderCard(
+                          floatAnimation: _floatAnimation,
+                          s: s,
                         ),
                       ),
                     ),
@@ -338,8 +253,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                     style: AppFonts.style(
                                       size: 18,
                                       weight: FontWeight.w600,
-                                      color: AppColors.brown
-                                          .withValues(alpha: 0.7),
+                                      color: AppColors.brown.withValues(alpha: 0.7),
                                     ),
                                   ),
                                 ],
@@ -404,8 +318,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               child: Column(
                                 children: [
                                   Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
                                       Expanded(
                                         child: AppTermsCheckbox(
@@ -424,8 +337,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                         style: TextButton.styleFrom(
                                           padding: EdgeInsets.zero,
                                           minimumSize: Size.zero,
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
+                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                         ),
                                         child: Text(
                                           'Forgot Password?',
@@ -446,8 +358,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                     height: 62,
                                     child: DecoratedBox(
                                       decoration: BoxDecoration(
-                                        borderRadius:
-                                            BorderRadius.circular(30),
+                                        borderRadius: BorderRadius.circular(30),
                                         gradient: const LinearGradient(
                                           begin: Alignment.centerLeft,
                                           end: Alignment.centerRight,
@@ -462,20 +373,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                         onPressed: () {
                                           FocusScope.of(context).unfocus();
 
-                                          final isEmailValid = _emailKey
-                                                  .currentState
-                                                  ?.validate() ??
-                                              false;
-                                          final isPasswordValid =
-                                              _passwordKey.currentState
-                                                      ?.validate() ??
-                                                  false;
+                                          final isEmailValid = _emailKey.currentState?.validate() ?? false;
+                                          final isPasswordValid = _passwordKey.currentState?.validate() ?? false;
 
-                                          if (isEmailValid &&
-                                              isPasswordValid &&
-                                              _acceptTerms) {
-                                            debugPrint(
-                                                'Login válido - Conectando...');
+                                          if (isEmailValid && isPasswordValid && _acceptTerms) {
+                                            debugPrint('Login válido - Conectando...');
                                           }
                                         },
                                         style: ElevatedButton.styleFrom(
@@ -485,12 +387,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                           padding: EdgeInsets.zero,
                                           minimumSize: Size.zero,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(16),
+                                            borderRadius: BorderRadius.circular(16),
                                           ),
                                         ),
                                         child: Text(
-                                          'Log In',
+                                          'Sign in',
                                           style: AppFonts.style(
                                             size: 20,
                                             weight: FontWeight.w600,
@@ -523,8 +424,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                         ),
                                       ),
                                       Padding(
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 16 * s),
+                                        padding: EdgeInsets.symmetric(horizontal: 16 * s),
                                         child: Text(
                                           'Or continue with',
                                           style: AppFonts.style(
@@ -556,8 +456,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                       Expanded(
                                         child: SocialButton(
                                           label: 'Apple',
-                                          iconAsset:
-                                              'assets/icons/Apple_light.svg',
+                                          iconAsset: 'assets/icons/Apple_light.svg',
                                           onPressed: () {},
                                         ),
                                       ),
@@ -572,8 +471,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                         style: AppFonts.style(
                                           size: 16,
                                           weight: FontWeight.w500,
-                                          color: AppColors.brown
-                                              .withValues(alpha: 0.75),
+                                          color: AppColors.brown.withValues(alpha: 0.75),
                                         ),
                                         children: [
                                           TextSpan(

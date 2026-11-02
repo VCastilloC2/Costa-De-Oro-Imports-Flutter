@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
+import '../../../../shared/widgets/auth_header_card.dart';
 import '../../../../shared/widgets/decor_circle.dart';
 
 class VerifyCodePage extends StatefulWidget {
@@ -12,33 +13,178 @@ class VerifyCodePage extends StatefulWidget {
   State<VerifyCodePage> createState() => _VerifyCodePageState();
 }
 
-class _VerifyCodePageState extends State<VerifyCodePage> {
+class _VerifyCodePageState extends State<VerifyCodePage>
+    with TickerProviderStateMixin {
   final int _codeLength = 5;
   late List<TextEditingController> _controllers;
   late List<FocusNode> _focusNodes;
+
+  late AnimationController _floatController;
+  late AnimationController _entryController;
+  late Animation<double> _floatAnimation;
+
+  late Animation<double> _backFade,
+      _cardFade,
+      _titleFade,
+      _otpFade,
+      _buttonFade,
+      _resendFade;
+  late Animation<Offset> _backSlide,
+      _cardSlide,
+      _titleSlide,
+      _otpSlide,
+      _buttonSlide,
+      _resendSlide;
 
   @override
   void initState() {
     super.initState();
     _controllers = List.generate(_codeLength, (_) => TextEditingController());
     _focusNodes = List.generate(_codeLength, (_) => FocusNode());
+
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat(reverse: true);
+    _floatAnimation = Tween<double>(begin: -6.0, end: 6.0).animate(
+      CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
+    );
+
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+
+    Animation<double> fadeAt(double start, double end) =>
+        Tween<double>(begin: 0.0, end: 1.0).animate(
+          CurvedAnimation(
+            parent: _entryController,
+            curve: Interval(start, end, curve: Curves.easeOut),
+          ),
+        );
+    Animation<Offset> slideAt(double start, double end) =>
+        Tween<Offset>(begin: const Offset(0, -0.2), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _entryController,
+            curve: Interval(start, end, curve: Curves.easeOutCubic),
+          ),
+        );
+
+    _backFade = fadeAt(0.0, 0.3);
+    _backSlide = slideAt(0.0, 0.3);
+    _cardFade = fadeAt(0.1, 0.4);
+    _cardSlide = slideAt(0.1, 0.4);
+    _titleFade = fadeAt(0.25, 0.5);
+    _titleSlide = slideAt(0.25, 0.5);
+    _otpFade = fadeAt(0.4, 0.7);
+    _otpSlide = slideAt(0.4, 0.7);
+    _buttonFade = fadeAt(0.55, 0.85);
+    _buttonSlide = slideAt(0.55, 0.85);
+    _resendFade = fadeAt(0.7, 1.0);
+    _resendSlide = slideAt(0.7, 1.0);
+
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _entryController.forward());
   }
 
   @override
   void dispose() {
-    for (var controller in _controllers) {
+    for (final controller in _controllers) {
       controller.dispose();
     }
-    for (var node in _focusNodes) {
+    for (final node in _focusNodes) {
       node.dispose();
     }
+    _floatController.dispose();
+    _entryController.dispose();
     super.dispose();
   }
 
   void _verify() {
     FocusScope.of(context).unfocus();
-    // Aquí validarías contra Spring Boot
     context.push('/reset-password');
+  }
+
+  /// Un cuadro del código. Llena su altura (expands) y toma una proporción
+  /// casi cuadrada del ancho que le toca (AspectRatio).
+  Widget _otpBox(int index) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: AspectRatio(
+          aspectRatio: 0.92,
+          child: Focus(
+            // Retroceso en un cuadro vacío: vuelve al anterior y lo borra.
+            onKeyEvent: (node, event) {
+              if (event is KeyDownEvent &&
+                  event.logicalKey == LogicalKeyboardKey.backspace &&
+                  _controllers[index].text.isEmpty &&
+                  index > 0) {
+                _focusNodes[index - 1].requestFocus();
+                _controllers[index - 1].clear();
+                return KeyEventResult.handled;
+              }
+              return KeyEventResult.ignored;
+            },
+            child: ListenableBuilder(
+              listenable: _controllers[index],
+              builder: (context, _) {
+                final filled = _controllers[index].text.isNotEmpty;
+
+                return TextFormField(
+                  controller: _controllers[index],
+                  focusNode: _focusNodes[index],
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  textAlignVertical: TextAlignVertical.center,
+                  expands: true,
+                  maxLines: null,
+                  minLines: null,
+                  cursorColor: AppColors.goldDark,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(1),
+                  ],
+                  style: AppFonts.style(
+                    size: 26,
+                    weight: FontWeight.w600,
+                    color: AppColors.brownDark,
+                  ),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: EdgeInsets.zero,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: filled ? AppColors.gold : AppColors.beige,
+                        width: 1.5,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                        color: AppColors.goldDark,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  onChanged: (value) {
+                    if (value.isNotEmpty && index < _codeLength - 1) {
+                      _focusNodes[index + 1].requestFocus();
+                    } else if (value.isNotEmpty && index == _codeLength - 1) {
+                      FocusScope.of(context).unfocus();
+                    } else if (value.isEmpty && index > 0) {
+                      _focusNodes[index - 1].requestFocus();
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -49,7 +195,6 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
       backgroundColor: AppColors.cream,
       body: Stack(
         children: [
-          // Fondo con halo dorado sutil
           Positioned(
             top: -70 * s,
             right: -70 * s,
@@ -63,181 +208,175 @@ class _VerifyCodePageState extends State<VerifyCodePage> {
               ),
             ),
           ),
-          
           SafeArea(
             child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: 24 * s, vertical: 16 * s),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- HEADER ---
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        onPressed: () => context.pop(),
-                        icon: const Icon(Icons.arrow_back, color: AppColors.brownDark),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          padding: EdgeInsets.all(12 * s),
-                          side: const BorderSide(color: AppColors.beige, width: 1.5),
+                  FadeTransition(
+                    opacity: _backFade,
+                    child: SlideTransition(
+                      position: _backSlide,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 24 * s,
+                          vertical: 8 * s,
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            onPressed: () => context.pop(),
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: AppColors.brownDark,
+                            ),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              side: const BorderSide(
+                                color: AppColors.beige,
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                      Text(
-                        'Costa de Oro.',
-                        style: AppFonts.style(
-                          size: 20,
-                          weight: FontWeight.w800,
-                          color: AppColors.brownDark,
-                        ),
+                    ),
+                  ),
+
+                  FadeTransition(
+                    opacity: _cardFade,
+                    child: SlideTransition(
+                      position: _cardSlide,
+                      child: AuthHeaderCard(
+                        floatAnimation: _floatAnimation,
+                        s: s,
                       ),
-                    ],
-                  ),
-                  
-                  SizedBox(height: 40 * s),
-
-                  // --- TÍTULOS ---
-                  Text(
-                    'Verify your account',
-                    style: AppFonts.style(
-                      size: 35,
-                      weight: FontWeight.w700,
-                      color: AppColors.brownDark,
                     ),
                   ),
-                  SizedBox(height: 8 * s),
-                  Text(
-                    'Enter the 5-digit code sent to your email.',
-                    style: AppFonts.style(
-                      size: 18,
-                      weight: FontWeight.w500,
-                      color: AppColors.brown.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  
-                  SizedBox(height: 40 * s),
 
-                  // --- CAJITAS OTP ---
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(_codeLength, (index) {
-                      return Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4 * s),
-                          child: SizedBox(
-                            height: 75 * s, // Más altas (como en la imagen 2)
-                            child: TextFormField(
-                              controller: _controllers[index],
-                              focusNode: _focusNodes[index],
-                              keyboardType: TextInputType.number,
-                              textAlign: TextAlign.center,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24 * s),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        FadeTransition(
+                          opacity: _titleFade,
+                          child: SlideTransition(
+                            position: _titleSlide,
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Verify your account',
+                                  textAlign: TextAlign.center,
+                                  style: AppFonts.style(
+                                    size: 35,
+                                    weight: FontWeight.w700,
+                                    color: AppColors.brownDark,
+                                  ),
+                                ),
+                                SizedBox(height: 8 * s),
+                                Text(
+                                  'Enter the 5-digit code sent to your email.',
+                                  textAlign: TextAlign.center,
+                                  style: AppFonts.style(
+                                    size: 17,
+                                    weight: FontWeight.w500,
+                                    color:
+                                        AppColors.brown.withValues(alpha: 0.7),
+                                  ),
+                                ),
                               ],
-                              style: AppFonts.style(
-                                size: 28, // Letra más grande
-                                weight: FontWeight.w700,
-                                color: AppColors.brownDark,
-                              ),
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: Colors.white,
-                                contentPadding: EdgeInsets.zero,
-                                // Borde normal (sin foco)
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16 * s),
-                                  borderSide: const BorderSide(
-                                    color: AppColors.beige, 
-                                    width: 1.5,
-                                  ),
-                                ),
-                                // Borde enfocado (activo) - Más grueso y Dorado
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16 * s),
-                                  borderSide: const BorderSide(
-                                    color: AppColors.goldDark, 
-                                    width: 2.5, // Mucho más grueso
-                                  ),
-                                ),
-                              ),
-                              onChanged: (value) {
-                                if (value.isNotEmpty && index < _codeLength - 1) {
-                                  _focusNodes[index + 1].requestFocus();
-                                } else if (value.isEmpty && index > 0) {
-                                  _focusNodes[index - 1].requestFocus();
-                                }
-                              },
                             ),
                           ),
                         ),
-                      );
-                    }),
-                  ),
-                  
-                  SizedBox(height: 40 * s),
+                        SizedBox(height: 32 * s),
 
-                  // --- BOTÓN VERIFICAR ---
-                  SizedBox(
-                    width: double.infinity,
-                    height: 62,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(30),
-                        gradient: const LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            AppColors.brownDark,
-                            AppColors.brown,
-                            AppColors.goldLight,
-                          ],
-                        ),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: _verify,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                        ),
-                        child: Text(
-                          'Verification',
-                          style: AppFonts.style(
-                            size: 20,
-                            weight: FontWeight.w600,
-                            color: AppColors.creamText,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  SizedBox(height: 32 * s),
-
-                  // --- TEXTO DE REENVÍO ---
-                  Center(
-                    child: Text.rich(
-                      TextSpan(
-                        text: "Don't received code? ",
-                        style: AppFonts.style(
-                          size: 15,
-                          weight: FontWeight.w500,
-                          color: AppColors.brown.withValues(alpha: 0.7),
-                        ),
-                        children: [
-                          TextSpan(
-                            text: 'Resend Now',
-                            style: AppFonts.style(
-                              size: 15,
-                              weight: FontWeight.w700,
-                              color: AppColors.goldDark,
+                        // Cuadros del código
+                        FadeTransition(
+                          opacity: _otpFade,
+                          child: SlideTransition(
+                            position: _otpSlide,
+                            child: Row(
+                              children: List.generate(_codeLength, _otpBox),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        SizedBox(height: 32 * s),
+
+                        FadeTransition(
+                          opacity: _buttonFade,
+                          child: SlideTransition(
+                            position: _buttonSlide,
+                            child: SizedBox(
+                              width: double.infinity,
+                              height: 62,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(30),
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                    colors: [
+                                      AppColors.brownDark,
+                                      AppColors.brown,
+                                      AppColors.goldLight,
+                                    ],
+                                  ),
+                                ),
+                                child: ElevatedButton(
+                                  onPressed: _verify,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Verification',
+                                    style: AppFonts.style(
+                                      size: 20,
+                                      weight: FontWeight.w600,
+                                      color: AppColors.creamText,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 24 * s),
+                        FadeTransition(
+                          opacity: _resendFade,
+                          child: SlideTransition(
+                            position: _resendSlide,
+                            child: Center(
+                              child: Text.rich(
+                                TextSpan(
+                                  text: "Don't received code? ",
+                                  style: AppFonts.style(
+                                    size: 17,
+                                    weight: FontWeight.w500,
+                                    color:
+                                        AppColors.brown.withValues(alpha: 0.7),
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: 'Resend Now',
+                                      style: AppFonts.style(
+                                        size: 17,
+                                        weight: FontWeight.w700,
+                                        color: AppColors.goldDark,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 24 * s),
+                      ],
                     ),
                   ),
                 ],

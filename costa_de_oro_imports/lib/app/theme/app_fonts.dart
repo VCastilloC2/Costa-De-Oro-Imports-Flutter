@@ -13,11 +13,11 @@ class AppFonts {
     double? letterSpacing,
   }) {
     return GoogleFonts.geist(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-      height: height,
-      letterSpacing: letterSpacing,
+      fontSize: size, // tamanio
+      fontWeight: weight, // ancho
+      color: color, // color
+      height: height, // altura
+      letterSpacing: letterSpacing, // espacio de las letras
     );
   }
 }
