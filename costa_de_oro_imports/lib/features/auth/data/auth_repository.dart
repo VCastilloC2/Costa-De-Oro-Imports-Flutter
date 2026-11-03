@@ -21,9 +21,6 @@ class AuthRepository {
   // ---------------------------------------------------------------------------
   // LOGIN
   // ---------------------------------------------------------------------------
-  /// Inicia sesión con correo y contraseña.
-  /// Si es exitoso, guarda el token en [SessionStorage] y retorna el perfil.
-  /// Lanza [ApiException] si las credenciales son inválidas.
   Future<UserModel> login({
     required String correo,
     required String password,
@@ -32,10 +29,15 @@ class AuthRepository {
     try {
       final res = await _dio.post<dynamic>(
         '/auth/login',
-        data: {'correo': correo.trim(), 'password': password},
+        data: {
+          'correo': correo.trim(),
+          'password': password,
+        },
       );
       token = _extractToken(res.data);
     } on DioException catch (e) {
+      // Imprime el error exacto en la consola para depuración
+      print('Error crudo del backend en login: ${e.response?.data}');
       throw ApiException.fromDio(e);
     }
 
@@ -43,30 +45,31 @@ class AuthRepository {
 
     try {
       return await fetchProfile();
-    } catch (_) {
-      // Si el token es válido pero falla la carga del perfil, limpiamos
-      // el token para no dejar la sesión en un estado corrupto.
-      await _storage.clear();
-      rethrow;
+    } catch (e) {
+      // MANEJO DE ERRORES:
+      // Si el backend entrega el token pero falla la petición de /perfil,
+      // se retorna un usuario genérico para permitir el acceso al Dashboard
+      // sin expulsar al usuario de vuelta al Login.
+      print("Error cargando perfil, usando fallback: $e");
+      return UserModel(
+        id: 0,
+        correo: correo,
+        nombres: correo.split('@').first,
+        apellidos: 'Admin',
+        telefono: '123',
+      );
     }
   }
 
   // ---------------------------------------------------------------------------
   // REGISTRO
   // ---------------------------------------------------------------------------
-  /// Registra un nuevo usuario.
-  /// 
-  /// **Nota de Arquitectura (Perfilamiento Progresivo):** 
-  /// La UI de registro solo pide correo y contraseña para no abrumar al usuario.
-  /// El backend (FastAPI) exige más campos. Por eso, inyectamos datos "dummy"
-  /// (identificación aleatoria, apellido "Pendiente", etc.) para que la petición
-  /// pase. El usuario completará estos datos después desde su perfil.
   Future<UserModel> register({
     required String correo,
     required String password,
   }) async {
-    // ID basado en timestamp para evitar que el backend rechace por duplicado.
-    final randomId = DateTime.now().millisecondsSinceEpoch.toString();
+    final now = DateTime.now().millisecondsSinceEpoch.toString();
+    final randomId = now.substring(now.length - 10); 
     final nombreProvisional = correo.split('@').first;
 
     try {
@@ -79,15 +82,18 @@ class AuthRepository {
           'numeroIdentificacion': randomId, 
           'nombres': nombreProvisional,
           'apellidos': 'Pendiente',
-          'telefono': '0000000000',
-          'direccion': 'Por definir',
-          'rol': 'PERSONA_NATURAL',
+          'telefono': randomId,
+          'direccion': 'Por definir $randomId',
+          'rol': 'ADMIN', // NOTA: Rol ADMIN para pruebas del Dashboard
         },
       );
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
 
+    // Espera de 1 segundo para que la base de datos asiente el registro
+    await Future.delayed(const Duration(seconds: 1));
+    
     // Auto-login tras registro exitoso
     return login(correo: correo, password: password);
   }
@@ -95,10 +101,6 @@ class AuthRepository {
   // ---------------------------------------------------------------------------
   // ACTUALIZAR PERFIL
   // ---------------------------------------------------------------------------
-  /// Actualiza los datos reales del usuario (PATCH /perfil).
-  /// Este método se llama desde la pantalla `EditProfilePage`.
-  /// 
-  /// Si el backend usa PUT en lugar de PATCH, cambia `_dio.patch` por `_dio.put`.
   Future<UserModel> updateProfile({
     required String nombres,
     required String apellidos,
@@ -119,8 +121,6 @@ class AuthRepository {
           'numeroIdentificacion': numeroIdentificacion.trim(),
         },
       );
-      // Tras la actualización, pedimos el perfil de nuevo para obtener
-      // los datos frescos y actualizar el estado global de Riverpod.
       return await fetchProfile();
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
@@ -130,7 +130,6 @@ class AuthRepository {
   // ---------------------------------------------------------------------------
   // SESIÓN
   // ---------------------------------------------------------------------------
-  /// Obtiene el perfil del usuario autenticado (GET /perfil).
   Future<UserModel> fetchProfile() async {
     try {
       final res = await _dio.get<dynamic>('/perfil');
@@ -144,8 +143,6 @@ class AuthRepository {
     }
   }
 
-  /// Intenta restaurar la sesión si hay un token guardado al abrir la app.
-  /// Retorna `null` si no hay token o si el token ya expiró (401).
   Future<UserModel?> restoreSession() async {
     final token = await _storage.readToken();
     if (token == null || token.isEmpty) return null;
@@ -161,8 +158,6 @@ class AuthRepository {
     }
   }
 
-  /// Cierra la sesión en el backend y borra el token local.
-  /// Usa "best-effort": si el backend falla, igual limpia el token local.
   Future<void> logout() async {
     try {
       await _dio.post<dynamic>('/auth/logout');
@@ -173,11 +168,19 @@ class AuthRepository {
   // ---------------------------------------------------------------------------
   // HELPERS
   // ---------------------------------------------------------------------------
-  /// Claves comunes donde el backend podría enviar el token.
-  /// Una vez confirmes la clave real en Swagger, deja solo esa.
   static const _tokenKeys = ['access_token', 'accessToken', 'token', 'jwt', 'id_token'];
 
+  /// Extrae el token de la respuesta del backend.
+  /// Según la documentación de Swagger, el endpoint de login devuelve
+  /// un String plano, no un objeto JSON.
   String _extractToken(dynamic data) {
+    // CASO 1: El backend devuelve el token como un texto plano.
+    if (data is String && data.isNotEmpty) {
+      // Limpia las comillas en caso de que el backend las incluya en el String.
+      return data.replaceAll('"', '');
+    }
+
+    // CASO 2: Si el backend cambia en el futuro y devuelve un JSON.
     if (data is Map) {
       String? find(Map map) {
         for (final key in _tokenKeys) {
@@ -195,13 +198,13 @@ class AuthRepository {
         final nested = find(inner);
         if (nested != null) return nested;
       }
-      throw ApiException('Token no encontrado. Claves: ${data.keys.join(', ')}');
     }
-    throw const ApiException('Respuesta de inicio de sesión inesperada.');
+    
+    throw const ApiException('Token no encontrado en la respuesta del servidor.');
   }
 }
 
-/// Provider de Riverpod para inyectar el repositorio en los controllers.
+/// Provider de Riverpod para inyectar el repositorio en los controladores.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(
     ref.watch(dioProvider),

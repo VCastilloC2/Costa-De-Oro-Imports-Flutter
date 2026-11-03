@@ -22,7 +22,8 @@ class RegisterPage extends ConsumerStatefulWidget {
   ConsumerState<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _RegisterPageState extends ConsumerState<RegisterPage> with TickerProviderStateMixin {
+class _RegisterPageState extends ConsumerState<RegisterPage>
+    with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -102,9 +103,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> with TickerProvider
     return null;
   }
 
-  // ---------------------------------------------------------------------------
-  // LÓGICA DE REGISTRO CONECTADA A LA API
-  // ---------------------------------------------------------------------------
   Future<void> _submit() async {
     if (_leaving) return;
 
@@ -146,7 +144,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> with TickerProvider
 
     if (!mounted) return;
     SystemChannels.textInput.invokeMethod('TextInput.hide');
-    context.go('/dashboard');
+    
+    // IMPORTANTE: No se utiliza context.go('/dashboard') aquí.
+    // El GoRouter detecta el cambio de estado y redirige automáticamente.
   }
 
   void _showError(String message) {
@@ -228,7 +228,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> with TickerProvider
                                 child: AppTextField(
                                   key: _passwordKey,
                                   label: 'Password',
-                                  hint: 'Enter you Password',
+                                  hint: 'Mínimo 5 caracteres',
                                   controller: _passwordController,
                                   obscureText: _obscurePassword,
                                   validator: _validatePassword,

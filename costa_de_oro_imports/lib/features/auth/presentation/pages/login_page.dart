@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../../shared/widgets/app_svg_icon.dart';
 import '../../../../shared/widgets/app_terms_checkbox.dart';
 import '../../../../shared/widgets/app_text_field.dart';
@@ -12,14 +13,8 @@ import '../../../../shared/widgets/auth_header_card.dart';
 import '../../../../shared/widgets/auth_loading_overlay.dart';
 import '../../../../shared/widgets/decor_circle.dart';
 import '../../../../shared/widgets/social_button.dart';
-import 'package:costa_de_oro_imports/core/network/api_exception.dart';
-import 'package:costa_de_oro_imports/features/auth/presentation/providers/auth_controller.dart';
+import '../providers/auth_controller.dart';
 
-/// ============================================================================
-/// PANTALLA DE INICIO DE SESIÓN
-/// ============================================================================
-/// Gestiona la autenticación del usuario, validaciones en tiempo real y la
-/// transición al Dashboard.
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
@@ -37,13 +32,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   bool _obscurePassword = true;
   bool _acceptTerms = false;
-
-  /// Se activa al iniciar sesión. Mientras sea true, ningún campo de esta
-  /// pantalla puede recibir foco, así el teclado no puede reabrirse cuando se
-  /// cierra la animación de carga y se navega al Dashboard.
   bool _leaving = false;
 
-  // --- CONTROLADORES DE ANIMACIÓN ---
   late AnimationController _entryController;
   late AnimationController _floatController;
 
@@ -134,14 +124,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
     return null;
   }
 
-  /// ==========================================================================
-  /// LÓGICA DE INICIO DE SESIÓN
-  /// ==========================================================================
   Future<void> _submit() async {
-    // 1. Quitamos el foco visualmente
-    FocusScope.of(context).unfocus();
+    if (_leaving) return;
     
-    // 2. Forzamos al sistema operativo a ocultar el teclado
+    FocusScope.of(context).unfocus();
     SystemChannels.textInput.invokeMethod('TextInput.hide');
 
     final isEmailValid = _emailKey.currentState?.validate() ?? false;
@@ -149,12 +135,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
     
     if (!(isEmailValid && isPasswordValid && _acceptTerms)) return;
 
-    // 3. Bloqueamos el foco de esta pantalla mientras dura la carga y la
-    //    navegación. Así ningún campo puede recuperar el foco (y abrir el
-    //    teclado) al cerrarse la animación.
     setState(() => _leaving = true);
 
-    // 4. Mostramos la pantalla de carga mientras se llama a la API real
     try {
       await showAuthLoading<void>(
         context,
@@ -174,14 +156,12 @@ class _LoginPageState extends ConsumerState<LoginPage>
     }
 
     if (!mounted) return;
-    
-    // 4. Aseguramos que el teclado siga cerrado antes de ir al Dashboard
     SystemChannels.textInput.invokeMethod('TextInput.hide');
-    context.go('/dashboard');
+    
+    // IMPORTANTE: No se utiliza context.go('/dashboard') aquí.
+    // El GoRouter detecta el cambio de estado en AuthController y redirige de forma automática.
   }
 
-  /// Si falló el inicio de sesión, el formulario vuelve a ser editable y se
-  /// muestra el motivo (contraseña incorrecta, sin conexión, etc.).
   void _showLoginError(String message) {
     if (!mounted) return;
     setState(() => _leaving = false);
@@ -208,7 +188,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            // --- CÍRCULOS DECORATIVOS ---
             Positioned(
               top: -70 * s, right: -70 * s,
               child: DecorCircle(
@@ -231,12 +210,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
               ),
             ),
 
-            // --- CONTENIDO PRINCIPAL ---
             SafeArea(
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    // Tarjeta superior
                     FadeTransition(
                       opacity: _cardFade,
                       child: SlideTransition(
@@ -245,7 +222,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
                       ),
                     ),
 
-                    // Formulario
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16 * s),
                       child: Column(
@@ -343,7 +319,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                         ),
                                       ),
                                       child: ElevatedButton(
-                                        onPressed: _submit,
+                                        onPressed: _leaving ? null : _submit,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.transparent, shadowColor: Colors.transparent, elevation: 0, padding: EdgeInsets.zero, minimumSize: Size.zero,
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -359,7 +335,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
                           SizedBox(height: 32 * s),
 
-                          // Redes sociales
                           FadeTransition(
                             opacity: _socialsFade,
                             child: SlideTransition(

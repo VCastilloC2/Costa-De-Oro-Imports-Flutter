@@ -61,7 +61,7 @@ class UserProfilePage extends ConsumerWidget {
               ),
               SizedBox(height: 24 * s),
 
-              // Tarjeta del usuario (Avatar, Nombre, Correo)
+              // Tarjeta del usuario
               Container(
                 padding: EdgeInsets.all(20 * s),
                 decoration: BoxDecoration(
@@ -71,7 +71,6 @@ class UserProfilePage extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    // Avatar generado dinámicamente con iniciales
                     Container(
                       width: 56 * s, height: 56 * s,
                       decoration: const BoxDecoration(color: AppColors.beige, shape: BoxShape.circle),
@@ -89,7 +88,6 @@ class UserProfilePage extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    // Botón de editar perfil
                     GestureDetector(
                       onTap: () => context.push('/edit-profile'),
                       child: Container(
@@ -102,8 +100,7 @@ class UserProfilePage extends ConsumerWidget {
                 ),
               ),
               
-              // --- BANNER DE PERFIL INCOMPLETO (Perfilamiento Progresivo) ---
-              // Solo se muestra si el usuario tiene los datos dummy del registro.
+              // Banner de Perfil Incompleto
               if (user?.isProfileIncomplete ?? false) ...[
                 SizedBox(height: 16 * s),
                 GestureDetector(
@@ -165,15 +162,14 @@ class UserProfilePage extends ConsumerWidget {
                   _buildDivider(),
                   _buildMenuItem(icon: Icons.help_outline_rounded, title: 'Obtener ayuda', subtitle: 'Preguntas frecuentes', onTap: () {}, s: s),
                   _buildDivider(),
-                  // Botón de Logout conectado a Riverpod.
-                  // No necesita context.go, el router reacciona solo.
+                  // Botón que abre el BottomSheet de confirmación
                   _buildMenuItem(
                     icon: Icons.logout_rounded,
                     title: 'Cerrar sesión',
                     subtitle: null,
                     iconColor: Colors.redAccent,
                     textColor: Colors.redAccent,
-                    onTap: () async => await ref.read(authControllerProvider.notifier).logout(),
+                    onTap: () => _showLogoutBottomSheet(context, ref, s),
                     s: s,
                   ),
                 ],
@@ -186,8 +182,98 @@ class UserProfilePage extends ConsumerWidget {
     );
   }
 
-  // --- WIDGETS AUXILIARES PARA MANTENER EL CÓDIGO LIMPIO (DRY) ---
-  
+  // ==========================================================================
+  // MODAL DE CONFIRMACIÓN (BOTTOM SHEET)
+  // ==========================================================================
+  void _showLogoutBottomSheet(BuildContext context, WidgetRef ref, double s) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (bottomSheetContext) {
+        return Container(
+          padding: EdgeInsets.all(24 * s),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9F6F0), // Fondo crema
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32 * s)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Línea decorativa superior
+              Container(
+                width: 40 * s,
+                height: 4 * s,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 24 * s),
+              
+              Text(
+                'Cerrar sesión',
+                style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark),
+              ),
+              SizedBox(height: 12 * s),
+              
+              Text(
+                '¿Estás seguro que deseas cerrar sesión?',
+                textAlign: TextAlign.center,
+                style: AppFonts.style(size: 14 * s, weight: FontWeight.w500, color: AppColors.muted),
+              ),
+              SizedBox(height: 32 * s),
+              
+              // Botones de Cancelar y Confirmar
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(bottomSheetContext),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: AppColors.border, width: 1.5),
+                        padding: EdgeInsets.symmetric(vertical: 16 * s),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16 * s)),
+                      ),
+                      child: Text(
+                        'Cancelar', 
+                        style: AppFonts.style(size: 15 * s, weight: FontWeight.w600, color: AppColors.brownDark),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 16 * s),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(bottomSheetContext); // Cierra el modal
+                        ref.read(authControllerProvider.notifier).logout(); // Ejecuta el logout
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent.withValues(alpha: 0.1),
+                        foregroundColor: Colors.redAccent,
+                        elevation: 0,
+                        padding: EdgeInsets.symmetric(vertical: 16 * s),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16 * s)),
+                      ),
+                      child: Text(
+                        'Sí, cerrar sesión', 
+                        style: AppFonts.style(size: 15 * s, weight: FontWeight.w700, color: Colors.redAccent),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16 * s),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ==========================================================================
+  // WIDGETS AUXILIARES
+  // ==========================================================================
   Widget _buildSectionTitle(String title, double s) {
     return Padding(
       padding: EdgeInsets.only(left: 8 * s),
