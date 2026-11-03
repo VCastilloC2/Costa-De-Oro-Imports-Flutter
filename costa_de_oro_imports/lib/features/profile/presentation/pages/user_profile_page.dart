@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
 import '../../../../shared/widgets/app_bottom_nav_bar.dart';
@@ -95,8 +96,11 @@ class UserProfilePage extends ConsumerWidget {
                       decoration: const BoxDecoration(color: AppColors.cream, shape: BoxShape.circle),
                       child: const Icon(Icons.edit_outlined, size: 20, color: AppColors.brownDark),
                     ),
-                  ],
-                ),
+                  ),
+                  SizedBox(width: 16 * s),
+                  Text('Perfil', style: AppFonts.style(size: 24 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
+                  const Spacer(),
+                ],
               ),
               SizedBox(height: 24 * s),
 
