@@ -92,7 +92,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> with TickerProvider
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) return 'La contraseña es obligatoria';
-    if (value.length < 6) return 'Debe tener al menos 6 caracteres';
+    if (value.length < 5) return 'Debe tener al menos 5 caracteres';
     return null;
   }
 
