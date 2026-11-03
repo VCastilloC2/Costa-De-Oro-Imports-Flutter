@@ -5,16 +5,23 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
 import '../../../../shared/widgets/app_bottom_nav_bar.dart';
-import '../../../../features/auth/presentation/providers/auth_controller.dart'; 
+import '../../../../features/auth/presentation/providers/auth_controller.dart';
 
-class UserProfilePage extends ConsumerWidget { 
+/// ============================================================================
+/// PANTALLA: UserProfilePage
+/// ============================================================================
+/// Muestra la información del usuario y las opciones de configuración.
+/// Implementa el "Perfilamiento Progresivo": si el usuario tiene datos
+/// incompletos (registro rápido), muestra un banner para motivarlo a
+/// completar su perfil antes de hacer un pedido.
+class UserProfilePage extends ConsumerWidget {
   const UserProfilePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = MediaQuery.sizeOf(context).width / 390;
     
-    // Obtenemos el usuario real desde Riverpod
+    // Observamos el estado global para obtener los datos reales del usuario.
     final user = ref.watch(authControllerProvider).user;
 
     return Scaffold(
@@ -54,7 +61,7 @@ class UserProfilePage extends ConsumerWidget {
               ),
               SizedBox(height: 24 * s),
 
-              // Tarjeta del usuario
+              // Tarjeta del usuario (Avatar, Nombre, Correo)
               Container(
                 padding: EdgeInsets.all(20 * s),
                 decoration: BoxDecoration(
@@ -64,44 +71,67 @@ class UserProfilePage extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
+                    // Avatar generado dinámicamente con iniciales
                     Container(
-                      width: 56 * s,
-                      height: 56 * s,
+                      width: 56 * s, height: 56 * s,
                       decoration: const BoxDecoration(color: AppColors.beige, shape: BoxShape.circle),
                       alignment: Alignment.center,
-                      child: Text(
-                        user?.initials ?? 'U', // <-- Datos reales del backend
-                        style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark),
-                      ),
+                      child: Text(user?.initials ?? 'U', style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
                     ),
                     SizedBox(width: 16 * s),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            user?.fullName ?? 'Usuario', // <-- Datos reales del backend
-                            style: AppFonts.style(size: 18 * s, weight: FontWeight.w700, color: AppColors.brownDark),
-                          ),
+                          Text(user?.fullName ?? 'Usuario', style: AppFonts.style(size: 18 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
                           SizedBox(height: 4 * s),
-                          Text(
-                            user?.correo ?? 'correo@ejemplo.com', // <-- Datos reales del backend
-                            style: AppFonts.style(size: 13 * s, weight: FontWeight.w500, color: AppColors.muted),
-                          ),
+                          Text(user?.correo ?? 'correo@ejemplo.com', style: AppFonts.style(size: 13 * s, weight: FontWeight.w500, color: AppColors.muted)),
                         ],
                       ),
                     ),
-                    Container(
-                      padding: EdgeInsets.all(10 * s),
-                      decoration: const BoxDecoration(color: AppColors.cream, shape: BoxShape.circle),
-                      child: const Icon(Icons.edit_outlined, size: 20, color: AppColors.brownDark),
+                    // Botón de editar perfil
+                    GestureDetector(
+                      onTap: () => context.push('/edit-profile'),
+                      child: Container(
+                        padding: EdgeInsets.all(10 * s),
+                        decoration: const BoxDecoration(color: AppColors.cream, shape: BoxShape.circle),
+                        child: const Icon(Icons.edit_outlined, size: 20, color: AppColors.brownDark),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // --- BANNER DE PERFIL INCOMPLETO (Perfilamiento Progresivo) ---
+              // Solo se muestra si el usuario tiene los datos dummy del registro.
+              if (user?.isProfileIncomplete ?? false) ...[
+                SizedBox(height: 16 * s),
+                GestureDetector(
+                  onTap: () => context.push('/edit-profile'),
+                  child: Container(
+                    padding: EdgeInsets.all(16 * s),
+                    decoration: BoxDecoration(
+                      color: AppColors.goldLight.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(16 * s),
+                      border: Border.all(color: AppColors.goldDark.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: AppColors.goldDark),
+                        SizedBox(width: 12 * s),
+                        Expanded(
+                          child: Text(
+                            'Completa tus datos personales para agilizar tus envíos.',
+                            style: AppFonts.style(size: 13 * s, weight: FontWeight.w600, color: AppColors.brownDark),
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.goldDark),
+                      ],
                     ),
                   ),
-                  SizedBox(width: 16 * s),
-                  Text('Perfil', style: AppFonts.style(size: 24 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
-                  const Spacer(),
-                ],
-              ),
+                ),
+              ],
+
               SizedBox(height: 24 * s),
 
               // Sección 1: Mi cuenta
@@ -110,7 +140,7 @@ class UserProfilePage extends ConsumerWidget {
               _buildSectionCard(
                 s: s,
                 children: [
-                  _buildMenuItem(icon: Icons.person_outline_rounded, title: 'Detalles de la cuenta', subtitle: 'Gestiona tu información personal', onTap: () {}, s: s),
+                  _buildMenuItem(icon: Icons.person_outline_rounded, title: 'Detalles de la cuenta', subtitle: 'Gestiona tu información personal', onTap: () => context.push('/edit-profile'), s: s),
                   _buildDivider(),
                   _buildMenuItem(icon: Icons.payment_outlined, title: 'Historial de pagos', subtitle: 'Revisa tus pedidos anteriores', onTap: () {}, s: s),
                   _buildDivider(),
@@ -121,7 +151,7 @@ class UserProfilePage extends ConsumerWidget {
               ),
               SizedBox(height: 32 * s),
 
-              // Sección 2: Soporte y Legal (con Logout)
+              // Sección 2: Soporte y Legal
               _buildSectionTitle('Soporte y Legal', s),
               SizedBox(height: 12 * s),
               _buildSectionCard(
@@ -135,20 +165,15 @@ class UserProfilePage extends ConsumerWidget {
                   _buildDivider(),
                   _buildMenuItem(icon: Icons.help_outline_rounded, title: 'Obtener ayuda', subtitle: 'Preguntas frecuentes', onTap: () {}, s: s),
                   _buildDivider(),
-                  
-                  // --- BOTÓN DE CERRAR SESIÓN CONECTADO A RIVERPOD ---
+                  // Botón de Logout conectado a Riverpod.
+                  // No necesita context.go, el router reacciona solo.
                   _buildMenuItem(
                     icon: Icons.logout_rounded,
                     title: 'Cerrar sesión',
                     subtitle: null,
                     iconColor: Colors.redAccent,
                     textColor: Colors.redAccent,
-                    onTap: () async {
-                      // 1. Borra el token y cambia el estado global
-                      await ref.read(authControllerProvider.notifier).logout();
-                      // 2. El GoRouter detectará el cambio y te mandará al login solo.
-                      // No hace falta context.go('/login').
-                    },
+                    onTap: () async => await ref.read(authControllerProvider.notifier).logout(),
                     s: s,
                   ),
                 ],
@@ -161,7 +186,8 @@ class UserProfilePage extends ConsumerWidget {
     );
   }
 
-  // Widgets auxiliares (Igual que antes)
+  // --- WIDGETS AUXILIARES PARA MANTENER EL CÓDIGO LIMPIO (DRY) ---
+  
   Widget _buildSectionTitle(String title, double s) {
     return Padding(
       padding: EdgeInsets.only(left: 8 * s),
