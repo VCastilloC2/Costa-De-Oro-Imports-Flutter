@@ -84,7 +84,7 @@ class AuthRepository {
           'apellidos': 'Pendiente',
           'telefono': randomId,
           'direccion': 'Por definir $randomId',
-          'rol': 'ADMIN', 
+          'rol': 'PERSONA_NATURAL', 
         },
       );
     } on DioException catch (e) {
