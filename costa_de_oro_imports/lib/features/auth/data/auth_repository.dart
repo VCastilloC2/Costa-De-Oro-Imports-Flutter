@@ -1,3 +1,11 @@
+// RAMA: feature/Auth
+// ============================================================================
+// REPOSITORIO: AuthRepository
+// ============================================================================
+// Capa de datos encargada de comunicarse con los endpoints de autenticación.
+// Maneja el almacenamiento del token JWT y la conversión de excepciones HTTP.
+// ============================================================================
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,12 +14,6 @@ import 'package:costa_de_oro_imports/core/network/api_exception.dart';
 import 'package:costa_de_oro_imports/core/storage/session_storage.dart';
 import 'package:costa_de_oro_imports/features/auth/data/models/user_model.dart';
 
-/// ============================================================================
-/// REPOSITORIO: AuthRepository
-/// ============================================================================
-/// Es la única capa que conoce las URLs del backend, el manejo de tokens
-/// y el formato de las peticiones HTTP. Las pantallas nunca deben usar Dio
-/// directamente, solo llamar a estos métodos.
 class AuthRepository {
   AuthRepository(this._dio, this._storage);
 
@@ -21,6 +23,8 @@ class AuthRepository {
   // ---------------------------------------------------------------------------
   // LOGIN
   // ---------------------------------------------------------------------------
+  /// Envía las credenciales al backend. Si la respuesta es exitosa, extrae el
+  /// token y los datos del usuario, guardando el token localmente.
   Future<UserModel> login({
     required String correo,
     required String password,
@@ -34,36 +38,32 @@ class AuthRepository {
           'password': password,
         },
       );
-      token = _extractToken(res.data);
+      
+      final data = res.data;
+      token = _extractToken(data);
+
+      // El backend devuelve el objeto 'usuario' dentro del login.
+      // Se extrae directamente para evitar peticiones adicionales a /perfil.
+      if (data is Map && data['usuario'] is Map<String, dynamic>) {
+        await _storage.saveToken(token);
+        return UserModel.fromJson(data['usuario']);
+      }
+      
     } on DioException catch (e) {
-      // Imprime el error exacto en la consola para depuración
       print('Error crudo del backend en login: ${e.response?.data}');
       throw ApiException.fromDio(e);
     }
 
+    // Respaldo: Si el backend no anida el usuario, se solicita a /perfil.
     await _storage.saveToken(token);
-
-    try {
-      return await fetchProfile();
-    } catch (e) {
-      // MANEJO DE ERRORES:
-      // Si el backend entrega el token pero falla la petición de /perfil,
-      // se retorna un usuario genérico para permitir el acceso al Dashboard
-      // sin expulsar al usuario de vuelta al Login.
-      print("Error cargando perfil, usando fallback: $e");
-      return UserModel(
-        id: 0,
-        correo: correo,
-        nombres: correo.split('@').first,
-        apellidos: 'Admin',
-        telefono: '123',
-      );
-    }
+    return await fetchProfile();
   }
 
   // ---------------------------------------------------------------------------
   // REGISTRO
   // ---------------------------------------------------------------------------
+  /// Crea un nuevo usuario. El backend requiere múltiples campos, por lo que
+  /// se inyectan datos genéricos que el usuario completará en feature/Profile.
   Future<UserModel> register({
     required String correo,
     required String password,
@@ -84,23 +84,23 @@ class AuthRepository {
           'apellidos': 'Pendiente',
           'telefono': randomId,
           'direccion': 'Por definir $randomId',
-          'rol': 'ADMIN', // NOTA: Rol ADMIN para pruebas del Dashboard
+          'rol': 'ADMIN', 
         },
       );
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
 
-    // Espera de 1 segundo para que la base de datos asiente el registro
+    // Pausa para asegurar la transacción en la base de datos antes del auto-login.
     await Future.delayed(const Duration(seconds: 1));
     
-    // Auto-login tras registro exitoso
     return login(correo: correo, password: password);
   }
 
   // ---------------------------------------------------------------------------
   // ACTUALIZAR PERFIL
   // ---------------------------------------------------------------------------
+  /// Método utilizado por feature/Profile para actualizar los datos del usuario.
   Future<UserModel> updateProfile({
     required String nombres,
     required String apellidos,
@@ -170,17 +170,14 @@ class AuthRepository {
   // ---------------------------------------------------------------------------
   static const _tokenKeys = ['access_token', 'accessToken', 'token', 'jwt', 'id_token'];
 
-  /// Extrae el token de la respuesta del backend.
-  /// Según la documentación de Swagger, el endpoint de login devuelve
-  /// un String plano, no un objeto JSON.
+  /// Extrae el token JWT de la respuesta del servidor.
   String _extractToken(dynamic data) {
-    // CASO 1: El backend devuelve el token como un texto plano.
+    // Caso 1: El backend devuelve un String plano.
     if (data is String && data.isNotEmpty) {
-      // Limpia las comillas en caso de que el backend las incluya en el String.
       return data.replaceAll('"', '');
     }
 
-    // CASO 2: Si el backend cambia en el futuro y devuelve un JSON.
+    // Caso 2: El backend devuelve un objeto JSON.
     if (data is Map) {
       String? find(Map map) {
         for (final key in _tokenKeys) {
@@ -204,7 +201,7 @@ class AuthRepository {
   }
 }
 
-/// Provider de Riverpod para inyectar el repositorio en los controladores.
+/// Provider de Riverpod para inyección de dependencias.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(
     ref.watch(dioProvider),
