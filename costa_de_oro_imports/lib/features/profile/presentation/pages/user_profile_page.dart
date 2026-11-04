@@ -1,3 +1,13 @@
+// RAMA: feature/Profile
+// ============================================================================
+// PANTALLA: UserProfilePage
+// ============================================================================
+// Muestra la información del usuario y las opciones de configuración.
+// Implementa el "Perfilamiento Progresivo": si el usuario tiene datos
+// incompletos (registro rápido), muestra un banner para motivarlo a
+// completar su perfil antes de hacer un pedido.
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,13 +17,6 @@ import '../../../../app/theme/app_fonts.dart';
 import '../../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../../../features/auth/presentation/providers/auth_controller.dart';
 
-/// ============================================================================
-/// PANTALLA: UserProfilePage
-/// ============================================================================
-/// Muestra la información del usuario y las opciones de configuración.
-/// Implementa el "Perfilamiento Progresivo": si el usuario tiene datos
-/// incompletos (registro rápido), muestra un banner para motivarlo a
-/// completar su perfil antes de hacer un pedido.
 class UserProfilePage extends ConsumerWidget {
   const UserProfilePage({super.key});
 
@@ -39,7 +42,7 @@ class UserProfilePage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
+              // HEADER
               Row(
                 children: [
                   GestureDetector(
@@ -61,7 +64,7 @@ class UserProfilePage extends ConsumerWidget {
               ),
               SizedBox(height: 24 * s),
 
-              // Tarjeta del usuario
+              // TARJETA DEL USUARIO
               Container(
                 padding: EdgeInsets.all(20 * s),
                 decoration: BoxDecoration(
@@ -100,29 +103,53 @@ class UserProfilePage extends ConsumerWidget {
                 ),
               ),
               
-              // Banner de Perfil Incompleto
+              // BANNER DE PERFIL INCOMPLETO (Rediseñado)
               if (user?.isProfileIncomplete ?? false) ...[
                 SizedBox(height: 16 * s),
                 GestureDetector(
                   onTap: () => context.push('/edit-profile'),
                   child: Container(
-                    padding: EdgeInsets.all(16 * s),
+                    padding: EdgeInsets.all(20 * s),
                     decoration: BoxDecoration(
-                      color: AppColors.goldLight.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(16 * s),
-                      border: Border.all(color: AppColors.goldDark.withValues(alpha: 0.5)),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20 * s),
+                      border: Border.all(color: AppColors.goldDark.withValues(alpha: 0.3)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.goldDark.withValues(alpha: 0.05), 
+                          blurRadius: 15, 
+                          offset: const Offset(0, 8)
+                        ),
+                      ],
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.warning_amber_rounded, color: AppColors.goldDark),
-                        SizedBox(width: 12 * s),
+                        Container(
+                          padding: EdgeInsets.all(10 * s),
+                          decoration: BoxDecoration(
+                            color: AppColors.goldLight.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.goldDark, size: 24),
+                        ),
+                        SizedBox(width: 16 * s),
                         Expanded(
-                          child: Text(
-                            'Completa tus datos personales para agilizar tus envíos.',
-                            style: AppFonts.style(size: 13 * s, weight: FontWeight.w600, color: AppColors.brownDark),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Completa tu perfil',
+                                style: AppFonts.style(size: 14 * s, weight: FontWeight.w700, color: AppColors.brownDark),
+                              ),
+                              SizedBox(height: 4 * s),
+                              Text(
+                                'Agiliza tus envíos agregando tus datos reales.',
+                                style: AppFonts.style(size: 12 * s, weight: FontWeight.w500, color: AppColors.muted),
+                              ),
+                            ],
                           ),
                         ),
-                        const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.goldDark),
+                        const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.brownDark),
                       ],
                     ),
                   ),
@@ -131,7 +158,7 @@ class UserProfilePage extends ConsumerWidget {
 
               SizedBox(height: 24 * s),
 
-              // Sección 1: Mi cuenta
+              // SECCIÓN 1: MI CUENTA
               _buildSectionTitle('Mi cuenta', s),
               SizedBox(height: 12 * s),
               _buildSectionCard(
@@ -148,7 +175,7 @@ class UserProfilePage extends ConsumerWidget {
               ),
               SizedBox(height: 32 * s),
 
-              // Sección 2: Soporte y Legal
+              // SECCIÓN 2: SOPORTE Y LEGAL
               _buildSectionTitle('Soporte y Legal', s),
               SizedBox(height: 12 * s),
               _buildSectionCard(
@@ -162,7 +189,7 @@ class UserProfilePage extends ConsumerWidget {
                   _buildDivider(),
                   _buildMenuItem(icon: Icons.help_outline_rounded, title: 'Obtener ayuda', subtitle: 'Preguntas frecuentes', onTap: () {}, s: s),
                   _buildDivider(),
-                  // Botón que abre el BottomSheet de confirmación
+                  // Botón de Logout conectado a Riverpod. Abre el BottomSheet.
                   _buildMenuItem(
                     icon: Icons.logout_rounded,
                     title: 'Cerrar sesión',
@@ -183,7 +210,7 @@ class UserProfilePage extends ConsumerWidget {
   }
 
   // ==========================================================================
-  // MODAL DE CONFIRMACIÓN (BOTTOM SHEET)
+  // MODAL DE CONFIRMACIÓN DE LOGOUT
   // ==========================================================================
   void _showLogoutBottomSheet(BuildContext context, WidgetRef ref, double s) {
     showModalBottomSheet(
@@ -194,13 +221,12 @@ class UserProfilePage extends ConsumerWidget {
         return Container(
           padding: EdgeInsets.all(24 * s),
           decoration: BoxDecoration(
-            color: const Color(0xFFF9F6F0), // Fondo crema
+            color: const Color(0xFFF9F6F0),
             borderRadius: BorderRadius.vertical(top: Radius.circular(32 * s)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Línea decorativa superior
               Container(
                 width: 40 * s,
                 height: 4 * s,
@@ -210,21 +236,17 @@ class UserProfilePage extends ConsumerWidget {
                 ),
               ),
               SizedBox(height: 24 * s),
-              
               Text(
                 'Cerrar sesión',
                 style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark),
               ),
               SizedBox(height: 12 * s),
-              
               Text(
                 '¿Estás seguro que deseas cerrar sesión?',
                 textAlign: TextAlign.center,
                 style: AppFonts.style(size: 14 * s, weight: FontWeight.w500, color: AppColors.muted),
               ),
               SizedBox(height: 32 * s),
-              
-              // Botones de Cancelar y Confirmar
               Row(
                 children: [
                   Expanded(
@@ -245,8 +267,8 @@ class UserProfilePage extends ConsumerWidget {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.pop(bottomSheetContext); // Cierra el modal
-                        ref.read(authControllerProvider.notifier).logout(); // Ejecuta el logout
+                        Navigator.pop(bottomSheetContext);
+                        ref.read(authControllerProvider.notifier).logout();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.redAccent.withValues(alpha: 0.1),
