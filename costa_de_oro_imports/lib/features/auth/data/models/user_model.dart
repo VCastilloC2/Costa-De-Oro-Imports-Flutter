@@ -1,8 +1,11 @@
-/// ============================================================================
-/// MODELO: UserModel
-/// ============================================================================
-/// Representa al usuario autenticado en la aplicación. Refleja el esquema
-/// `UserResponse` devuelto por el backend en FastAPI (GET /perfil).
+// RAMA: feature/Auth
+// ============================================================================
+// MODELO: UserModel
+// ============================================================================
+// Representa al usuario autenticado en la aplicación. Refleja el esquema
+// devuelto por el backend en el endpoint de login y perfil.
+// ============================================================================
+
 class UserModel {
   const UserModel({
     required this.id,
@@ -12,6 +15,7 @@ class UserModel {
     this.telefono,
     this.imagen,
     this.isEnabled,
+    this.rol,
   });
 
   final int id;
@@ -21,10 +25,8 @@ class UserModel {
   final String? telefono;
   final String? imagen;
   final bool? isEnabled;
+  final String? rol;
 
-  /// Construye un [UserModel] a partir del JSON del backend.
-  /// Se usa `as num?` en el ID para prevenir crasheos si el backend
-  /// alguna vez envía nulos en campos requeridos.
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: (json['usuario_id'] as num?)?.toInt() ?? 0,
@@ -34,12 +36,12 @@ class UserModel {
       telefono: json['telefono'] as String?,
       imagen: json['imagen'] as String?,
       isEnabled: json['is_enabled'] as bool?,
+      rol: json['rol'] as String?,
     );
   }
 
   /// Retorna el nombre completo del usuario.
-  /// Si el usuario no tiene nombres o apellidos (ej. recién registrado),
-  /// retorna el correo electrónico como "fallback" para no mostrar vacíos.
+  /// Si no hay nombres o apellidos, retorna el correo como respaldo.
   String get fullName {
     final name = [nombres, apellidos]
         .whereType<String>()
@@ -49,8 +51,7 @@ class UserModel {
     return name.isEmpty ? correo : name;
   }
 
-  /// Genera las iniciales para el avatar (ej: "JP").
-  /// Si no hay nombres/apellidos, usa la primera letra del correo.
+  /// Genera las iniciales para el avatar a partir del nombre o correo.
   String get initials {
     String first(String? s) {
       final t = s?.trim() ?? '';
@@ -61,10 +62,8 @@ class UserModel {
   }
 
   /// Bandera de negocio para el "Perfilamiento Progresivo".
-  /// Retorna `true` si el usuario aún tiene los datos "dummy" inyectados
-  /// automáticamente durante el registro rápido (por ejemplo, apellido
-  /// "Pendiente" o teléfono "0000000000").
-  /// La UI usa esto para mostrar el banner de "Completa tu perfil".
+  /// Retorna true si el usuario tiene los datos genéricos del registro rápido.
+  /// La UI de perfil (feature/Profile) consume este getter.
   bool get isProfileIncomplete {
     return apellidos == 'Pendiente' || 
            telefono == '0000000000' || 
