@@ -1,3 +1,12 @@
+// RAMA: feature/Auth
+// ============================================================================
+// PANTALLA: RegisterPage
+// ============================================================================
+// Gestiona la creación de nuevas cuentas. Utiliza un formulario simplificado
+// (solo correo y contraseña) y delega el resto de campos al perfilamiento
+// progresivo.
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,6 +44,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
+  
+  /// Bloquea la interacción durante el proceso de registro y navegación.
   bool _leaving = false;
 
   late AnimationController _entryController;
@@ -145,8 +156,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
     if (!mounted) return;
     SystemChannels.textInput.invokeMethod('TextInput.hide');
     
-    // IMPORTANTE: No se utiliza context.go('/dashboard') aquí.
-    // El GoRouter detecta el cambio de estado y redirige automáticamente.
+    // Pausa necesaria para que el diálogo de carga se cierre completamente 
+    // antes de que el enrutador intente cambiar la pantalla.
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    if (mounted) {
+      context.go('/dashboard');
+    }
   }
 
   void _showError(String message) {

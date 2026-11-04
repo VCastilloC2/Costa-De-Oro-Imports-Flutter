@@ -1,3 +1,10 @@
+// RAMA: feature/Auth (o chore/Core)
+// ============================================================================
+// ROUTER: appRouterProvider
+// ============================================================================
+// Configuración del enrutador principal.
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,21 +21,8 @@ import '../../features/profile/presentation/pages/user_profile_page.dart';
 import '../../features/profile/presentation/pages/edit_profile_page.dart';
 import '../../features/auth/presentation/providers/auth_controller.dart';
 
-/// ============================================================================
-/// PROVIDER: appRouterProvider
-/// ============================================================================
-/// Construye y mantiene el GoRouter de la aplicación.
-/// 
-/// **Protección de Rutas:** Usa `redirect` para evaluar si el usuario puede
-/// entrar a una pantalla basándose en el [AuthState] de Riverpod.
-/// 
-/// **Reactividad:** `refreshListenable` escucha los cambios de auth. Si el
-/// usuario se loguea o desloguea, el router reevalúa el redirect automáticamente.
 final appRouterProvider = Provider<GoRouter>((ref) {
-  // Notificador interno para forzar la reevaluación del redirect.
   final refreshNotifier = ValueNotifier<int>(0);
-  
-  // Escuchamos el estado de autenticación.
   ref.listen(authControllerProvider, (_, __) {
     refreshNotifier.value++;
   });
@@ -42,29 +36,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final auth = ref.read(authControllerProvider);
       final loc = state.matchedLocation;
 
-      // Rutas que NO requieren estar logueado.
       const publicRoutes = {
         '/welcome', '/login', '/register', '/terms',
         '/forgot-password', '/verify-code', '/reset-password',
       };
       final isPublic = publicRoutes.contains(loc);
 
-      // 1. Mientras restaura el token (estado unknown), mantener en welcome.
       if (auth.status == AuthStatus.unknown) {
         return isPublic ? null : '/welcome';
       }
 
-      // 2. Si no está autenticado e intenta ir a una ruta privada -> login.
+      // Si NO está autenticado, lo mandamos al login si intenta entrar a una ruta privada
       if (!auth.isAuthenticated) {
         return isPublic ? null : '/login';
       }
 
-      // 3. Si está autenticado e intenta ir a welcome/login/register -> dashboard.
-      if (loc == '/welcome' || loc == '/login' || loc == '/register') {
-        return '/dashboard';
-      }
-
-      // 4. Todo en orden.
+      // ELIMINAMOS la redirección automática de login -> dashboard
+      // para evitar el choque con la animación de carga.
+      
       return null;
     },
     routes: [
