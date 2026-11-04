@@ -44,7 +44,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
-  
+
   /// Bloquea la interacción durante el proceso de registro y navegación.
   bool _leaving = false;
 
@@ -59,7 +59,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
   void initState() {
     super.initState();
 
-    _entryController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
 
     Animation<double> fadeAt(double start, double end) => Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _entryController, curve: Interval(start, end, curve: Curves.easeOut)),
@@ -81,8 +84,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _entryController.forward());
 
-    _floatController = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat(reverse: true);
-    _floatAnimation = Tween<double>(begin: -6.0, end: 6.0).animate(CurvedAnimation(parent: _floatController, curve: Curves.easeInOut));
+    _floatController = AnimationController(
+      vsync: this, 
+      duration: const Duration(seconds: 4),
+    )..repeat(reverse: true);
+    
+    _floatAnimation = Tween<double>(begin: -6.0, end: 6.0).animate(
+      CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -114,6 +123,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
     return null;
   }
 
+  /// ==========================================================================
+  /// LÓGICA DE REGISTRO
+  /// ==========================================================================
+  /// Envía los datos al backend. Si el registro es exitoso pero el auto-login
+  /// falla (por ejemplo, por un error 401 al intentar obtener el token),
+  /// se notifica al usuario y se le redirige al Login para que ingrese
+  /// manualmente.
   Future<void> _submit() async {
     if (_leaving) return;
 
@@ -146,6 +162,25 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
             ),
       );
     } on ApiException catch (e) {
+      // Manejo del fallo en el auto-login post-registro
+      if (e.statusCode == 401 || e.message.contains('Credenciales')) {
+        if (!mounted) return;
+        setState(() => _leaving = false);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Cuenta creada! Ahora inicia sesión.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) context.go('/login');
+        return;
+      }
+      
+      // Manejo de otros errores de registro (ej. correo duplicado)
       _showError(e.message);
       return;
     } catch (_) {
@@ -156,8 +191,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
     if (!mounted) return;
     SystemChannels.textInput.invokeMethod('TextInput.hide');
     
-    // Pausa necesaria para que el diálogo de carga se cierre completamente 
-    // antes de que el enrutador intente cambiar la pantalla.
+    // Pausa para evitar conflictos de navegación
     await Future.delayed(const Duration(milliseconds: 300));
     
     if (mounted) {
@@ -170,7 +204,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
     setState(() => _leaving = false);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red.shade700, behavior: SnackBarBehavior.floating));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   @override
@@ -185,9 +225,36 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              Positioned(top: -70 * s, right: -70 * s, child: DecorCircle(diameter: 280 * s, gradient: RadialGradient(colors: [AppColors.gold.withValues(alpha: 0.25), AppColors.gold.withValues(alpha: 0.0)]))),
-              Positioned(top: 180 * s, left: -60 * s, child: DecorCircle(diameter: 160 * s, gradient: RadialGradient(colors: [AppColors.beige.withValues(alpha: 0.6), AppColors.beige.withValues(alpha: 0.0)]))),
-              Positioned(bottom: -40 * s, right: -40 * s, child: DecorCircle(diameter: 220 * s, gradient: RadialGradient(colors: [AppColors.goldLight.withValues(alpha: 0.3), AppColors.goldLight.withValues(alpha: 0.0)]))),
+              Positioned(
+                top: -70 * s, right: -70 * s, 
+                child: DecorCircle(
+                  diameter: 280 * s, 
+                  gradient: RadialGradient(colors: [
+                    AppColors.gold.withValues(alpha: 0.25), 
+                    AppColors.gold.withValues(alpha: 0.0)
+                  ]),
+                ),
+              ),
+              Positioned(
+                top: 180 * s, left: -60 * s, 
+                child: DecorCircle(
+                  diameter: 160 * s, 
+                  gradient: RadialGradient(colors: [
+                    AppColors.beige.withValues(alpha: 0.6), 
+                    AppColors.beige.withValues(alpha: 0.0)
+                  ]),
+                ),
+              ),
+              Positioned(
+                bottom: -40 * s, right: -40 * s, 
+                child: DecorCircle(
+                  diameter: 220 * s, 
+                  gradient: RadialGradient(colors: [
+                    AppColors.goldLight.withValues(alpha: 0.3), 
+                    AppColors.goldLight.withValues(alpha: 0.0)
+                  ]),
+                ),
+              ),
 
               SafeArea(
                 child: SingleChildScrollView(
@@ -211,9 +278,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                 position: _titleSlide,
                                 child: Column(
                                   children: [
-                                    Text('Create Account', style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark)),
+                                    Text(
+                                      'Create Account', 
+                                      style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark),
+                                    ),
                                     SizedBox(height: 8 * s),
-                                    Text('Solo necesitamos unos segundos para empezar.', textAlign: TextAlign.center, style: AppFonts.style(size: 18, weight: FontWeight.w600, color: AppColors.brown.withValues(alpha: 0.7))),
+                                    Text(
+                                      'Solo necesitamos unos segundos para empezar.', 
+                                      textAlign: TextAlign.center, 
+                                      style: AppFonts.style(size: 18, weight: FontWeight.w600, color: AppColors.brown.withValues(alpha: 0.7)),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -227,7 +301,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                 child: AppTextField(
                                   key: _emailKey,
                                   label: 'Email',
-                                  hint: 'Enter you email',
+                                  hint: 'Enter your email',
                                   controller: _emailController,
                                   keyboardType: TextInputType.emailAddress,
                                   validator: _validateEmail,
@@ -308,10 +382,17 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                         child: ElevatedButton(
                                           onPressed: _leaving ? null : _submit,
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.transparent, shadowColor: Colors.transparent, elevation: 0, padding: EdgeInsets.zero, minimumSize: Size.zero,
+                                            backgroundColor: Colors.transparent, 
+                                            shadowColor: Colors.transparent, 
+                                            elevation: 0, 
+                                            padding: EdgeInsets.zero, 
+                                            minimumSize: Size.zero,
                                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                           ),
-                                          child: Text('Register', style: AppFonts.style(size: 20, weight: FontWeight.w600, color: AppColors.creamText)),
+                                          child: Text(
+                                            'Register', 
+                                            style: AppFonts.style(size: 20, weight: FontWeight.w600, color: AppColors.creamText),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -332,7 +413,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                         const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
                                         Padding(
                                           padding: EdgeInsets.symmetric(horizontal: 16 * s),
-                                          child: Text('Or continue with', style: AppFonts.style(size: 15, weight: FontWeight.w500, color: AppColors.muted)),
+                                          child: Text(
+                                            'Or continue with', 
+                                            style: AppFonts.style(size: 15, weight: FontWeight.w500, color: AppColors.muted),
+                                          ),
                                         ),
                                         const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
                                       ],
@@ -353,7 +437,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                           text: '¿Ya tienes una cuenta? ',
                                           style: AppFonts.style(size: 16, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.75)),
                                           children: [
-                                            TextSpan(text: 'Inicia sesión', style: AppFonts.style(size: 16, weight: FontWeight.w700, color: AppColors.goldDark)),
+                                            TextSpan(
+                                              text: 'Inicia sesión', 
+                                              style: AppFonts.style(size: 16, weight: FontWeight.w700, color: AppColors.goldDark),
+                                            ),
                                           ],
                                         ),
                                       ),
