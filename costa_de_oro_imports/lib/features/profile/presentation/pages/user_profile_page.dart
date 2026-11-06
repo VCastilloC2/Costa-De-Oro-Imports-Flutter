@@ -164,7 +164,7 @@ class UserProfilePage extends ConsumerWidget {
               _buildSectionCard(
                 s: s,
                 children: [
-                  _buildMenuItem(icon: Icons.person_outline_rounded, title: 'Detalles de la cuenta', subtitle: 'Gestiona tu información personal', onTap: () => context.push('/edit-profile'), s: s),
+                  _buildMenuItem(icon: Icons.person_outline_rounded, title: 'Detalles de la cuenta', subtitle: 'Gestiona tu información personal', onTap: () => context.push('/account-details'), s: s),
                   _buildDivider(),
                   _buildMenuItem(icon: Icons.payment_outlined, title: 'Historial de pagos', subtitle: 'Revisa tus pedidos anteriores', onTap: () {}, s: s),
                   _buildDivider(),
