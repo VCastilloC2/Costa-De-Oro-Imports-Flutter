@@ -47,6 +47,10 @@ class AccountDetailsPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F6F0),
+      // El cuerpo se extiende detras de la barra superior para que el
+      // resplandor dorado del fondo la cubra tambien. Antes empezaba justo
+      // debajo de la barra y dejaba una franja clara visible sobre el titulo.
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -100,7 +104,7 @@ class AccountDetailsPage extends ConsumerWidget {
             right: 0,
             child: IgnorePointer(
               child: Container(
-                height: 320 * s,
+                height: 380 * s,
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
                     center: const Alignment(0, -1),
@@ -116,7 +120,14 @@ class AccountDetailsPage extends ConsumerWidget {
           ),
           SafeArea(
             child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(20 * s, 12 * s, 20 * s, 32 * s),
+              // kToolbarHeight compensa la barra superior, que ahora queda
+              // flotando sobre el cuerpo.
+              padding: EdgeInsets.fromLTRB(
+                20 * s,
+                kToolbarHeight + 12 * s,
+                20 * s,
+                32 * s,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -228,7 +239,7 @@ class _Reveal extends StatelessWidget {
   }
 }
 
-/// Tarjeta superior con el avatar, el nombre y el correo del usuario.
+/// Cabecera con el avatar, el nombre y el correo del usuario, sobre el fondo.
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
     required this.s,
@@ -258,20 +269,11 @@ class _ProfileHeader extends StatelessWidget {
       ),
     );
 
+    // Sin tarjeta blanca: el avatar, el nombre y el correo van directamente
+    // sobre el fondo de la pagina.
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20 * s, 26 * s, 20 * s, 24 * s),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28 * s),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+      padding: EdgeInsets.fromLTRB(20 * s, 8 * s, 20 * s, 0),
       child: Column(
         children: [
           SizedBox(
