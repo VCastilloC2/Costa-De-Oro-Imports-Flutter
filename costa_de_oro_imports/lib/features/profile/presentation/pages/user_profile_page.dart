@@ -248,7 +248,8 @@ class UserProfilePage extends ConsumerWidget {
                     _buildMenuItem(
                       icon: passkeyBiometricIcon(),
                       title: 'Passkey y biometría',
-                      subtitle: 'Gestiona tus passkeys y ${passkeyBiometricLabel()}',
+                      subtitle:
+                          'Gestiona tus passkeys y ${passkeyBiometricLabel()}',
                       onTap: () => context.push('/passkeys'),
                     ),
                   ],
