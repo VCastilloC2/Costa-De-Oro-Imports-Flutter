@@ -1,8 +1,18 @@
+// RAMA: feature/Auth
+// ============================================================================
+// PANTALLA: VerifyCodePage
+// ============================================================================
+// Solicita al usuario un código de 5 dígitos para verificar su identidad.
+// Incluye un sistema de foco automático entre cuadros y un diseño responsivo.
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../../shared/widgets/auth_header_card.dart';
 import '../../../../shared/widgets/decor_circle.dart';
 
@@ -189,7 +199,7 @@ class _VerifyCodePageState extends State<VerifyCodePage>
 
   @override
   Widget build(BuildContext context) {
-    final s = MediaQuery.sizeOf(context).width / 390;
+    final s = context.s;
 
     return Scaffold(
       backgroundColor: AppColors.cream,
@@ -208,179 +218,180 @@ class _VerifyCodePageState extends State<VerifyCodePage>
               ),
             ),
           ),
-          SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  FadeTransition(
-                    opacity: _backFade,
-                    child: SlideTransition(
-                      position: _backSlide,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 24 * s,
-                          vertical: 8 * s,
-                        ),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: IconButton(
-                            onPressed: () => context.pop(),
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: AppColors.brownDark,
-                            ),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              side: const BorderSide(
-                                color: AppColors.beige,
-                                width: 1.5,
-                              ),
+          
+          ResponsiveLayout(
+            useSafeArea: true,
+            useScrollView: true,
+            child: Column(
+              children: [
+                FadeTransition(
+                  opacity: _backFade,
+                  child: SlideTransition(
+                    position: _backSlide,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24 * s,
+                        vertical: 8 * s,
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          onPressed: () => context.pop(),
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: AppColors.brownDark,
+                          ),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(
+                              color: AppColors.beige,
+                              width: 1.5,
                             ),
                           ),
                         ),
                       ),
                     ),
                   ),
+                ),
 
-                  FadeTransition(
-                    opacity: _cardFade,
-                    child: SlideTransition(
-                      position: _cardSlide,
-                      child: AuthHeaderCard(
-                        floatAnimation: _floatAnimation,
-                        s: s,
-                      ),
+                FadeTransition(
+                  opacity: _cardFade,
+                  child: SlideTransition(
+                    position: _cardSlide,
+                    child: AuthHeaderCard(
+                      floatAnimation: _floatAnimation,
+                      s: s,
                     ),
                   ),
+                ),
 
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24 * s),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        FadeTransition(
-                          opacity: _titleFade,
-                          child: SlideTransition(
-                            position: _titleSlide,
-                            child: Column(
-                              children: [
-                                Text(
-                                  'Verify your account',
-                                  textAlign: TextAlign.center,
-                                  style: AppFonts.style(
-                                    size: 35,
-                                    weight: FontWeight.w700,
-                                    color: AppColors.brownDark,
-                                  ),
-                                ),
-                                SizedBox(height: 8 * s),
-                                Text(
-                                  'Enter the 5-digit code sent to your email.',
-                                  textAlign: TextAlign.center,
-                                  style: AppFonts.style(
-                                    size: 17,
-                                    weight: FontWeight.w500,
-                                    color:
-                                        AppColors.brown.withValues(alpha: 0.7),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 32 * s),
-
-                        // Cuadros del código
-                        FadeTransition(
-                          opacity: _otpFade,
-                          child: SlideTransition(
-                            position: _otpSlide,
-                            child: Row(
-                              children: List.generate(_codeLength, _otpBox),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 32 * s),
-
-                        FadeTransition(
-                          opacity: _buttonFade,
-                          child: SlideTransition(
-                            position: _buttonSlide,
-                            child: SizedBox(
-                              width: double.infinity,
-                              height: 62,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(30),
-                                  gradient: const LinearGradient(
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                    colors: [
-                                      AppColors.brownDark,
-                                      AppColors.brown,
-                                      AppColors.goldLight,
-                                    ],
-                                  ),
-                                ),
-                                child: ElevatedButton(
-                                  onPressed: _verify,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    shadowColor: Colors.transparent,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Verification',
-                                    style: AppFonts.style(
-                                      size: 20,
-                                      weight: FontWeight.w600,
-                                      color: AppColors.creamText,
-                                    ),
-                                  ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24 * s),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      FadeTransition(
+                        opacity: _titleFade,
+                        child: SlideTransition(
+                          position: _titleSlide,
+                          child: Column(
+                            children: [
+                              Text(
+                                'Verify your account',
+                                textAlign: TextAlign.center,
+                                style: AppFonts.style(
+                                  size: 35,
+                                  weight: FontWeight.w700,
+                                  color: AppColors.brownDark,
                                 ),
                               ),
-                            ),
+                              SizedBox(height: 8 * s),
+                              Text(
+                                'Enter the 5-digit code sent to your email.',
+                                textAlign: TextAlign.center,
+                                style: AppFonts.style(
+                                  size: 17,
+                                  weight: FontWeight.w500,
+                                  color:
+                                      AppColors.brown.withValues(alpha: 0.7),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        SizedBox(height: 24 * s),
-                        FadeTransition(
-                          opacity: _resendFade,
-                          child: SlideTransition(
-                            position: _resendSlide,
-                            child: Center(
-                              child: Text.rich(
-                                TextSpan(
-                                  text: "Don't received code? ",
-                                  style: AppFonts.style(
-                                    size: 17,
-                                    weight: FontWeight.w500,
-                                    color:
-                                        AppColors.brown.withValues(alpha: 0.7),
-                                  ),
-                                  children: [
-                                    TextSpan(
-                                      text: 'Resend Now',
-                                      style: AppFonts.style(
-                                        size: 17,
-                                        weight: FontWeight.w700,
-                                        color: AppColors.goldDark,
-                                      ),
-                                    ),
+                      ),
+                      SizedBox(height: 32 * s),
+
+                      // Cuadros del código
+                      FadeTransition(
+                        opacity: _otpFade,
+                        child: SlideTransition(
+                          position: _otpSlide,
+                          child: Row(
+                            children: List.generate(_codeLength, _otpBox),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 32 * s),
+
+                      FadeTransition(
+                        opacity: _buttonFade,
+                        child: SlideTransition(
+                          position: _buttonSlide,
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 62,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(30),
+                                gradient: const LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    AppColors.brownDark,
+                                    AppColors.brown,
+                                    AppColors.goldLight,
                                   ],
                                 ),
                               ),
+                              child: ElevatedButton(
+                                onPressed: _verify,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Verification',
+                                  style: AppFonts.style(
+                                    size: 20,
+                                    weight: FontWeight.w600,
+                                    color: AppColors.creamText,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                        SizedBox(height: 24 * s),
-                      ],
-                    ),
+                      ),
+                      SizedBox(height: 24 * s),
+                      FadeTransition(
+                        opacity: _resendFade,
+                        child: SlideTransition(
+                          position: _resendSlide,
+                          child: Center(
+                            child: Text.rich(
+                              TextSpan(
+                                text: "Don't received code? ",
+                                style: AppFonts.style(
+                                  size: 17,
+                                  weight: FontWeight.w500,
+                                  color:
+                                      AppColors.brown.withValues(alpha: 0.7),
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: 'Resend Now',
+                                    style: AppFonts.style(
+                                      size: 17,
+                                      weight: FontWeight.w700,
+                                      color: AppColors.goldDark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 24 * s),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],

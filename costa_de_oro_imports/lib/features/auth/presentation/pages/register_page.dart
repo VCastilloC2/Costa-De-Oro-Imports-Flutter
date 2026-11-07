@@ -4,18 +4,19 @@
 // ============================================================================
 // Gestiona la creación de nuevas cuentas. Utiliza un formulario simplificado
 // (solo correo y contraseña) y delega el resto de campos al perfilamiento
-// progresivo. Implementa iconos de Hugeicons para consistencia visual.
+// progresivo. Implementa iconos de Hugeicons y un diseño responsivo.
 // ============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hugeicons/hugeicons.dart'; // <-- Importación de Hugeicons
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../../shared/widgets/app_terms_checkbox.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_header_card.dart';
@@ -213,274 +214,270 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
 
   @override
   Widget build(BuildContext context) {
-    final s = MediaQuery.sizeOf(context).width / 390;
+    // 1. Factor de escala responsivo
+    final s = context.s;
 
     return ExcludeFocus(
       excluding: _leaving,
       child: Scaffold(
         backgroundColor: AppColors.cream,
-        body: SizedBox.expand(
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned(
-                top: -70 * s, right: -70 * s, 
-                child: DecorCircle(
-                  diameter: 280 * s, 
-                  gradient: RadialGradient(colors: [
-                    AppColors.gold.withValues(alpha: 0.25), 
-                    AppColors.gold.withValues(alpha: 0.0)
-                  ]),
-                ),
+        body: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Círculos decorativos de fondo (fuera del ResponsiveLayout para abarcar toda la pantalla)
+            Positioned(
+              top: -70 * s, right: -70 * s, 
+              child: DecorCircle(
+                diameter: 280 * s, 
+                gradient: RadialGradient(colors: [
+                  AppColors.gold.withValues(alpha: 0.25), 
+                  AppColors.gold.withValues(alpha: 0.0)
+                ]),
               ),
-              Positioned(
-                top: 180 * s, left: -60 * s, 
-                child: DecorCircle(
-                  diameter: 160 * s, 
-                  gradient: RadialGradient(colors: [
-                    AppColors.beige.withValues(alpha: 0.6), 
-                    AppColors.beige.withValues(alpha: 0.0)
-                  ]),
-                ),
+            ),
+            Positioned(
+              top: 180 * s, left: -60 * s, 
+              child: DecorCircle(
+                diameter: 160 * s, 
+                gradient: RadialGradient(colors: [
+                  AppColors.beige.withValues(alpha: 0.6), 
+                  AppColors.beige.withValues(alpha: 0.0)
+                ]),
               ),
-              Positioned(
-                bottom: -40 * s, right: -40 * s, 
-                child: DecorCircle(
-                  diameter: 220 * s, 
-                  gradient: RadialGradient(colors: [
-                    AppColors.goldLight.withValues(alpha: 0.3), 
-                    AppColors.goldLight.withValues(alpha: 0.0)
-                  ]),
-                ),
+            ),
+            Positioned(
+              bottom: -40 * s, right: -40 * s, 
+              child: DecorCircle(
+                diameter: 220 * s, 
+                gradient: RadialGradient(colors: [
+                  AppColors.goldLight.withValues(alpha: 0.3), 
+                  AppColors.goldLight.withValues(alpha: 0.0)
+                ]),
               ),
+            ),
 
-              SafeArea(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      FadeTransition(
-                        opacity: _cardFade,
-                        child: SlideTransition(
-                          position: _cardSlide,
-                          child: AuthHeaderCard(floatAnimation: _floatAnimation, s: s),
-                        ),
-                      ),
-
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16 * s),
-                        child: Column(
-                          children: [
-                            FadeTransition(
-                              opacity: _titleFade,
-                              child: SlideTransition(
-                                position: _titleSlide,
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'Create Account', 
-                                      style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark),
-                                    ),
-                                    SizedBox(height: 8 * s),
-                                    Text(
-                                      'Solo necesitamos unos segundos para empezar.', 
-                                      textAlign: TextAlign.center, 
-                                      style: AppFonts.style(size: 18, weight: FontWeight.w600, color: AppColors.brown.withValues(alpha: 0.7)),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 22 * s),
-
-                            FadeTransition(
-                              opacity: _inputsFade,
-                              child: SlideTransition(
-                                position: _inputsSlide,
-                                child: AppTextField(
-                                  key: _emailKey,
-                                  label: 'Email',
-                                  hint: 'Enter your email',
-                                  controller: _emailController,
-                                  keyboardType: TextInputType.emailAddress,
-                                  validator: _validateEmail,
-                                  // NUEVO ICONO DE CORREO
-                                  prefixIcon: const HugeIcon(
-                                    icon: HugeIcons.strokeRoundedMail01, 
-                                    size: 24,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 16 * s),
-
-                            FadeTransition(
-                              opacity: _inputsFade,
-                              child: SlideTransition(
-                                position: _inputsSlide,
-                                child: AppTextField(
-                                  key: _passwordKey,
-                                  label: 'Password',
-                                  hint: 'Enter your Password',
-                                  controller: _passwordController,
-                                  obscureText: _obscurePassword,
-                                  validator: _validatePassword,
-                                  // NUEVO ICONO DE CANDADO
-                                  prefixIcon: const HugeIcon(
-                                    icon: HugeIcons.strokeRoundedLockPassword, 
-                                    size: 24,
-                                  ),
-                                  suffixIcon: GestureDetector(
-                                    onTap: () => setState(() => _obscurePassword = !_obscurePassword),
-                                    // NUEVOS ICONOS DE OJO (VER / OCULTAR)
-                                    child: HugeIcon(
-                                      icon: _obscurePassword 
-                                          ? HugeIcons.strokeRoundedViewOffSlash 
-                                          : HugeIcons.strokeRoundedView,
-                                      size: 24,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 16 * s),
-
-                            FadeTransition(
-                              opacity: _inputsFade,
-                              child: SlideTransition(
-                                position: _inputsSlide,
-                                child: AppTextField(
-                                  key: _confirmPasswordKey,
-                                  label: 'Confirm Password',
-                                  hint: 'Confirm your Password',
-                                  controller: _confirmPasswordController,
-                                  obscureText: _obscureConfirmPassword,
-                                  validator: _validateConfirmPassword,
-                                  // NUEVO ICONO DE CANDADO
-                                  prefixIcon: const HugeIcon(
-                                    icon: HugeIcons.strokeRoundedLockPassword, 
-                                    size: 24,
-                                  ),
-                                  suffixIcon: GestureDetector(
-                                    onTap: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                                    // NUEVOS ICONOS DE OJO (VER / OCULTAR)
-                                    child: HugeIcon(
-                                      icon: _obscureConfirmPassword 
-                                          ? HugeIcons.strokeRoundedViewOffSlash 
-                                          : HugeIcons.strokeRoundedView,
-                                      size: 24,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 16 * s),
-
-                            FadeTransition(
-                              opacity: _buttonsFade,
-                              child: SlideTransition(
-                                position: _buttonsSlide,
-                                child: Column(
-                                  children: [
-                                    AppTermsCheckbox(
-                                      value: _acceptTerms,
-                                      onChanged: (val) {
-                                        setState(() => _acceptTerms = val);
-                                        FocusScope.of(context).unfocus();
-                                      },
-                                    ),
-                                    SizedBox(height: 24 * s),
-                                    
-                                    SizedBox(
-                                      width: double.infinity,
-                                      height: 62,
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(30),
-                                          gradient: const LinearGradient(
-                                            begin: Alignment.centerLeft, end: Alignment.centerRight,
-                                            colors: [AppColors.brownDark, AppColors.brown, AppColors.goldLight],
-                                          ),
-                                        ),
-                                        child: ElevatedButton(
-                                          onPressed: _leaving ? null : _submit,
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.transparent, 
-                                            shadowColor: Colors.transparent, 
-                                            elevation: 0, 
-                                            padding: EdgeInsets.zero, 
-                                            minimumSize: Size.zero,
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                          ),
-                                          child: Text(
-                                            'Register', 
-                                            style: AppFonts.style(size: 20, weight: FontWeight.w600, color: AppColors.creamText),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 22 * s),
-
-                            FadeTransition(
-                              opacity: _socialsFade,
-                              child: SlideTransition(
-                                position: _socialsSlide,
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
-                                        Padding(
-                                          padding: EdgeInsets.symmetric(horizontal: 16 * s),
-                                          child: Text(
-                                            'Or continue with', 
-                                            style: AppFonts.style(size: 15, weight: FontWeight.w500, color: AppColors.muted),
-                                          ),
-                                        ),
-                                        const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
-                                      ],
-                                    ),
-                                    SizedBox(height: 24 * s),
-                                    Row(
-                                      children: [
-                                        Expanded(child: SocialButton(label: 'Google', iconAsset: 'assets/icons/google.svg', onPressed: () {})),
-                                        SizedBox(width: 16 * s),
-                                        Expanded(child: SocialButton(label: 'Apple', iconAsset: 'assets/icons/Apple_light.svg', onPressed: () {})),
-                                      ],
-                                    ),
-                                    SizedBox(height: 22 * s),
-                                    GestureDetector(
-                                      onTap: () => context.go('/login'),
-                                      child: Text.rich(
-                                        TextSpan(
-                                          text: '¿Ya tienes una cuenta? ',
-                                          style: AppFonts.style(size: 16, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.75)),
-                                          children: [
-                                            TextSpan(
-                                              text: 'Inicia sesión', 
-                                              style: AppFonts.style(size: 16, weight: FontWeight.w700, color: AppColors.goldDark),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(height: 40 * s),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+            // Contenido principal responsivo (limitado a 500px de ancho en tablets)
+            ResponsiveLayout(
+              useSafeArea: true,
+              useScrollView: true,
+              child: Column(
+                children: [
+                  FadeTransition(
+                    opacity: _cardFade,
+                    child: SlideTransition(
+                      position: _cardSlide,
+                      child: AuthHeaderCard(floatAnimation: _floatAnimation, s: s),
+                    ),
                   ),
-                ),
+
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16 * s),
+                    child: Column(
+                      children: [
+                        FadeTransition(
+                          opacity: _titleFade,
+                          child: SlideTransition(
+                            position: _titleSlide,
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Create Account', 
+                                  style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark),
+                                ),
+                                SizedBox(height: 8 * s),
+                                Text(
+                                  'Solo necesitamos unos segundos para empezar.', 
+                                  textAlign: TextAlign.center, 
+                                  style: AppFonts.style(size: 18, weight: FontWeight.w600, color: AppColors.brown.withValues(alpha: 0.7)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 22 * s),
+
+                        FadeTransition(
+                          opacity: _inputsFade,
+                          child: SlideTransition(
+                            position: _inputsSlide,
+                            child: AppTextField(
+                              key: _emailKey,
+                              label: 'Email',
+                              hint: 'Enter your email',
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              validator: _validateEmail,
+                              prefixIcon: const HugeIcon(
+                                icon: HugeIcons.strokeRoundedMail01, 
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 16 * s),
+
+                        FadeTransition(
+                          opacity: _inputsFade,
+                          child: SlideTransition(
+                            position: _inputsSlide,
+                            child: AppTextField(
+                              key: _passwordKey,
+                              label: 'Password',
+                              hint: 'Enter your Password',
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              validator: _validatePassword,
+                              prefixIcon: const HugeIcon(
+                                icon: HugeIcons.strokeRoundedLockPassword, 
+                                size: 24,
+                              ),
+                              suffixIcon: GestureDetector(
+                                onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                                child: HugeIcon(
+                                  icon: _obscurePassword 
+                                      ? HugeIcons.strokeRoundedViewOffSlash 
+                                      : HugeIcons.strokeRoundedView,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 16 * s),
+
+                        FadeTransition(
+                          opacity: _inputsFade,
+                          child: SlideTransition(
+                            position: _inputsSlide,
+                            child: AppTextField(
+                              key: _confirmPasswordKey,
+                              label: 'Confirm Password',
+                              hint: 'Confirm your Password',
+                              controller: _confirmPasswordController,
+                              obscureText: _obscureConfirmPassword,
+                              validator: _validateConfirmPassword,
+                              prefixIcon: const HugeIcon(
+                                icon: HugeIcons.strokeRoundedLockPassword, 
+                                size: 24,
+                              ),
+                              suffixIcon: GestureDetector(
+                                onTap: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                                child: HugeIcon(
+                                  icon: _obscureConfirmPassword 
+                                      ? HugeIcons.strokeRoundedViewOffSlash 
+                                      : HugeIcons.strokeRoundedView,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 16 * s),
+
+                        FadeTransition(
+                          opacity: _buttonsFade,
+                          child: SlideTransition(
+                            position: _buttonsSlide,
+                            child: Column(
+                              children: [
+                                AppTermsCheckbox(
+                                  value: _acceptTerms,
+                                  onChanged: (val) {
+                                    setState(() => _acceptTerms = val);
+                                    FocusScope.of(context).unfocus();
+                                  },
+                                ),
+                                SizedBox(height: 24 * s),
+                                
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 62,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(30),
+                                      gradient: const LinearGradient(
+                                        begin: Alignment.centerLeft, end: Alignment.centerRight,
+                                        colors: [AppColors.brownDark, AppColors.brown, AppColors.goldLight],
+                                      ),
+                                    ),
+                                    child: ElevatedButton(
+                                      onPressed: _leaving ? null : _submit,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.transparent, 
+                                        shadowColor: Colors.transparent, 
+                                        elevation: 0, 
+                                        padding: EdgeInsets.zero, 
+                                        minimumSize: Size.zero,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      ),
+                                      child: Text(
+                                        'Register', 
+                                        style: AppFonts.style(size: 20, weight: FontWeight.w600, color: AppColors.creamText),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 22 * s),
+
+                        FadeTransition(
+                          opacity: _socialsFade,
+                          child: SlideTransition(
+                            position: _socialsSlide,
+                            child: Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 16 * s),
+                                      child: Text(
+                                        'Or continue with', 
+                                        style: AppFonts.style(size: 15, weight: FontWeight.w500, color: AppColors.muted),
+                                      ),
+                                    ),
+                                    const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
+                                  ],
+                                ),
+                                SizedBox(height: 24 * s),
+                                Row(
+                                  children: [
+                                    Expanded(child: SocialButton(label: 'Google', iconAsset: 'assets/icons/google.svg', onPressed: () {})),
+                                    SizedBox(width: 16 * s),
+                                    Expanded(child: SocialButton(label: 'Apple', iconAsset: 'assets/icons/Apple_light.svg', onPressed: () {})),
+                                  ],
+                                ),
+                                SizedBox(height: 22 * s),
+                                GestureDetector(
+                                  onTap: () => context.go('/login'),
+                                  child: Text.rich(
+                                    TextSpan(
+                                      text: '¿Ya tienes una cuenta? ',
+                                      style: AppFonts.style(size: 16, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.75)),
+                                      children: [
+                                        TextSpan(
+                                          text: 'Inicia sesión', 
+                                          style: AppFonts.style(size: 16, weight: FontWeight.w700, color: AppColors.goldDark),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: 40 * s),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
