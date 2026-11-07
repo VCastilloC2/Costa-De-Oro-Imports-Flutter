@@ -2,7 +2,7 @@
     <!-- Necesario para llamar a la API en builds de release. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="costa_de_oro_imports"
+        android:label="Costa de Oro Imports"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
