@@ -38,6 +38,7 @@ class SessionStorage {
   // dispositivo y el siguiente login debe poder ofrecer Face ID / huella.
 
   static const _passkeyUserKey = 'passkey_user';
+  static const _passkeyCredentialKey = 'passkey_credential_id';
   static const _passkeyOfferDismissedKey = 'passkey_offer_dismissed';
 
   /// Correo de la cuenta que registró o usó una passkey en este dispositivo.
@@ -46,7 +47,19 @@ class SessionStorage {
   Future<void> savePasskeyUser(String correo) =>
       _safeWrite(_passkeyUserKey, correo);
 
-  Future<void> clearPasskeyUser() => _safeDelete(_passkeyUserKey);
+  /// Borra la marca de passkey y el ID de credencial de este dispositivo.
+  Future<void> clearPasskeyUser() async {
+    await _safeDelete(_passkeyUserKey);
+    await _safeDelete(_passkeyCredentialKey);
+  }
+
+  /// ID (base64url, público) de la última passkey usada en este dispositivo.
+  /// Sirve para marcar "Este dispositivo" en la lista y para dejar de
+  /// lanzar Face ID / huella si el usuario la revoca.
+  Future<String?> readPasskeyCredentialId() => _safeRead(_passkeyCredentialKey);
+
+  Future<void> savePasskeyCredentialId(String credentialId) =>
+      _safeWrite(_passkeyCredentialKey, credentialId);
 
   /// `true` si el usuario rechazó activar la passkey tras iniciar sesión.
   Future<bool> readPasskeyOfferDismissed() async =>

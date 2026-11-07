@@ -11,9 +11,10 @@ import 'offline_cache_interceptor.dart';
 
 /// Rutas que nunca deben llevar el token (login, registro y login social).
 ///
-/// `/auth/passkey/login/*` es público (aún no hay sesión). En cambio
-/// `/auth/passkey/register/*` SÍ lleva el token: solo un usuario con sesión
-/// puede vincular una passkey a su cuenta.
+/// `/api/v1/auth/passkey/login/*` es público (aún no hay sesión); la
+/// coincidencia es por subcadena, así que también cubre el alias
+/// `/auth/passkey/login/*`. En cambio `register/*`, `credentials` y
+/// `/api/v1/auth/session/validate` SÍ llevan el token.
 const _publicAuthPaths = [
   '/auth/login',
   '/auth/registro',

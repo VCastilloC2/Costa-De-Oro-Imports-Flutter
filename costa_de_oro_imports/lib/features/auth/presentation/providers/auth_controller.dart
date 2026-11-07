@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:costa_de_oro_imports/core/config/passkey_config.dart';
 import 'package:costa_de_oro_imports/features/auth/data/auth_repository.dart';
+import 'package:costa_de_oro_imports/features/auth/data/models/passkey_credential.dart';
 import 'package:costa_de_oro_imports/features/auth/data/models/user_model.dart';
 
 /// Estados posibles del ciclo de vida de la autenticación.
@@ -133,6 +134,14 @@ class AuthController extends Notifier<AuthState> {
 final authControllerProvider = NotifierProvider<AuthController, AuthState>(
   AuthController.new,
 );
+
+/// Passkeys vinculadas a la cuenta (pantalla "Passkeys y biometría").
+/// Se vuelve a pedir con `ref.invalidate(myPasskeysProvider)`.
+final myPasskeysProvider = FutureProvider.autoDispose<List<PasskeyCredential>>((
+  ref,
+) {
+  return ref.read(authRepositoryProvider).listPasskeys();
+});
 
 /// `true` si la app puede ofrecer passkeys en este dispositivo.
 /// Con `PASSKEY_RP_ID` vacío responde `false` sin crear ningún servicio.

@@ -14,9 +14,32 @@ import 'package:costa_de_oro_imports/core/network/api_client.dart';
 import 'package:costa_de_oro_imports/core/network/api_exception.dart';
 import 'package:costa_de_oro_imports/core/storage/response_cache.dart';
 import 'package:costa_de_oro_imports/core/storage/session_storage.dart';
+import 'package:costa_de_oro_imports/features/auth/data/models/passkey_credential.dart';
 import 'package:costa_de_oro_imports/features/auth/data/models/user_model.dart';
 import 'package:costa_de_oro_imports/features/auth/data/passkey_service.dart';
 import 'package:costa_de_oro_imports/features/auth/data/social_auth_service.dart';
+
+/// Rutas del backend FastAPI para passkeys y sesión
+/// (ver `docs/PASSKEYS.md` del repositorio Costa-De-Oro-Imports-Python).
+abstract final class PasskeyEndpoints {
+  /// Con token: genera `PublicKeyCredentialCreationOptions`.
+  static const registerStart = '/api/v1/auth/passkey/register/start';
+
+  /// Con token: verifica la atestación y guarda la clave pública.
+  static const registerFinish = '/api/v1/auth/passkey/register/finish';
+
+  /// Público: genera `PublicKeyCredentialRequestOptions`.
+  static const loginStart = '/api/v1/auth/passkey/login/start';
+
+  /// Público: verifica la firma y responde igual que `/auth/login`.
+  static const loginFinish = '/api/v1/auth/passkey/login/finish';
+
+  /// Con token: `GET` lista y `DELETE /{passkey_id}` revoca.
+  static const credentials = '/api/v1/auth/passkey/credentials';
+
+  /// Con token: valida la sesión solo contra Valkey (rápido).
+  static const sessionValidate = '/api/v1/auth/session/validate';
+}
 
 class AuthRepository {
   AuthRepository(
@@ -202,6 +225,13 @@ class AuthRepository {
     final token = await _storage.readToken();
     if (token == null || token.isEmpty) return null;
 
+    // Comprobación rápida contra Valkey: si el servidor ya no reconoce la
+    // sesión (expiró o se cerró), no hace falta pedir el perfil.
+    if (await validateSession() == false) {
+      await _storage.clear();
+      return null;
+    }
+
     try {
       return await fetchProfile();
     } on ApiException catch (e) {
@@ -210,6 +240,23 @@ class AuthRepository {
         return null;
       }
       rethrow;
+    }
+  }
+
+  /// Valida el token guardado con `GET /api/v1/auth/session/validate`.
+  ///
+  /// - `true`: la sesión sigue activa en el servidor.
+  /// - `false`: el servidor la rechazó (401): expiró o se cerró.
+  /// - `null`: no se pudo saber (sin conexión, Valkey caído, backend sin
+  ///   el endpoint). Quien llama debe seguir con el flujo normal.
+  Future<bool?> validateSession() async {
+    try {
+      final res = await _dio.get<dynamic>(PasskeyEndpoints.sessionValidate);
+      final data = res.data;
+      return data is Map && data['valid'] == true;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) return false;
+      return null;
     }
   }
 
@@ -228,14 +275,16 @@ class AuthRepository {
   // ---------------------------------------------------------------------------
   // PASSKEYS (WebAuthn / FIDO2)
   // ---------------------------------------------------------------------------
-  // Contrato (ver docs/passkeys.md):
-  //   POST /auth/passkey/register/options  (con token)  -> {challenge_id, options}
-  //   POST /auth/passkey/register/verify   (con token)  -> 200
-  //   POST /auth/passkey/login/options     (público)    -> {challenge_id, options}
-  //   POST /auth/passkey/login/verify      (público)    -> igual que /auth/login
+  // Contrato con el backend FastAPI (ver docs/passkeys.md y [PasskeyEndpoints]):
+  //   POST register/start   (con token) -> {challenge_id, options, expires_in}
+  //   POST register/finish  (con token) -> 200 {success, passkey} | 409 ya existe
+  //   POST login/start      (público)   -> {challenge_id, options, expires_in}
+  //   POST login/finish     (público)   -> igual que /auth/login {accessToken, usuario}
+  //   GET  credentials      (con token) -> [PasskeyCredential]
+  //   DELETE credentials/id (con token) -> revoca
   //
-  // El backend genera challenges aleatorios de un solo uso con expiración,
-  // guarda la clave pública + contador al registrar, y al iniciar sesión
+  // El backend guarda los challenges en Valkey (un solo uso, 5 min), la
+  // clave pública y el contador en MySQL + Valkey, y al iniciar sesión
   // verifica firma, origen, rpIdHash, flag UV y contador (anti-replay).
 
   /// `true` si `PASSKEY_RP_ID` está configurado y el dispositivo soporta
@@ -272,7 +321,7 @@ class AuthRepository {
   /// Lanza [PasskeyException] (cancelación, sin passkeys…) o [ApiException].
   Future<UserModel> loginWithPasskey({bool autoPrompt = false}) async {
     final challenge = await _requestPasskeyOptions(
-      '/auth/passkey/login/options',
+      PasskeyEndpoints.loginStart,
       const {},
     );
 
@@ -291,11 +340,12 @@ class AuthRepository {
     }
 
     try {
-      final user = await _authenticate('/auth/passkey/login/verify', {
+      final user = await _authenticate(PasskeyEndpoints.loginFinish, {
         'challenge_id': ?challenge.id,
         'credential': assertion,
       });
       await _storage.savePasskeyUser(user.correo);
+      await _rememberDeviceCredential(assertion);
       PasskeyService.log('login', 'sesión iniciada con passkey');
       return user;
     } on ApiException catch (e) {
@@ -323,7 +373,7 @@ class AuthRepository {
 
     final deviceName = _deviceName();
     final challenge = await _requestPasskeyOptions(
-      '/auth/passkey/register/options',
+      PasskeyEndpoints.registerStart,
       {'device_name': deviceName},
     );
     final user = challenge.options['user'];
@@ -343,7 +393,7 @@ class AuthRepository {
 
     try {
       await _dio.post<dynamic>(
-        '/auth/passkey/register/verify',
+        PasskeyEndpoints.registerFinish,
         data: {
           'challenge_id': ?challenge.id,
           'credential': credential,
@@ -351,11 +401,63 @@ class AuthRepository {
         },
       );
     } on DioException catch (e) {
-      throw ApiException.fromDio(e);
+      // 409: el backend ya tenía esta credencial. Está vinculada; no es error.
+      if (e.response?.statusCode != 409) throw ApiException.fromDio(e);
     }
     await _storage.savePasskeyUser(correo);
+    await _rememberDeviceCredential(credential);
     PasskeyService.log('register', 'passkey vinculada');
   }
+
+  /// Passkeys vinculadas a la cuenta con sesión activa.
+  Future<List<PasskeyCredential>> listPasskeys() async {
+    try {
+      final data = (await _dio.get<dynamic>(PasskeyEndpoints.credentials)).data;
+      if (data is! List) {
+        throw const ApiException('Respuesta de passkeys inesperada.');
+      }
+      return data
+          .whereType<Map>()
+          .map((e) => PasskeyCredential.fromJson(e.cast<String, dynamic>()))
+          .toList();
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  /// Revoca una passkey en el servidor (MySQL y Valkey). Si era la de este
+  /// dispositivo, la app deja de lanzar Face ID / huella automáticamente.
+  Future<void> revokePasskey(PasskeyCredential passkey) async {
+    try {
+      await _dio.delete<dynamic>(
+        '${PasskeyEndpoints.credentials}/${passkey.id}',
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+    if (await isDevicePasskey(passkey)) {
+      await _storage.clearPasskeyUser();
+    }
+  }
+
+  /// `true` si [passkey] es la última usada o creada en este dispositivo.
+  Future<bool> isDevicePasskey(PasskeyCredential passkey) async {
+    final local = await _storage.readPasskeyCredentialId();
+    return local != null && _sameCredentialId(local, passkey.credentialId);
+  }
+
+  Future<void> _rememberDeviceCredential(
+    Map<String, dynamic> credential,
+  ) async {
+    final id = credential['rawId'] ?? credential['id'];
+    if (id is String && id.isNotEmpty) {
+      await _storage.savePasskeyCredentialId(id);
+    }
+  }
+
+  /// Compara IDs base64url ignorando el relleno `=`.
+  static bool _sameCredentialId(String a, String b) =>
+      a.replaceAll('=', '') == b.replaceAll('=', '');
 
   /// Pide al backend un challenge nuevo. Acepta `{challenge_id, options}`,
   /// `{publicKey: {...}}` o las opciones directamente (py_webauthn).
