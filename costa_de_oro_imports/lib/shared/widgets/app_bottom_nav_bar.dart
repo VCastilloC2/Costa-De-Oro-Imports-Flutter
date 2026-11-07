@@ -1,63 +1,70 @@
+// RAMA: chore/Core
+// ============================================================================
+// WIDGET: AppBottomNavBar
+// ============================================================================
+// Barra de navegación inferior estilo "píldora expandible".
+// El ítem seleccionado se expande mostrando su icono relleno y texto.
+// Los ítems inactivos se muestran compactos con iconos de línea fina.
+// Utiliza iconos de Hugeicons y un BottomSheet para las opciones secundarias.
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_fonts.dart';
 
-/// ============================================================================
-/// BARRA DE NAVEGACIÓN INFERIOR
-/// ============================================================================
-/// - Barra blanca con esquinas superiores redondeadas y sombra suave.
-/// - Un único indicador beige que se desliza entre las opciones.
-/// - El ícono activo cambia a su versión rellena y crece un poco.
-/// - Vibración ligera al tocar y soporte de lectores de pantalla.
-/// - Insignias opcionales (por ejemplo, pedidos pendientes) con [badges].
-///
-/// Opciones: 0 Inicio, 1 Productos, 2 Compras, 3 Clientes, 4 Más.
 class AppBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
-
-  /// Número a mostrar sobre cada opción. Ejemplo: `{2: 5}` muestra un 5 en
-  /// "Compras". Si el valor es 0 o la opción no está en el mapa, no se muestra.
-  final Map<int, int> badges;
 
   const AppBottomNavBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
-    this.badges = const {},
   });
 
-  static const _items = <_NavItem>[
-    _NavItem('Inicio', Icons.home_outlined, Icons.home_rounded),
-    _NavItem(
-      'Productos',
-      Icons.shopping_bag_outlined,
-      Icons.shopping_bag_rounded,
+  // Lista de iconos con el tipo de dato correcto para Hugeicons
+  static final List<_NavItem> _items = [
+    const _NavItem(
+      label: 'Inicio',
+      icon: HugeIcons.strokeRoundedHome01,
+      activeIcon: HugeIcons.strokeRoundedHome04,
     ),
-    _NavItem(
-      'Compras',
-      Icons.receipt_long_outlined,
-      Icons.receipt_long_rounded,
+    const _NavItem(
+      label: 'Buscar',
+      icon: HugeIcons.strokeRoundedSearch01,
+      activeIcon: HugeIcons.strokeRoundedSearch01,
     ),
-    _NavItem('Clientes', Icons.people_outline_rounded, Icons.people_rounded),
-    _NavItem('Más', Icons.menu_rounded, Icons.menu_rounded),
+    const _NavItem(
+      label: 'Análisis',
+      icon: HugeIcons.strokeRoundedAnalytics01,
+      activeIcon: HugeIcons.strokeRoundedAnalytics02,
+    ),
+    const _NavItem(
+      label: 'Perfil',
+      icon: HugeIcons.strokeRoundedUser,
+      activeIcon: HugeIcons.strokeRoundedUserCircle,
+    ),
+    const _NavItem(
+      label: 'Más',
+      icon: HugeIcons.strokeRoundedMenu01,
+      activeIcon: HugeIcons.strokeRoundedMenu01,
+    ),
   ];
 
   @override
   Widget build(BuildContext context) {
     final s = MediaQuery.sizeOf(context).width / 390;
-    final pillWidth = 62 * s;
-    final pillHeight = 54 * s;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24 * s)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32 * s)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.brownDark.withValues(alpha: 0.08),
+            color: AppColors.brownDark.withValues(alpha: 0.06),
             blurRadius: 24,
             offset: const Offset(0, -6),
           ),
@@ -66,166 +73,226 @@ class AppBottomNavBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(8 * s, 10 * s, 8 * s, 8 * s),
-          child: SizedBox(
-            height: pillHeight,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final itemWidth = constraints.maxWidth / _items.length;
+          padding: EdgeInsets.symmetric(horizontal: 16 * s, vertical: 12 * s),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(_items.length, (index) {
+              final isSelected = currentIndex == index;
+              final isMore = index == 4;
 
-                return Stack(
-                  children: [
-                    // Indicador que se desliza hasta la opción activa
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 320),
-                      curve: Curves.easeOutCubic,
-                      left: currentIndex * itemWidth + (itemWidth - pillWidth) / 2,
-                      top: 0,
-                      width: pillWidth,
-                      height: pillHeight,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: AppColors.beige,
-                          borderRadius: BorderRadius.circular(18 * s),
-                        ),
-                      ),
-                    ),
-
-                    // Opciones
-                    Row(
-                      children: List.generate(_items.length, (index) {
-                        return Expanded(
-                          child: _NavButton(
-                            item: _items[index],
-                            selected: index == currentIndex,
-                            badge: badges[index] ?? 0,
-                            s: s,
-                            onTap: () {
-                              if (index != currentIndex) {
-                                HapticFeedback.selectionClick();
-                              }
-                              onTap(index);
-                            },
-                          ),
-                        );
-                      }),
-                    ),
-                  ],
-                );
-              },
-            ),
+              return _NavBarItem(
+                item: _items[index],
+                isSelected: isSelected,
+                s: s,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  if (isMore) {
+                    _showMoreMenu(context, s);
+                  } else {
+                    onTap(index);
+                  }
+                },
+              );
+            }),
           ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // MENÚ DESPLEGABLE (MÁS OPCIONES)
+  // ==========================================================================
+  void _showMoreMenu(BuildContext context, double s) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (bottomSheetContext) {
+        return Container(
+          padding: EdgeInsets.all(24 * s),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9F6F0),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32 * s)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40 * s,
+                  height: 4 * s,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              SizedBox(height: 24 * s),
+              Text(
+                'Más opciones',
+                style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark),
+              ),
+              SizedBox(height: 16 * s),
+              _buildMenuItem(
+                context: bottomSheetContext,
+                icon: HugeIcons.strokeRoundedSettings01,
+                title: 'Configuración',
+                subtitle: 'Preferencias de la app',
+                onTap: () => Navigator.pop(bottomSheetContext),
+                s: s,
+              ),
+              SizedBox(height: 8 * s),
+              _buildMenuItem(
+                context: bottomSheetContext,
+                icon: HugeIcons.strokeRoundedHelpCircle,
+                title: 'Ayuda y Soporte',
+                subtitle: 'Preguntas frecuentes',
+                onTap: () => Navigator.pop(bottomSheetContext),
+                s: s,
+              ),
+              SizedBox(height: 8 * s),
+              _buildMenuItem(
+                context: bottomSheetContext,
+                icon: HugeIcons.strokeRoundedLogout01,
+                title: 'Cerrar sesión',
+                subtitle: 'Salir de tu cuenta',
+                onTap: () => Navigator.pop(bottomSheetContext),
+                s: s,
+                isDestructive: true,
+              ),
+              SizedBox(height: 24 * s),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMenuItem({
+    required BuildContext context,
+    required List<List<dynamic>> icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required double s,
+    bool isDestructive = false,
+  }) {
+    final color = isDestructive ? Colors.redAccent : AppColors.brownDark;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16 * s),
+      child: Container(
+        padding: EdgeInsets.all(16 * s),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16 * s),
+        ),
+        child: Row(
+          children: [
+            HugeIcon(icon: icon, color: color, size: 24 * s),
+            SizedBox(width: 16 * s),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: AppFonts.style(size: 15 * s, weight: FontWeight.w600, color: color)),
+                  SizedBox(height: 2 * s),
+                  Text(subtitle, style: AppFonts.style(size: 12 * s, weight: FontWeight.w400, color: AppColors.muted)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.muted),
+          ],
         ),
       ),
     );
   }
 }
 
+// ============================================================================
+// MODELO DE DATOS PARA LOS ÍTEMS
+// ============================================================================
 class _NavItem {
   final String label;
-  final IconData icon;
-  final IconData activeIcon;
-  const _NavItem(this.label, this.icon, this.activeIcon);
+  // Tipo correcto para Hugeicons
+  final List<List<dynamic>> icon;
+  final List<List<dynamic>> activeIcon;
+
+  const _NavItem({
+    required this.label,
+    required this.icon,
+    required this.activeIcon,
+  });
 }
 
-class _NavButton extends StatelessWidget {
+// ============================================================================
+// WIDGET INDIVIDUAL (PÍLDORA EXPANDIBLE)
+// ============================================================================
+class _NavBarItem extends StatelessWidget {
   final _NavItem item;
-  final bool selected;
-  final int badge;
+  final bool isSelected;
   final double s;
   final VoidCallback onTap;
 
-  const _NavButton({
+  const _NavBarItem({
     required this.item,
-    required this.selected,
-    required this.badge,
+    required this.isSelected,
     required this.s,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppColors.brownDark : AppColors.muted;
-
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: item.label,
-      child: ExcludeSemantics(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  AnimatedScale(
-                    scale: selected ? 1.1 : 1.0,
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOutBack,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(
-                        selected ? item.activeIcon : item.icon,
-                        key: ValueKey(selected),
-                        color: color,
-                        size: 24 * s,
-                      ),
-                    ),
-                  ),
-                  if (badge > 0)
-                    Positioned(
-                      right: -8 * s,
-                      top: -5 * s,
-                      child: _Badge(count: badge, s: s),
-                    ),
-                ],
-              ),
-              SizedBox(height: 3 * s),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                style: AppFonts.style(
-                  size: 11 * s,
-                  weight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: color,
-                ),
-                child: Text(item.label, maxLines: 1),
-              ),
-            ],
-          ),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 16 * s : 12 * s,
+          vertical: 10 * s,
         ),
-      ),
-    );
-  }
-}
-
-class _Badge extends StatelessWidget {
-  final int count;
-  final double s;
-
-  const _Badge({required this.count, required this.s});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = count > 99 ? '99+' : '$count';
-
-    return Container(
-      constraints: BoxConstraints(minWidth: 16 * s, minHeight: 16 * s),
-      padding: EdgeInsets.symmetric(horizontal: 4 * s),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE53935),
-        borderRadius: BorderRadius.circular(10 * s),
-        border: Border.all(color: Colors.white, width: 1.5),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        text,
-        style: AppFonts.style(
-          size: 9 * s,
-          weight: FontWeight.w700,
-          color: Colors.white,
+        decoration: BoxDecoration(
+          // Color de fondo de la píldora cuando está seleccionado
+          color: isSelected ? AppColors.goldLight.withValues(alpha: 0.25) : Colors.transparent,
+          borderRadius: BorderRadius.circular(30 * s),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Icono (cambia a activo si está seleccionado)
+            HugeIcon(
+              icon: isSelected ? item.activeIcon : item.icon,
+              color: isSelected ? AppColors.brownDark : AppColors.muted,
+              size: 24 * s,
+              strokeWidth: isSelected ? 2.2 : 1.5,
+            ),
+            
+            // Texto animado (solo aparece si está seleccionado)
+            AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+              child: isSelected
+                  ? Row(
+                      children: [
+                        SizedBox(width: 8 * s),
+                        Text(
+                          item.label,
+                          style: AppFonts.style(
+                            size: 14 * s,
+                            weight: FontWeight.w700,
+                            color: AppColors.brownDark,
+                          ),
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
         ),
       ),
     );
