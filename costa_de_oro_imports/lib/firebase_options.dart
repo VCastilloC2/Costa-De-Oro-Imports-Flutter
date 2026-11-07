@@ -57,6 +57,7 @@ class DefaultFirebaseOptions {
     projectId: 'costa-de-oro-imports-93a1a',
     storageBucket: 'costa-de-oro-imports-93a1a.firebasestorage.app',
   );
+
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyC0oYK0tOSl-gyiRsadVu6B2EmwILzwMd8',
     appId: '1:183133000087:ios:c81f65dba750c1ceb7f4d2',
@@ -65,6 +66,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'costa-de-oro-imports-93a1a.firebasestorage.app',
     iosBundleId: 'com.example.costaDeOroImports',
   );
+
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyC0oYK0tOSl-gyiRsadVu6B2EmwILzwMd8',
     appId: '1:183133000087:ios:c81f65dba750c1ceb7f4d2',
