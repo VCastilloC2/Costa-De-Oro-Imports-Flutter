@@ -7,6 +7,7 @@ import '../../../../shared/widgets/app_svg_icon.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_header_card.dart';
 import '../../../../shared/widgets/decor_circle.dart';
+import '../../../../core/utils/validators.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -109,17 +110,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
 
   @override
   Widget build(BuildContext context) {
-    final s = MediaQuery.sizeOf(context).width / 390;
-
     return Scaffold(
       backgroundColor: AppColors.cream,
       body: Stack(
         children: [
           Positioned(
-            top: -70 * s,
-            right: -70 * s,
+            top: -70,
+            right: -70,
             child: DecorCircle(
-              diameter: 280 * s,
+              diameter: 280,
               gradient: RadialGradient(
                 colors: [
                   AppColors.gold.withValues(alpha: 0.25),
@@ -139,8 +138,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                       position: _backSlide,
                       child: Padding(
                         padding: EdgeInsets.symmetric(
-                          horizontal: 24 * s,
-                          vertical: 8 * s,
+                          horizontal: 24,
+                          vertical: 8,
                         ),
                         child: Align(
                           alignment: Alignment.centerLeft,
@@ -168,15 +167,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                     opacity: _cardFade,
                     child: SlideTransition(
                       position: _cardSlide,
-                      child: AuthHeaderCard(
-                        floatAnimation: _floatAnimation,
-                        s: s,
-                      ),
+                      child: AuthHeaderCard(floatAnimation: _floatAnimation),
                     ),
                   ),
 
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24 * s),
+                    padding: EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -188,7 +184,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                             child: Column(
                               children: [
                                 Text(
-                                  'Forgot Password',
+                                  'Recuperar contraseña',
                                   textAlign: TextAlign.center,
                                   style: AppFonts.style(
                                     size: 35,
@@ -196,9 +192,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                                     color: AppColors.brownDark,
                                   ),
                                 ),
-                                SizedBox(height: 8 * s),
+                                SizedBox(height: 8),
                                 Text(
-                                  'Reset your password to access Costa de Oro.',
+                                  'Restablece tu contraseña para entrar a Costa de Oro.',
                                   textAlign: TextAlign.center,
                                   style: AppFonts.style(
                                     size: 17,
@@ -212,7 +208,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                             ),
                           ),
                         ),
-                        SizedBox(height: 32 * s),
+                        SizedBox(height: 32),
 
                         // Input animado
                         FadeTransition(
@@ -221,25 +217,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                             position: _inputSlide,
                             child: AppTextField(
                               key: _emailKey,
-                              label: 'Email',
-                              hint: 'Enter you email',
+                              label: 'Correo electrónico',
+                              hint: 'Ingresa tu correo',
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
                               prefixIcon: const AppSvgIcon(AppSvgIcon.mail),
-                              validator: (val) {
-                                if (val == null || val.isEmpty) {
-                                  return 'El correo es obligatorio';
-                                }
-                                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                                    .hasMatch(val)) {
-                                  return 'Correo inválido';
-                                }
-                                return null;
-                              },
+                              validator: Validators.email,
                             ),
                           ),
                         ),
-                        SizedBox(height: 22 * s),
+                        SizedBox(height: 22),
 
                         // Botón animado
                         FadeTransition(
@@ -273,7 +260,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                                     ),
                                   ),
                                   child: Text(
-                                    'Send Code',
+                                    'Enviar código',
                                     style: AppFonts.style(
                                       size: 20,
                                       weight: FontWeight.w600,

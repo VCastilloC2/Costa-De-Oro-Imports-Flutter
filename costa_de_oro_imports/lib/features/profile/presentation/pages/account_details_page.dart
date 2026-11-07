@@ -35,7 +35,6 @@ class AccountDetailsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final s = MediaQuery.sizeOf(context).width / 390;
     final user = ref.watch(authControllerProvider).user;
 
     // Telefono: null cuando no hay un valor util para mostrar.
@@ -46,7 +45,7 @@ class AccountDetailsPage extends ConsumerWidget {
         : rawPhone;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F6F0),
+      backgroundColor: AppColors.surfaceAlt,
       // El cuerpo se extiende detras de la barra superior para que el
       // resplandor dorado del fondo la cubra tambien. Antes empezaba justo
       // debajo de la barra y dejaba una franja clara visible sobre el titulo.
@@ -56,7 +55,7 @@ class AccountDetailsPage extends ConsumerWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: Padding(
-          padding: EdgeInsets.only(left: 16 * s),
+          padding: EdgeInsets.only(left: 16),
           child: IconButton(
             icon: const Icon(
               Icons.arrow_back_ios_new,
@@ -74,7 +73,7 @@ class AccountDetailsPage extends ConsumerWidget {
         title: Text(
           'Detalles de la cuenta',
           style: AppFonts.style(
-            size: 20 * s,
+            size: 20,
             weight: FontWeight.w700,
             color: AppColors.brownDark,
           ),
@@ -86,13 +85,13 @@ class AccountDetailsPage extends ConsumerWidget {
             child: Text(
               'Editar',
               style: AppFonts.style(
-                size: 16 * s,
+                size: 16,
                 weight: FontWeight.w600,
                 color: AppColors.goldDark,
               ),
             ),
           ),
-          SizedBox(width: 8 * s),
+          SizedBox(width: 8),
         ],
       ),
       body: Stack(
@@ -104,7 +103,7 @@ class AccountDetailsPage extends ConsumerWidget {
             right: 0,
             child: IgnorePointer(
               child: Container(
-                height: 380 * s,
+                height: 380,
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
                     center: const Alignment(0, -1),
@@ -122,12 +121,7 @@ class AccountDetailsPage extends ConsumerWidget {
             child: SingleChildScrollView(
               // kToolbarHeight compensa la barra superior, que ahora queda
               // flotando sobre el cuerpo.
-              padding: EdgeInsets.fromLTRB(
-                20 * s,
-                kToolbarHeight + 12 * s,
-                20 * s,
-                32 * s,
-              ),
+              padding: EdgeInsets.fromLTRB(20, kToolbarHeight + 12, 20, 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -135,31 +129,27 @@ class AccountDetailsPage extends ConsumerWidget {
                   _Reveal(
                     order: 0,
                     child: _ProfileHeader(
-                      s: s,
                       imageUrl: user?.imagen,
                       initials: user?.initials ?? 'U',
                       fullName: user?.fullName ?? 'Usuario',
                       email: user?.correo ?? 'correo@ejemplo.com',
                     ),
                   ),
-                  SizedBox(height: 28 * s),
+                  SizedBox(height: 28),
 
                   // --- INFORMACION DE CONTACTO ---
                   _Reveal(
                     order: 1,
                     child: _Section(
-                      s: s,
                       title: 'Información de contacto',
                       rows: [
                         _InfoRow(
-                          s: s,
                           icon: Icons.phone_outlined,
                           label: 'Teléfono',
                           value: phone,
                           onAdd: () => context.push('/edit-profile'),
                         ),
                         _InfoRow(
-                          s: s,
                           icon: Icons.location_on_outlined,
                           label: 'Dirección de envío',
                           value: _addressPlaceholder,
@@ -168,24 +158,21 @@ class AccountDetailsPage extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  SizedBox(height: 24 * s),
+                  SizedBox(height: 24),
 
                   // --- DOCUMENTO DE IDENTIDAD ---
                   _Reveal(
                     order: 2,
                     child: _Section(
-                      s: s,
                       title: 'Documento de identidad',
                       rows: [
                         _InfoRow(
-                          s: s,
                           icon: Icons.badge_outlined,
                           label: 'Tipo de documento',
                           value: _documentTypePlaceholder,
                           onAdd: () => context.push('/edit-profile'),
                         ),
                         _InfoRow(
-                          s: s,
                           icon: Icons.tag_rounded,
                           label: 'Número de documento',
                           // Por seguridad no se muestra el numero completo.
@@ -243,14 +230,12 @@ class _Reveal extends StatelessWidget {
 /// Cabecera con el avatar, el nombre y el correo del usuario, sobre el fondo.
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
-    required this.s,
     required this.imageUrl,
     required this.initials,
     required this.fullName,
     required this.email,
   });
 
-  final double s;
   final String? imageUrl;
   final String initials;
   final String fullName;
@@ -258,13 +243,13 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avatarSize = 108 * s;
+    const avatarSize = 108.0;
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
 
     final initialsText = Text(
       initials,
       style: AppFonts.style(
-        size: 38 * s,
+        size: 38,
         weight: FontWeight.w700,
         color: AppColors.brownDark,
       ),
@@ -274,7 +259,7 @@ class _ProfileHeader extends StatelessWidget {
     // sobre el fondo de la pagina.
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20 * s, 8 * s, 20 * s, 0),
+      padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
       child: Column(
         children: [
           SizedBox(
@@ -287,7 +272,7 @@ class _ProfileHeader extends StatelessWidget {
                 Container(
                   width: avatarSize,
                   height: avatarSize,
-                  padding: EdgeInsets.all(3.5 * s),
+                  padding: EdgeInsets.all(3.5),
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
@@ -300,7 +285,7 @@ class _ProfileHeader extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: AppColors.beige,
-                      border: Border.all(color: Colors.white, width: 3 * s),
+                      border: Border.all(color: Colors.white, width: 3),
                     ),
                     alignment: Alignment.center,
                     child: hasImage
@@ -319,8 +304,8 @@ class _ProfileHeader extends StatelessWidget {
                 ),
                 // Boton de camara. La subida de foto aun no esta disponible.
                 Positioned(
-                  right: -2 * s,
-                  bottom: -2 * s,
+                  right: -2,
+                  bottom: -2,
                   child: GestureDetector(
                     onTap: () {
                       ScaffoldMessenger.of(context)
@@ -335,16 +320,16 @@ class _ProfileHeader extends StatelessWidget {
                         );
                     },
                     child: Container(
-                      padding: EdgeInsets.all(8 * s),
+                      padding: EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: AppColors.brownDark,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3 * s),
+                        border: Border.all(color: Colors.white, width: 3),
                       ),
                       child: Icon(
                         Icons.camera_alt_outlined,
                         color: Colors.white,
-                        size: 16 * s,
+                        size: 16,
                       ),
                     ),
                   ),
@@ -352,26 +337,26 @@ class _ProfileHeader extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(height: 18 * s),
+          SizedBox(height: 18),
           Text(
             fullName,
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: AppFonts.style(
-              size: 22 * s,
+              size: 22,
               weight: FontWeight.w800,
               color: AppColors.brownDark,
             ),
           ),
-          SizedBox(height: 4 * s),
+          SizedBox(height: 4),
           Text(
             email,
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: AppFonts.style(
-              size: 14 * s,
+              size: 14,
               weight: FontWeight.w500,
               color: AppColors.muted,
             ),
@@ -384,9 +369,8 @@ class _ProfileHeader extends StatelessWidget {
 
 /// Bloque con titulo (marca dorada a la izquierda) y una tarjeta de filas.
 class _Section extends StatelessWidget {
-  const _Section({required this.s, required this.title, required this.rows});
+  const _Section({required this.title, required this.rows});
 
-  final double s;
   final String title;
   final List<Widget> rows;
 
@@ -398,11 +382,11 @@ class _Section extends StatelessWidget {
       if (i > 0) {
         children.add(
           Padding(
-            padding: EdgeInsets.only(left: 72 * s),
+            padding: EdgeInsets.only(left: 72),
             child: const Divider(
               height: 1,
               thickness: 1,
-              color: Color(0xFFF2ECE2),
+              color: AppColors.surfaceSubtle,
             ),
           ),
         );
@@ -414,22 +398,22 @@ class _Section extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.only(left: 4 * s),
+          padding: EdgeInsets.only(left: 4),
           child: Row(
             children: [
               Container(
-                width: 4 * s,
-                height: 16 * s,
+                width: 4,
+                height: 16,
                 decoration: BoxDecoration(
                   color: AppColors.goldDark,
-                  borderRadius: BorderRadius.circular(4 * s),
+                  borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              SizedBox(width: 8 * s),
+              SizedBox(width: 8),
               Text(
                 title,
                 style: AppFonts.style(
-                  size: 14 * s,
+                  size: 14,
                   weight: FontWeight.w700,
                   color: AppColors.brown,
                 ),
@@ -437,12 +421,12 @@ class _Section extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(height: 12 * s),
+        SizedBox(height: 12),
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(22 * s),
+            borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
@@ -464,14 +448,12 @@ class _Section extends StatelessWidget {
 /// con un enlace "Agregar".
 class _InfoRow extends StatelessWidget {
   const _InfoRow({
-    required this.s,
     required this.icon,
     required this.label,
     required this.value,
     this.onAdd,
   });
 
-  final double s;
   final IconData icon;
   final String label;
   final String? value;
@@ -482,20 +464,20 @@ class _InfoRow extends StatelessWidget {
     final hasValue = value != null && value!.isNotEmpty;
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16 * s, vertical: 14 * s),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
           Container(
-            width: 42 * s,
-            height: 42 * s,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: AppColors.beige.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(14 * s),
+              borderRadius: BorderRadius.circular(14),
             ),
             alignment: Alignment.center,
-            child: Icon(icon, color: AppColors.brown, size: 21 * s),
+            child: Icon(icon, color: AppColors.brown, size: 21),
           ),
-          SizedBox(width: 14 * s),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -503,18 +485,18 @@ class _InfoRow extends StatelessWidget {
                 Text(
                   label,
                   style: AppFonts.style(
-                    size: 12.5 * s,
+                    size: 12.5,
                     weight: FontWeight.w500,
                     color: AppColors.muted,
                   ),
                 ),
-                SizedBox(height: 3 * s),
+                SizedBox(height: 3),
                 Text(
                   hasValue ? value! : 'No registrado',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: AppFonts.style(
-                    size: 15.5 * s,
+                    size: 15.5,
                     weight: hasValue ? FontWeight.w600 : FontWeight.w500,
                     color: hasValue ? AppColors.brownDark : AppColors.muted,
                   ),
@@ -526,14 +508,14 @@ class _InfoRow extends StatelessWidget {
             TextButton(
               onPressed: onAdd,
               style: TextButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 10 * s),
+                padding: EdgeInsets.symmetric(horizontal: 10),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Text(
                 'Agregar',
                 style: AppFonts.style(
-                  size: 14 * s,
+                  size: 14,
                   weight: FontWeight.w700,
                   color: AppColors.goldDark,
                 ),

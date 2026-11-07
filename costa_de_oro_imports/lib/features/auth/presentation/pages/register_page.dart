@@ -23,6 +23,7 @@ import '../../../../shared/widgets/auth_loading_overlay.dart';
 import '../../../../shared/widgets/decor_circle.dart';
 import '../../../../shared/widgets/social_button.dart';
 import '../providers/auth_controller.dart';
+import '../../../../core/utils/validators.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -44,6 +45,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
+  bool _showTermsError = false;
 
   /// Bloquea la interacción durante el proceso de registro y navegación.
   bool _leaving = false;
@@ -122,37 +124,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
     super.dispose();
   }
 
-  String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'El correo es obligatorio';
-    }
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value.trim())) {
-      return 'That email doesn\'t look right';
-    }
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'La contraseña es obligatoria';
-    }
-    if (value.length < 5) {
-      return 'Debe tener al menos 5 caracteres';
-    }
-    return null;
-  }
-
-  String? _validateConfirmPassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Debes confirmar la contraseña';
-    }
-    if (value != _passwordController.text) {
-      return 'Las contraseñas no coinciden';
-    }
-    return null;
-  }
-
   /// ==========================================================================
   /// LÓGICA DE REGISTRO
   /// ==========================================================================
@@ -178,11 +149,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
     }
 
     if (!_acceptTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Debes aceptar los términos y condiciones'),
-        ),
-      );
+      setState(() => _showTermsError = true);
       return;
     }
 
@@ -211,7 +178,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('¡Cuenta creada! Ahora inicia sesión.'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
             duration: Duration(seconds: 3),
           ),
         );
@@ -254,7 +221,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: Colors.red.shade700,
+          backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -262,8 +229,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
 
   @override
   Widget build(BuildContext context) {
-    final s = MediaQuery.sizeOf(context).width / 390;
-
     return ExcludeFocus(
       excluding: _leaving,
       child: Scaffold(
@@ -273,10 +238,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
             clipBehavior: Clip.none,
             children: [
               Positioned(
-                top: -70 * s,
-                right: -70 * s,
+                top: -70,
+                right: -70,
                 child: DecorCircle(
-                  diameter: 280 * s,
+                  diameter: 280,
                   gradient: RadialGradient(
                     colors: [
                       AppColors.gold.withValues(alpha: 0.25),
@@ -286,10 +251,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                 ),
               ),
               Positioned(
-                top: 180 * s,
-                left: -60 * s,
+                top: 180,
+                left: -60,
                 child: DecorCircle(
-                  diameter: 160 * s,
+                  diameter: 160,
                   gradient: RadialGradient(
                     colors: [
                       AppColors.beige.withValues(alpha: 0.6),
@@ -299,10 +264,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                 ),
               ),
               Positioned(
-                bottom: -40 * s,
-                right: -40 * s,
+                bottom: -40,
+                right: -40,
                 child: DecorCircle(
-                  diameter: 220 * s,
+                  diameter: 220,
                   gradient: RadialGradient(
                     colors: [
                       AppColors.goldLight.withValues(alpha: 0.3),
@@ -322,13 +287,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                           position: _cardSlide,
                           child: AuthHeaderCard(
                             floatAnimation: _floatAnimation,
-                            s: s,
                           ),
                         ),
                       ),
 
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16 * s),
+                        padding: EdgeInsets.symmetric(horizontal: 16),
                         child: Column(
                           children: [
                             FadeTransition(
@@ -338,14 +302,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                 child: Column(
                                   children: [
                                     Text(
-                                      'Create Account',
+                                      'Crear cuenta',
                                       style: AppFonts.style(
                                         size: 35,
                                         weight: FontWeight.w700,
                                         color: AppColors.brownDark,
                                       ),
                                     ),
-                                    SizedBox(height: 8 * s),
+                                    SizedBox(height: 8),
                                     Text(
                                       'Solo necesitamos unos segundos para empezar.',
                                       textAlign: TextAlign.center,
@@ -361,7 +325,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                 ),
                               ),
                             ),
-                            SizedBox(height: 22 * s),
+                            SizedBox(height: 22),
 
                             FadeTransition(
                               opacity: _inputsFade,
@@ -369,16 +333,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                 position: _inputsSlide,
                                 child: AppTextField(
                                   key: _emailKey,
-                                  label: 'Email',
-                                  hint: 'Enter your email',
+                                  label: 'Correo electrónico',
+                                  hint: 'Ingresa tu correo',
                                   controller: _emailController,
                                   keyboardType: TextInputType.emailAddress,
-                                  validator: _validateEmail,
+                                  validator: Validators.email,
                                   prefixIcon: const AppSvgIcon(AppSvgIcon.mail),
                                 ),
                               ),
                             ),
-                            SizedBox(height: 16 * s),
+                            SizedBox(height: 16),
 
                             FadeTransition(
                               opacity: _inputsFade,
@@ -386,11 +350,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                 position: _inputsSlide,
                                 child: AppTextField(
                                   key: _passwordKey,
-                                  label: 'Password',
+                                  label: 'Contraseña',
                                   hint: 'Mínimo 5 caracteres',
                                   controller: _passwordController,
                                   obscureText: _obscurePassword,
-                                  validator: _validatePassword,
+                                  validator: Validators.password,
                                   prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
                                   suffixIcon: GestureDetector(
                                     onTap: () => setState(
@@ -406,7 +370,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                 ),
                               ),
                             ),
-                            SizedBox(height: 16 * s),
+                            SizedBox(height: 16),
 
                             FadeTransition(
                               opacity: _inputsFade,
@@ -414,11 +378,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                 position: _inputsSlide,
                                 child: AppTextField(
                                   key: _confirmPasswordKey,
-                                  label: 'Confirm Password',
-                                  hint: 'Confirm your Password',
+                                  label: 'Confirmar contraseña',
+                                  hint: 'Repite tu contraseña',
                                   controller: _confirmPasswordController,
                                   obscureText: _obscureConfirmPassword,
-                                  validator: _validateConfirmPassword,
+                                  validator: Validators.confirmPassword(
+                                    () => _passwordController.text,
+                                  ),
                                   prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
                                   suffixIcon: GestureDetector(
                                     onTap: () => setState(
@@ -434,7 +400,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                 ),
                               ),
                             ),
-                            SizedBox(height: 16 * s),
+                            SizedBox(height: 16),
 
                             FadeTransition(
                               opacity: _buttonsFade,
@@ -444,12 +410,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                   children: [
                                     AppTermsCheckbox(
                                       value: _acceptTerms,
+                                      errorText: _showTermsError
+                                          ? 'Debes aceptar los términos y condiciones'
+                                          : null,
                                       onChanged: (val) {
-                                        setState(() => _acceptTerms = val);
+                                        setState(() {
+                                          _acceptTerms = val;
+                                          _showTermsError = false;
+                                        });
                                         FocusScope.of(context).unfocus();
                                       },
                                     ),
-                                    SizedBox(height: 24 * s),
+                                    SizedBox(height: 24),
 
                                     SizedBox(
                                       width: double.infinity,
@@ -497,7 +469,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                 ),
                               ),
                             ),
-                            SizedBox(height: 22 * s),
+                            SizedBox(height: 22),
 
                             FadeTransition(
                               opacity: _socialsFade,
@@ -515,10 +487,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                         ),
                                         Padding(
                                           padding: EdgeInsets.symmetric(
-                                            horizontal: 16 * s,
+                                            horizontal: 16,
                                           ),
                                           child: Text(
-                                            'Or continue with',
+                                            'O continúa con',
                                             style: AppFonts.style(
                                               size: 15,
                                               weight: FontWeight.w500,
@@ -534,7 +506,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                         ),
                                       ],
                                     ),
-                                    SizedBox(height: 24 * s),
+                                    SizedBox(height: 24),
                                     Row(
                                       children: [
                                         Expanded(
@@ -545,7 +517,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                             onPressed: () {},
                                           ),
                                         ),
-                                        SizedBox(width: 16 * s),
+                                        SizedBox(width: 16),
                                         Expanded(
                                           child: SocialButton(
                                             label: 'Apple',
@@ -556,7 +528,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                         ),
                                       ],
                                     ),
-                                    SizedBox(height: 22 * s),
+                                    SizedBox(height: 22),
                                     GestureDetector(
                                       onTap: () => context.go('/login'),
                                       child: Text.rich(
@@ -582,7 +554,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                         ),
                                       ),
                                     ),
-                                    SizedBox(height: 40 * s),
+                                    SizedBox(height: 40),
                                   ],
                                 ),
                               ),

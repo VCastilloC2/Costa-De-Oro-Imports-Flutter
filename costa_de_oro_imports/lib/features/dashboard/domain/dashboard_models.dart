@@ -351,4 +351,60 @@ class DashboardData {
       ),
     );
   }
+
+  /// Datos de ejemplo para dibujar el skeleton mientras carga el panel.
+  static final skeleton = DashboardData(
+    profile: const DashboardProfile(
+      name: 'Cargando usuario',
+      email: 'correo@ejemplo.com',
+      role: 'ADMIN',
+    ),
+    metrics: const DashboardMetrics(
+      totalProducts: 24,
+      totalClients: 82,
+      totalPurchases: 146,
+      totalSales: 5989420,
+      pendingPurchases: 3,
+    ),
+    finances: const RevenueExpenses(
+      income: 5989420,
+      expenses: 2135000,
+      balance: 3854420,
+    ),
+    stockTotal: 324,
+    salesHistory: [
+      for (var i = 0; i < 8; i++)
+        SalesPoint(date: DateTime(2026, i + 1), amount: 120000.0 + i * 32000),
+    ],
+    products: [
+      for (var i = 0; i < 6; i++)
+        ProductSummary(
+          id: i,
+          name: 'Producto destacado',
+          price: 92000,
+          stock: 30,
+        ),
+    ],
+    topProducts: [
+      for (var i = 0; i < 4; i++)
+        ProductSummary(
+          id: i,
+          name: 'Producto destacado',
+          price: 92000,
+          stock: 30,
+          unitsSold: 20,
+          sales: 1840000,
+        ),
+    ],
+    recentPurchases: [
+      for (var i = 0; i < 4; i++)
+        PurchaseSummary(
+          id: i,
+          total: 79000,
+          status: 'PENDIENTE',
+          date: DateTime(2026, 1, 12),
+        ),
+    ],
+    mapMessage: 'Cargando ubicación',
+  );
 }

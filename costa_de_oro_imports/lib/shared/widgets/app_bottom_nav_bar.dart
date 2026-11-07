@@ -10,10 +10,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_fonts.dart';
+import '../../features/auth/presentation/providers/auth_controller.dart';
 
 class AppBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -56,12 +58,10 @@ class AppBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = MediaQuery.sizeOf(context).width / 390;
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32 * s)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         boxShadow: [
           BoxShadow(
             color: AppColors.brownDark.withValues(alpha: 0.06),
@@ -73,7 +73,7 @@ class AppBottomNavBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16 * s, vertical: 12 * s),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: List.generate(_items.length, (index) {
@@ -83,11 +83,10 @@ class AppBottomNavBar extends StatelessWidget {
               return _NavBarItem(
                 item: _items[index],
                 isSelected: isSelected,
-                s: s,
                 onTap: () {
                   HapticFeedback.selectionClick();
                   if (isMore) {
-                    _showMoreMenu(context, s);
+                    _showMoreMenu(context);
                   } else {
                     onTap(index);
                   }
@@ -103,17 +102,17 @@ class AppBottomNavBar extends StatelessWidget {
   // ==========================================================================
   // MENÚ DESPLEGABLE (MÁS OPCIONES)
   // ==========================================================================
-  void _showMoreMenu(BuildContext context, double s) {
+  void _showMoreMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (bottomSheetContext) {
         return Container(
-          padding: EdgeInsets.all(24 * s),
+          padding: EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: const Color(0xFFF9F6F0),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32 * s)),
+            color: AppColors.surfaceAlt,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -121,52 +120,55 @@ class AppBottomNavBar extends StatelessWidget {
             children: [
               Center(
                 child: Container(
-                  width: 40 * s,
-                  height: 4 * s,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: AppColors.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-              SizedBox(height: 24 * s),
+              SizedBox(height: 24),
               Text(
                 'Más opciones',
                 style: AppFonts.style(
-                  size: 20 * s,
+                  size: 20,
                   weight: FontWeight.w700,
                   color: AppColors.brownDark,
                 ),
               ),
-              SizedBox(height: 16 * s),
+              SizedBox(height: 16),
               _buildMenuItem(
                 context: bottomSheetContext,
                 icon: HugeIcons.strokeRoundedSettings01,
                 title: 'Configuración',
                 subtitle: 'Preferencias de la app',
                 onTap: () => Navigator.pop(bottomSheetContext),
-                s: s,
               ),
-              SizedBox(height: 8 * s),
+              SizedBox(height: 8),
               _buildMenuItem(
                 context: bottomSheetContext,
                 icon: HugeIcons.strokeRoundedHelpCircle,
                 title: 'Ayuda y Soporte',
                 subtitle: 'Preguntas frecuentes',
                 onTap: () => Navigator.pop(bottomSheetContext),
-                s: s,
               ),
-              SizedBox(height: 8 * s),
+              SizedBox(height: 8),
               _buildMenuItem(
                 context: bottomSheetContext,
                 icon: HugeIcons.strokeRoundedLogout01,
                 title: 'Cerrar sesión',
                 subtitle: 'Salir de tu cuenta',
-                onTap: () => Navigator.pop(bottomSheetContext),
-                s: s,
+                onTap: () {
+                  Navigator.pop(bottomSheetContext);
+                  // Al quedar sin sesión, el router lleva al login solo.
+                  ProviderScope.containerOf(context)
+                      .read(authControllerProvider.notifier)
+                      .logout();
+                },
                 isDestructive: true,
               ),
-              SizedBox(height: 24 * s),
+              SizedBox(height: 24),
             ],
           ),
         );
@@ -180,24 +182,23 @@ class AppBottomNavBar extends StatelessWidget {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
-    required double s,
     bool isDestructive = false,
   }) {
-    final color = isDestructive ? Colors.redAccent : AppColors.brownDark;
+    final color = isDestructive ? AppColors.error : AppColors.brownDark;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16 * s),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: EdgeInsets.all(16 * s),
+        padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16 * s),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
-            HugeIcon(icon: icon, color: color, size: 24 * s),
-            SizedBox(width: 16 * s),
+            HugeIcon(icon: icon, color: color, size: 24),
+            SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,16 +206,16 @@ class AppBottomNavBar extends StatelessWidget {
                   Text(
                     title,
                     style: AppFonts.style(
-                      size: 15 * s,
+                      size: 15,
                       weight: FontWeight.w600,
                       color: color,
                     ),
                   ),
-                  SizedBox(height: 2 * s),
+                  SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: AppFonts.style(
-                      size: 12 * s,
+                      size: 12,
                       weight: FontWeight.w400,
                       color: AppColors.muted,
                     ),
@@ -256,13 +257,11 @@ class _NavItem {
 class _NavBarItem extends StatelessWidget {
   final _NavItem item;
   final bool isSelected;
-  final double s;
   final VoidCallback onTap;
 
   const _NavBarItem({
     required this.item,
     required this.isSelected,
-    required this.s,
     required this.onTap,
   });
 
@@ -275,15 +274,15 @@ class _NavBarItem extends StatelessWidget {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
         padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 16 * s : 12 * s,
-          vertical: 10 * s,
+          horizontal: isSelected ? 16 : 12,
+          vertical: 10,
         ),
         decoration: BoxDecoration(
           // Color de fondo de la píldora cuando está seleccionado
           color: isSelected
               ? AppColors.goldLight.withValues(alpha: 0.25)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(30 * s),
+          borderRadius: BorderRadius.circular(30),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -292,7 +291,7 @@ class _NavBarItem extends StatelessWidget {
             HugeIcon(
               icon: isSelected ? item.activeIcon : item.icon,
               color: isSelected ? AppColors.brownDark : AppColors.muted,
-              size: 24 * s,
+              size: 24,
               strokeWidth: isSelected ? 2.2 : 1.5,
             ),
 
@@ -303,11 +302,11 @@ class _NavBarItem extends StatelessWidget {
               child: isSelected
                   ? Row(
                       children: [
-                        SizedBox(width: 8 * s),
+                        SizedBox(width: 8),
                         Text(
                           item.label,
                           style: AppFonts.style(
-                            size: 14 * s,
+                            size: 14,
                             weight: FontWeight.w700,
                             color: AppColors.brownDark,
                           ),

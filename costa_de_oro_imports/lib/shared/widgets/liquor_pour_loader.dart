@@ -344,7 +344,7 @@ class _PourPainter extends CustomPainter {
           ..shader = const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [AppColors.goldLight, AppColors.gold, Color(0xFF8A5A12)],
+            colors: [AppColors.goldLight, AppColors.gold, AppColors.caramel],
           ).createShader(liquidRect),
       );
 
@@ -400,7 +400,7 @@ class _PourPainter extends CustomPainter {
           ..shader = const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [AppColors.goldLight, AppColors.gold, Color(0xFF8A5A12)],
+            colors: [AppColors.goldLight, AppColors.gold, AppColors.caramel],
           ).createShader(lp.getBounds()),
       );
 

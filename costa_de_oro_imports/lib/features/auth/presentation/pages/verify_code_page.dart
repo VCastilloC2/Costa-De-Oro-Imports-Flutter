@@ -191,17 +191,15 @@ class _VerifyCodePageState extends State<VerifyCodePage>
 
   @override
   Widget build(BuildContext context) {
-    final s = MediaQuery.sizeOf(context).width / 390;
-
     return Scaffold(
       backgroundColor: AppColors.cream,
       body: Stack(
         children: [
           Positioned(
-            top: -70 * s,
-            right: -70 * s,
+            top: -70,
+            right: -70,
             child: DecorCircle(
-              diameter: 280 * s,
+              diameter: 280,
               gradient: RadialGradient(
                 colors: [
                   AppColors.gold.withValues(alpha: 0.25),
@@ -220,8 +218,8 @@ class _VerifyCodePageState extends State<VerifyCodePage>
                       position: _backSlide,
                       child: Padding(
                         padding: EdgeInsets.symmetric(
-                          horizontal: 24 * s,
-                          vertical: 8 * s,
+                          horizontal: 24,
+                          vertical: 8,
                         ),
                         child: Align(
                           alignment: Alignment.centerLeft,
@@ -248,15 +246,12 @@ class _VerifyCodePageState extends State<VerifyCodePage>
                     opacity: _cardFade,
                     child: SlideTransition(
                       position: _cardSlide,
-                      child: AuthHeaderCard(
-                        floatAnimation: _floatAnimation,
-                        s: s,
-                      ),
+                      child: AuthHeaderCard(floatAnimation: _floatAnimation),
                     ),
                   ),
 
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24 * s),
+                    padding: EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -267,7 +262,7 @@ class _VerifyCodePageState extends State<VerifyCodePage>
                             child: Column(
                               children: [
                                 Text(
-                                  'Verify your account',
+                                  'Verifica tu cuenta',
                                   textAlign: TextAlign.center,
                                   style: AppFonts.style(
                                     size: 35,
@@ -275,9 +270,9 @@ class _VerifyCodePageState extends State<VerifyCodePage>
                                     color: AppColors.brownDark,
                                   ),
                                 ),
-                                SizedBox(height: 8 * s),
+                                SizedBox(height: 8),
                                 Text(
-                                  'Enter the 5-digit code sent to your email.',
+                                  'Ingresa el código de 5 dígitos que enviamos a tu correo.',
                                   textAlign: TextAlign.center,
                                   style: AppFonts.style(
                                     size: 17,
@@ -291,7 +286,7 @@ class _VerifyCodePageState extends State<VerifyCodePage>
                             ),
                           ),
                         ),
-                        SizedBox(height: 32 * s),
+                        SizedBox(height: 32),
 
                         // Cuadros del código
                         FadeTransition(
@@ -303,7 +298,7 @@ class _VerifyCodePageState extends State<VerifyCodePage>
                             ),
                           ),
                         ),
-                        SizedBox(height: 32 * s),
+                        SizedBox(height: 32),
 
                         FadeTransition(
                           opacity: _buttonFade,
@@ -348,7 +343,7 @@ class _VerifyCodePageState extends State<VerifyCodePage>
                             ),
                           ),
                         ),
-                        SizedBox(height: 24 * s),
+                        SizedBox(height: 24),
                         FadeTransition(
                           opacity: _resendFade,
                           child: SlideTransition(
@@ -356,7 +351,7 @@ class _VerifyCodePageState extends State<VerifyCodePage>
                             child: Center(
                               child: Text.rich(
                                 TextSpan(
-                                  text: "Don't received code? ",
+                                  text: '¿No recibiste el código? ',
                                   style: AppFonts.style(
                                     size: 17,
                                     weight: FontWeight.w500,
@@ -366,7 +361,7 @@ class _VerifyCodePageState extends State<VerifyCodePage>
                                   ),
                                   children: [
                                     TextSpan(
-                                      text: 'Resend Now',
+                                      text: 'Reenviar ahora',
                                       style: AppFonts.style(
                                         size: 17,
                                         weight: FontWeight.w700,
@@ -379,7 +374,7 @@ class _VerifyCodePageState extends State<VerifyCodePage>
                             ),
                           ),
                         ),
-                        SizedBox(height: 24 * s),
+                        SizedBox(height: 24),
                       ],
                     ),
                   ),

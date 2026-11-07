@@ -137,7 +137,7 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
       AppFonts.style(
         size: 26 * widget.textScale,
         weight: FontWeight.w800,
-        color: const Color(0xFFFFE066),
+        color: AppColors.amberLight,
         letterSpacing: spacing,
       ).copyWith(
         shadows: [
@@ -153,7 +153,7 @@ class _AnimatedBrandLockupState extends State<AnimatedBrandLockup>
       AppFonts.style(
         size: 11 * widget.textScale,
         weight: FontWeight.w700,
-        color: const Color(0xFFFFC107),
+        color: AppColors.amber,
         letterSpacing: spacing,
       ).copyWith(
         shadows: [

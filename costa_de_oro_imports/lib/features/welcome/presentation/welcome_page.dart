@@ -77,8 +77,6 @@ class _WelcomePageState extends State<WelcomePage>
 
   @override
   Widget build(BuildContext context) {
-    final s = MediaQuery.sizeOf(context).width / 390;
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -112,14 +110,14 @@ class _WelcomePageState extends State<WelcomePage>
           // Contenido
           SafeArea(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24 * s),
+              padding: EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-                  SizedBox(height: 16 * s),
+                  SizedBox(height: 16),
 
                   // EL LOGO DESTINO
                   if (!_showOverlay)
-                    AnimatedBrandLockup(logoWidth: 120 * s, play: false),
+                    AnimatedBrandLockup(logoWidth: 120, play: false),
 
                   const Spacer(),
 
@@ -134,7 +132,7 @@ class _WelcomePageState extends State<WelcomePage>
                           style:
                               AppFonts.style(
                                 //
-                                size: 34 * s,
+                                size: 34,
                                 weight: FontWeight.w700,
                                 color: Colors.white,
                                 height: 1.2,
@@ -155,7 +153,7 @@ class _WelcomePageState extends State<WelcomePage>
                           textAlign: TextAlign.center,
                           style:
                               AppFonts.style(
-                                size: 15 * s,
+                                size: 15,
                                 weight: FontWeight.w500,
                                 color: Colors.white.withValues(alpha: 0.9),
                                 height: 1.4,
@@ -173,10 +171,10 @@ class _WelcomePageState extends State<WelcomePage>
                     ),
                   ),
 
-                  SizedBox(height: 32 * s),
+                  SizedBox(height: 32),
 
                   _reveal(0.40, 0.80, const _StartButton()),
-                  SizedBox(height: 32 * s),
+                  SizedBox(height: 32),
                 ],
               ),
             ),
@@ -213,7 +211,7 @@ class _StartButton extends StatelessWidget {
                   width: 60,
                   height: 60,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF14100C),
+                    color: AppColors.ink,
                     shape: BoxShape.circle,
                   ),
                   child: Transform.rotate(
@@ -228,7 +226,7 @@ class _StartButton extends StatelessWidget {
                 Expanded(
                   child: Center(
                     child: Text(
-                      'Get Started',
+                      'Comenzar',
                       style: AppFonts.style(
                         // <-- TIPOGRAFÍA GEIST
                         size: 20,

@@ -32,7 +32,7 @@ import '../../app/theme/app_fonts.dart';
 ///
 /// AppTextField(
 ///   key: _emailKey,
-///   label: 'Email',
+///   label: 'Correo electrónico',
 ///   hint: 'Ingresa tu correo',
 ///   controller: _emailController,
 ///   keyboardType: TextInputType.emailAddress,
@@ -169,9 +169,9 @@ class AppTextFieldState extends State<AppTextField> {
 
     if (_errorText != null) {
       // Estado de ERROR: todo en rojo y borde más grueso.
-      targetBorderColor = Colors.red;
-      targetTextColor = Colors.red;
-      targetIconColor = Colors.red;
+      targetBorderColor = AppColors.error;
+      targetTextColor = AppColors.error;
+      targetIconColor = AppColors.error;
       targetBorderWidth = 1.5;
     } else if (_hasFocus) {
       // Estado con FOCO: borde dorado para indicar el campo activo.
@@ -183,7 +183,7 @@ class AppTextFieldState extends State<AppTextField> {
       // Estado NORMAL: borde beige y texto en color principal de marca.
       targetBorderColor = AppColors.beige;
       targetTextColor = AppColors.brownDark;
-      targetIconColor = Colors.grey.shade500;
+      targetIconColor = AppColors.muted;
       targetBorderWidth = 1.2;
     }
 
@@ -380,14 +380,14 @@ class AppTextFieldState extends State<AppTextField> {
             padding: const EdgeInsets.only(top: 6, left: 4),
             child: Row(
               children: [
-                const Icon(Icons.error, color: Colors.red, size: 18),
+                const Icon(Icons.error, color: AppColors.error, size: 18),
                 const SizedBox(width: 4),
                 Text(
                   _errorText!,
                   style: AppFonts.style(
                     size: 16,
                     weight: FontWeight.w500,
-                    color: Colors.red,
+                    color: AppColors.error,
                   ),
                 ),
               ],

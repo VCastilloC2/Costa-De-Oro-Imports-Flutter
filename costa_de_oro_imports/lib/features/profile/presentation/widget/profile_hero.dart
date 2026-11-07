@@ -45,12 +45,16 @@ class ProfileHero extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF1E130C), AppColors.brown, Color(0xFFD4AF37)],
+            colors: [
+              AppColors.inkSoft,
+              AppColors.brown,
+              AppColors.metallicGold,
+            ],
             stops: [0.0, 0.8, 1.0],
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF1E130C).withValues(alpha: 0.35),
+              color: AppColors.inkSoft.withValues(alpha: 0.35),
               blurRadius: 24,
               offset: const Offset(0, 12),
             ),

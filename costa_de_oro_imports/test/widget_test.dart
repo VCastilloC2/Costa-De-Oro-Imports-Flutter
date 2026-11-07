@@ -1,4 +1,4 @@
-import 'package:costa_de_oro_imports/features/home/domain/dashboard_models.dart';
+import 'package:costa_de_oro_imports/features/dashboard/domain/dashboard_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -27,6 +27,17 @@ void main() {
       expect(product.name, 'Producto');
       expect(product.price, 0);
       expect(product.stock, 0);
+    });
+  });
+
+  group('DashboardData.skeleton', () {
+    test('has data in every section so the skeleton fills the panel', () {
+      final data = DashboardData.skeleton;
+
+      expect(data.salesHistory, isNotEmpty);
+      expect(data.topProducts.where((p) => p.sales > 0), isNotEmpty);
+      expect(data.metrics.totalSales, greaterThan(0));
+      expect(data.profile.name, isNotEmpty);
     });
   });
 }

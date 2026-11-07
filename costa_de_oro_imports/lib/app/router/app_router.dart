@@ -5,11 +5,13 @@
 // Configuración del enrutador principal.
 // ============================================================================
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/welcome/presentation/welcome_page.dart';
+import '../../shared/widgets/error_state_widget.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/terms_page.dart';
@@ -17,7 +19,6 @@ import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/presentation/pages/verify_code_page.dart';
 import '../../features/auth/presentation/pages/reset_password_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
-import '../../features/home/presentation/home_page.dart';
 import '../../features/profile/presentation/pages/user_profile_page.dart';
 import '../../features/profile/presentation/pages/edit_profile_page.dart';
 import '../../features/auth/presentation/providers/auth_controller.dart';
@@ -32,7 +33,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: '/welcome',
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: kDebugMode,
+    // Ruta inexistente (por ejemplo, un enlace viejo): pantalla amable con
+    // salida, en lugar de la pantalla roja de error de GoRouter.
+    errorBuilder: (context, state) => Scaffold(
+      body: Center(
+        child: ErrorStateWidget(
+          icon: Icons.explore_off_outlined,
+          message: 'No encontramos esta pantalla.',
+          actionLabel: 'Volver al inicio',
+          actionIcon: Icons.home_outlined,
+          onAction: () => context.go('/welcome'),
+        ),
+      ),
+    ),
     refreshListenable: refreshNotifier,
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
@@ -96,8 +110,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/dashboard',
         builder: (context, state) => const DashboardPage(),
       ),
-      // Panel administrativo con analítica (viene de main).
-      GoRoute(path: '/home', builder: (context, state) => const HomePage()),
       GoRoute(
         path: '/profile',
         builder: (context, state) => const UserProfilePage(),

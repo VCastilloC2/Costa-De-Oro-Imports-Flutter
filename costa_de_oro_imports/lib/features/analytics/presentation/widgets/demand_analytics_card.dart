@@ -39,7 +39,7 @@ class DemandAnalyticsCard extends ConsumerWidget {
               onPressed: () =>
                   ref.read(demandPredictionProvider.notifier).load(force: true),
               icon: const Icon(Icons.analytics_outlined),
-              label: const Text('Cargar Analytics'),
+              label: const Text('Cargar análisis de demanda'),
             ),
           ),
         ),

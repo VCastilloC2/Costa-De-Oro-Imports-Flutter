@@ -91,7 +91,7 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF2E9E4F);
+    const green = AppColors.success;
     final color = done ? green : AppColors.goldDark;
 
     return AnimatedContainer(

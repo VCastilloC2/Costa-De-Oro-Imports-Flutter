@@ -7,6 +7,7 @@ import '../../../../shared/widgets/app_svg_icon.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_header_card.dart';
 import '../../../../shared/widgets/decor_circle.dart';
+import '../../../../core/utils/validators.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   const ResetPasswordPage({super.key});
@@ -110,17 +111,15 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
 
   @override
   Widget build(BuildContext context) {
-    final s = MediaQuery.sizeOf(context).width / 390;
-
     return Scaffold(
       backgroundColor: AppColors.cream,
       body: Stack(
         children: [
           Positioned(
-            top: -70 * s,
-            right: -70 * s,
+            top: -70,
+            right: -70,
             child: DecorCircle(
-              diameter: 280 * s,
+              diameter: 280,
               gradient: RadialGradient(
                 colors: [
                   AppColors.gold.withValues(alpha: 0.25),
@@ -139,8 +138,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                       position: _backSlide,
                       child: Padding(
                         padding: EdgeInsets.symmetric(
-                          horizontal: 24 * s,
-                          vertical: 8 * s,
+                          horizontal: 24,
+                          vertical: 8,
                         ),
                         child: Align(
                           alignment: Alignment.centerLeft,
@@ -167,15 +166,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                     opacity: _cardFade,
                     child: SlideTransition(
                       position: _cardSlide,
-                      child: AuthHeaderCard(
-                        floatAnimation: _floatAnimation,
-                        s: s,
-                      ),
+                      child: AuthHeaderCard(floatAnimation: _floatAnimation),
                     ),
                   ),
 
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24 * s),
+                    padding: EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -186,7 +182,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                             child: Column(
                               children: [
                                 Text(
-                                  'Create New Password',
+                                  'Crea una nueva contraseña',
                                   textAlign: TextAlign.center,
                                   style: AppFonts.style(
                                     size: 32,
@@ -194,9 +190,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                                     color: AppColors.brownDark,
                                   ),
                                 ),
-                                SizedBox(height: 8 * s),
+                                SizedBox(height: 8),
                                 Text(
-                                  'Set a strong password to secure access.',
+                                  'Elige una contraseña segura para proteger tu cuenta.',
                                   textAlign: TextAlign.center,
                                   style: AppFonts.style(
                                     size: 16,
@@ -210,7 +206,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                             ),
                           ),
                         ),
-                        SizedBox(height: 32 * s),
+                        SizedBox(height: 32),
 
                         FadeTransition(
                           opacity: _inputsFade,
@@ -220,8 +216,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                               children: [
                                 AppTextField(
                                   key: _passwordKey,
-                                  label: 'Password',
-                                  hint: 'Enter your Password',
+                                  label: 'Contraseña',
+                                  hint: 'Ingresa tu contraseña',
                                   controller: _passwordController,
                                   obscureText: _obscurePassword,
                                   prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
@@ -236,18 +232,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                                           : AppSvgIcon.eye,
                                     ),
                                   ),
-                                  validator: (val) {
-                                    if (val == null || val.isEmpty) {
-                                      return 'La contraseña es obligatoria';
-                                    }
-                                    return null;
-                                  },
+                                  validator: Validators.password,
                                 ),
-                                SizedBox(height: 16 * s),
+                                SizedBox(height: 16),
                                 AppTextField(
                                   key: _confirmKey,
-                                  label: 'Confirm Password',
-                                  hint: 'Confirm your Password',
+                                  label: 'Confirmar contraseña',
+                                  hint: 'Repite tu contraseña',
                                   controller: _confirmController,
                                   obscureText: _obscureConfirm,
                                   prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
@@ -261,21 +252,15 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                                           : AppSvgIcon.eye,
                                     ),
                                   ),
-                                  validator: (val) {
-                                    if (val == null || val.isEmpty) {
-                                      return 'Debes confirmar la contraseña';
-                                    }
-                                    if (val != _passwordController.text) {
-                                      return 'Las contraseñas no coinciden';
-                                    }
-                                    return null;
-                                  },
+                                  validator: Validators.confirmPassword(
+                                    () => _passwordController.text,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                        SizedBox(height: 22 * s),
+                        SizedBox(height: 22),
 
                         FadeTransition(
                           opacity: _buttonFade,
@@ -308,7 +293,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                                     ),
                                   ),
                                   child: Text(
-                                    'Reset Password',
+                                    'Restablecer contraseña',
                                     style: AppFonts.style(
                                       size: 18,
                                       weight: FontWeight.w600,

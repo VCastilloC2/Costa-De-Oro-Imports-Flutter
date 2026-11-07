@@ -55,8 +55,8 @@ class ProfileTextField extends StatefulWidget {
 }
 
 class ProfileTextFieldState extends State<ProfileTextField> {
-  static const _errorColor = Color(0xFFD64545);
-  static const _okColor = Color(0xFF2E9E4F);
+  static const _errorColor = AppColors.error;
+  static const _okColor = AppColors.success;
 
   final FocusNode _focus = FocusNode();
   bool _hasFocus = false;
@@ -321,12 +321,12 @@ class _IconBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = error
-        ? const Color(0xFFD64545)
+        ? AppColors.error
         : (focused
               ? AppColors.goldDark
               : AppColors.brown.withValues(alpha: 0.65));
     final bg = error
-        ? const Color(0xFFD64545).withValues(alpha: 0.10)
+        ? AppColors.error.withValues(alpha: 0.10)
         : (focused
               ? AppColors.gold.withValues(alpha: 0.18)
               : AppColors.beige.withValues(alpha: 0.45));

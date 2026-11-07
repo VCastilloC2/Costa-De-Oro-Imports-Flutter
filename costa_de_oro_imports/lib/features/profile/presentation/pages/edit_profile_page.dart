@@ -294,7 +294,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                 error
                     ? Icons.error_outline_rounded
                     : Icons.check_circle_rounded,
-                color: error ? const Color(0xFFFF8A80) : AppColors.goldLight,
+                color: error ? AppColors.errorLight : AppColors.goldLight,
                 size: 22,
               ),
               const SizedBox(width: 12),
@@ -400,8 +400,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
 
   @override
   Widget build(BuildContext context) {
-    final s = MediaQuery.sizeOf(context).width / 390;
-
     return PopScope(
       canPop: !_dirty,
       onPopInvokedWithResult: (didPop, result) async {
@@ -418,9 +416,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
           elevation: 0,
           scrolledUnderElevation: 0,
           centerTitle: true,
-          leadingWidth: 64 * s,
+          leadingWidth: 64,
           leading: Padding(
-            padding: EdgeInsets.only(left: 16 * s),
+            padding: EdgeInsets.only(left: 16),
             child: IconButton(
               tooltip: 'Volver',
               icon: const Icon(
@@ -449,7 +447,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
           child: AutofillGroup(
             child: SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: EdgeInsets.fromLTRB(20 * s, 8 * s, 20 * s, 28 * s),
+              padding: EdgeInsets.fromLTRB(20, 8, 20, 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -470,7 +468,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                       },
                     ),
                   ),
-                  SizedBox(height: 20 * s),
+                  SizedBox(height: 20),
 
                   // --- DATOS PERSONALES ---
                   _reveal(
@@ -520,7 +518,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                       ],
                     ),
                   ),
-                  SizedBox(height: 16 * s),
+                  SizedBox(height: 16),
 
                   // --- DOCUMENTO ---
                   _reveal(
@@ -571,7 +569,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                       ],
                     ),
                   ),
-                  SizedBox(height: 16 * s),
+                  SizedBox(height: 16),
 
                   // --- CONTACTO Y ENVÍO ---
                   _reveal(
@@ -638,7 +636,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
           child: SafeArea(
             top: false,
             child: Padding(
-              padding: EdgeInsets.fromLTRB(20 * s, 12 * s, 20 * s, 12 * s),
+              padding: EdgeInsets.fromLTRB(20, 12, 20, 12),
               child: _SaveButton(loading: _isLoading, onPressed: _submit),
             ),
           ),

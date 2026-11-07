@@ -42,8 +42,6 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
 
   @override
   Widget build(BuildContext context) {
-    final s = MediaQuery.sizeOf(context).width / 390;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -63,7 +61,7 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: widget.errorText != null
-                        ? Colors.red
+                        ? AppColors.error
                         : AppColors.gold,
                     width: 1.5,
                   ),
@@ -73,26 +71,26 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
                     : null,
               ),
             ),
-            SizedBox(width: 12 * s),
+            SizedBox(width: 12),
             Expanded(
               child: Text.rich(
                 TextSpan(
                   style: AppFonts.style(
                     // <-- TIPOGRAFÍA GLOBAL
-                    size: 13 * s,
+                    size: 13,
                     color: AppColors.brown,
                     weight: FontWeight.w500,
                     height: 1.2,
                   ),
                   children: [
-                    const TextSpan(text: 'Keep me '),
+                    const TextSpan(text: 'Acepto los '),
                     TextSpan(
-                      text: 'signed in',
+                      text: 'términos y condiciones',
                       recognizer: _termsRecognizer,
                       // Usamos AppFonts y le añadimos el subrayado con copyWith
                       style:
                           AppFonts.style(
-                            size: 13 * s,
+                            size: 13,
                             color: AppColors.goldDark,
                             weight: FontWeight.w500,
                           ).copyWith(
@@ -111,12 +109,12 @@ class _AppTermsCheckboxState extends State<AppTermsCheckbox> {
         // Si hay un error (ej. no aceptó los términos), se muestra debajo
         if (widget.errorText != null)
           Padding(
-            padding: EdgeInsets.only(top: 8 * s, left: 34 * s),
+            padding: EdgeInsets.only(top: 8, left: 34),
             child: Text(
               widget.errorText!,
               style: AppFonts.style(
-                color: Colors.red,
-                size: 11 * s,
+                color: AppColors.error,
+                size: 11,
                 weight: FontWeight.w500,
               ),
             ),

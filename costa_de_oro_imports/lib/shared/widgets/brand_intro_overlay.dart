@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'animated_brand_lockup.dart';
+import '../../app/theme/app_colors.dart';
 
 class BrandIntroOverlay extends StatefulWidget {
   const BrandIntroOverlay({super.key, required this.onReveal});
@@ -48,8 +49,6 @@ class _BrandIntroOverlayState extends State<BrandIntroOverlay>
 
   @override
   Widget build(BuildContext context) {
-    final s = MediaQuery.sizeOf(context).width / 390;
-
     return AnimatedBuilder(
       animation: _fly,
       builder: (context, child) {
@@ -63,8 +62,7 @@ class _BrandIntroOverlayState extends State<BrandIntroOverlay>
           Curves.easeInOutCubic.transform(v),
         );
 
-        final currentWidth =
-            260 * s - (140 * s * Curves.easeInOutCubic.transform(v));
+        final currentWidth = 260 - (140 * Curves.easeInOutCubic.transform(v));
 
         final isDone = v >= 0.99;
 
@@ -89,7 +87,7 @@ class _BrandIntroOverlayState extends State<BrandIntroOverlay>
                           'assets/images/welcome.jpg',
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stack) =>
-                              Container(color: const Color(0xFF14100C)),
+                              Container(color: AppColors.ink),
                         ),
                       ),
                       Container(

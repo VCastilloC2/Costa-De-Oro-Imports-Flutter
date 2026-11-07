@@ -141,7 +141,6 @@ class _AuthLoadingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Factor de escala para diseño responsivo (Basado en el ancho de Figma 390px)
-    final s = MediaQuery.sizeOf(context).width / 390;
 
     return Material(
       type: MaterialType.transparency, // Permite ver el fondo desenfocado
@@ -161,7 +160,7 @@ class _AuthLoadingView extends StatelessWidget {
                   filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                   child: Container(
                     // Oscurecemos un poco el login del fondo para dar contraste
-                    color: const Color(0xFF14100C).withValues(alpha: 0.6),
+                    color: AppColors.ink.withValues(alpha: 0.6),
                   ),
                 ),
               ),
@@ -193,13 +192,12 @@ class _AuthLoadingView extends StatelessWidget {
               SafeArea(
                 child: Column(
                   children: [
-                    SizedBox(height: 20 * s),
+                    SizedBox(height: 20),
 
                     // 3.1 LOGO DE LA MARCA
                     // Usamos nuestro widget animado pero con la animación estática
                     AnimatedBrandLockup(
-                      logoWidth:
-                          160 * s, // Tamaño imponente en la parte superior
+                      logoWidth: 160, // Tamaño imponente en la parte superior
                       startFormed: true, // No repetir la animación de entrada
                       play: false,
                       showText: true, // Mostramos "Costa de Oro IMPORTS"
@@ -208,9 +206,9 @@ class _AuthLoadingView extends StatelessWidget {
 
                     const Spacer(), // Empuja la animación hacia el centro
                     // 3.2 ANIMACIÓN DE LA BOTELLA Y EL VASO
-                    LiquorPourLoader(progress: state.progress, width: 280 * s),
+                    LiquorPourLoader(progress: state.progress, width: 280),
 
-                    SizedBox(height: 24 * s),
+                    SizedBox(height: 24),
 
                     // 3.3 TEXTOS DE ESTADO (Iniciando sesión / ¡Bienvenido!)
                     Semantics(
@@ -240,7 +238,7 @@ class _AuthLoadingView extends StatelessWidget {
                                 Text(
                                   done ? successText : loadingText,
                                   style: AppFonts.style(
-                                    size: 30 * s,
+                                    size: 30,
                                     weight: FontWeight.w700,
                                     color: AppColors.creamText,
                                     letterSpacing: -0.5, // Tipografía Geist apretada para lucir premium
@@ -248,11 +246,11 @@ class _AuthLoadingView extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            SizedBox(height: 12 * s),
+                            SizedBox(height: 12),
                             Text(
                               done ? successHint : loadingHint,
                               style: AppFonts.style(
-                                size: 16 * s,
+                                size: 16,
                                 weight: FontWeight.w500,
                                 color: AppColors.creamText.withValues(
                                   alpha: 0.8,
