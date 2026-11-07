@@ -10,7 +10,7 @@ plugins {
 android {
     namespace = "com.example.costa_de_oro_imports"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "30.0.16248370"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
