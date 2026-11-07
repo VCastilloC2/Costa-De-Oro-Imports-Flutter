@@ -4,17 +4,18 @@
 // ============================================================================
 // Gestiona la autenticación del usuario. Incluye validaciones, animaciones 
 // de entrada y el manejo del teclado para evitar parpadeos.
+// Utiliza iconos de línea fina (Hugeicons) para una estética moderna.
 // ============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
 import '../../../../core/network/api_exception.dart';
-import '../../../../shared/widgets/app_svg_icon.dart';
 import '../../../../shared/widgets/app_terms_checkbox.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_header_card.dart';
@@ -277,7 +278,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                   controller: _emailController,
                                   keyboardType: TextInputType.emailAddress,
                                   validator: _validateEmail,
-                                  prefixIcon: const AppSvgIcon(AppSvgIcon.mail),
+                                  // NUEVO ICONO DE CORREO
+                                  prefixIcon: const HugeIcon(
+                                    icon: HugeIcons.strokeRoundedMail01, 
+                                    size: 24,
+                                  ),
                                 ),
                               ),
                             ),
@@ -294,10 +299,20 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                   controller: _passwordController,
                                   obscureText: _obscurePassword,
                                   validator: _validatePassword,
-                                  prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
+                                  // NUEVO ICONO DE CANDADO
+                                  prefixIcon: const HugeIcon(
+                                    icon: HugeIcons.strokeRoundedLockPassword, 
+                                    size: 24,
+                                  ),
                                   suffixIcon: GestureDetector(
                                     onTap: () => setState(() => _obscurePassword = !_obscurePassword),
-                                    child: AppSvgIcon(_obscurePassword ? AppSvgIcon.eyeOff : AppSvgIcon.eye),
+                                    // NUEVOS ICONOS DE OJO (VER / OCULTAR)
+                                    child: HugeIcon(
+                                      icon: _obscurePassword 
+                                          ? HugeIcons.strokeRoundedViewOffSlash 
+                                          : HugeIcons.strokeRoundedView,
+                                      size: 24,
+                                    ),
                                   ),
                                 ),
                               ),
