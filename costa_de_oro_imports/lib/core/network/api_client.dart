@@ -27,7 +27,7 @@ class ApiClient {
     );
   }
 
-  static const baseUrl = 'https://costa-de-oro-imports-python-vatg.vercel.app';
+  static const baseUrl = 'https://localhost:8000/';
   static const accessTokenKey = 'access_token';
   final Dio dio;
   final FlutterSecureStorage _storage;
