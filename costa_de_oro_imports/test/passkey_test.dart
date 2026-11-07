@@ -8,8 +8,10 @@ import 'package:costa_de_oro_imports/core/storage/session_storage.dart';
 import 'package:costa_de_oro_imports/features/auth/data/auth_repository.dart';
 import 'package:costa_de_oro_imports/features/auth/data/passkey_service.dart';
 import 'package:costa_de_oro_imports/features/auth/presentation/widgets/passkey_widgets.dart';
+import 'package:costa_de_oro_imports/features/profile/presentation/pages/passkeys_page.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -203,7 +205,10 @@ void main() {
       expect(await repo.isPasskeyAvailable(), isFalse);
       expect(await repo.shouldOfferPasskeyEnrollment(), isFalse);
       expect(await repo.shouldAutoPromptPasskey(), isFalse);
-      backend.routes['/auth/passkey/login/options'] = (200, _loginOptions());
+      backend.routes['/api/v1/auth/passkey/login/start'] = (
+        200,
+        _loginOptions(),
+      );
       await expectLater(
         repo.loginWithPasskey(),
         throwsA(
@@ -230,8 +235,11 @@ void main() {
 
   group('loginWithPasskey', () {
     setUp(() {
-      backend.routes['/auth/passkey/login/options'] = (200, _loginOptions());
-      backend.routes['/auth/passkey/login/verify'] = (
+      backend.routes['/api/v1/auth/passkey/login/start'] = (
+        200,
+        _loginOptions(),
+      );
+      backend.routes['/api/v1/auth/passkey/login/finish'] = (
         200,
         {
           'accessToken': 'jwt-123',
@@ -253,7 +261,8 @@ void main() {
         expect(ceremonies.lastGet!.userVerification, 'required');
         expect(ceremonies.lastGet!.relyingPartyId, _rpId);
 
-        final body = backend.received['/auth/passkey/login/verify'] as Map;
+        final body =
+            backend.received['/api/v1/auth/passkey/login/finish'] as Map;
         expect(body['challenge_id'], 'ch-1');
         final credential = body['credential'] as Map;
         expect(credential['type'], 'public-key');
@@ -264,22 +273,23 @@ void main() {
     test('login/* es público y register/* lleva el token (Dio real)', () async {
       await storage.saveToken('viejo');
       final dio = createApiDio(storage)..httpClientAdapter = backend;
-      backend.routes['/auth/passkey/register/options'] = (
+      backend.routes['/api/v1/auth/passkey/register/start'] = (
         200,
         _registerOptions(),
       );
 
-      await dio.post<dynamic>('/auth/passkey/login/options');
-      await dio.post<dynamic>('/auth/passkey/register/options');
+      await dio.post<dynamic>('/api/v1/auth/passkey/login/start');
+      await dio.post<dynamic>('/api/v1/auth/passkey/register/start');
 
       expect(
-        backend.headers['/auth/passkey/login/options']!.containsKey(
+        backend.headers['/api/v1/auth/passkey/login/start']!.containsKey(
           'Authorization',
         ),
         isFalse,
       );
       expect(
-        backend.headers['/auth/passkey/register/options']!['Authorization'],
+        backend
+            .headers['/api/v1/auth/passkey/register/start']!['Authorization'],
         'Bearer viejo',
       );
     });
@@ -297,7 +307,7 @@ void main() {
       );
       expect(await storage.readToken(), isNull);
       expect(
-        backend.received.containsKey('/auth/passkey/login/verify'),
+        backend.received.containsKey('/api/v1/auth/passkey/login/finish'),
         isFalse,
       );
     });
@@ -324,7 +334,7 @@ void main() {
 
     test('credencial revocada en el servidor (401) limpia la marca', () async {
       await storage.savePasskeyUser('ana@test.com');
-      backend.routes['/auth/passkey/login/verify'] = (
+      backend.routes['/api/v1/auth/passkey/login/finish'] = (
         401,
         {'detail': 'Passkey inválida'},
       );
@@ -343,7 +353,7 @@ void main() {
     });
 
     test('opciones de otro dominio nunca llegan al autenticador', () async {
-      backend.routes['/auth/passkey/login/options'] = (
+      backend.routes['/api/v1/auth/passkey/login/start'] = (
         200,
         _loginOptions(rpId: 'evil.com'),
       );
@@ -355,23 +365,26 @@ void main() {
     });
 
     test('acepta las opciones sin envoltorio (py_webauthn)', () async {
-      backend.routes['/auth/passkey/login/options'] = (
+      backend.routes['/api/v1/auth/passkey/login/start'] = (
         200,
         {'challenge': _challenge, 'rpId': _rpId},
       );
       await repo.loginWithPasskey();
-      final body = backend.received['/auth/passkey/login/verify'] as Map;
+      final body = backend.received['/api/v1/auth/passkey/login/finish'] as Map;
       expect(body.containsKey('challenge_id'), isFalse);
     });
   });
 
   group('registerPasskey', () {
     setUp(() {
-      backend.routes['/auth/passkey/register/options'] = (
+      backend.routes['/api/v1/auth/passkey/register/start'] = (
         200,
         _registerOptions(),
       );
-      backend.routes['/auth/passkey/register/verify'] = (200, {'ok': true});
+      backend.routes['/api/v1/auth/passkey/register/finish'] = (
+        200,
+        {'ok': true},
+      );
     });
 
     test('exige sesión activa', () async {
@@ -393,7 +406,8 @@ void main() {
       expect(req.authSelectionType!.userVerification, 'required');
       expect(req.authSelectionType!.residentKey, 'required');
 
-      final body = backend.received['/auth/passkey/register/verify'] as Map;
+      final body =
+          backend.received['/api/v1/auth/passkey/register/finish'] as Map;
       expect(body['challenge_id'], 'ch-2');
       final credential = body['credential'] as Map;
       expect((credential['response'] as Map)['attestationObject'], 'att');
@@ -409,10 +423,183 @@ void main() {
       );
       await repo.registerPasskey();
       expect(
-        backend.received.containsKey('/auth/passkey/register/verify'),
+        backend.received.containsKey('/api/v1/auth/passkey/register/finish'),
         isFalse,
       );
       expect(await storage.readPasskeyUser(), 'ana@test.com');
+    });
+  });
+
+  group('backend FastAPI: registro duplicado, sesión y gestión', () {
+    Map<String, dynamic> passkeyJson(int id, String credentialId) => {
+      'passkey_id': id,
+      'credential_id': credentialId,
+      'device_name': id == 1 ? 'iOS' : 'Android',
+      'device_type': 'multi_device',
+      'backed_up': id == 1,
+      'created_at': '2026-11-07T10:30:00',
+      'last_used_at': null,
+    };
+
+    test('register/finish 409 significa que ya está vinculada', () async {
+      backend.routes[PasskeyEndpoints.registerStart] = (
+        200,
+        _registerOptions(),
+      );
+      backend.routes[PasskeyEndpoints.registerFinish] = (
+        409,
+        {'detail': 'Esta passkey ya está registrada.'},
+      );
+      await storage.saveToken('jwt');
+      await repo.registerPasskey();
+      expect(await storage.readPasskeyUser(), 'ana@test.com');
+      expect(await storage.readPasskeyCredentialId(), 'cred-1');
+    });
+
+    test('el login recuerda la passkey de este dispositivo', () async {
+      backend.routes[PasskeyEndpoints.loginStart] = (200, _loginOptions());
+      backend.routes[PasskeyEndpoints.loginFinish] = (
+        200,
+        {
+          'accessToken': 'jwt-123',
+          'auth_method': 'passkey',
+          'usuario': {'usuario_id': 7, 'correo': 'ana@test.com'},
+        },
+      );
+      await repo.loginWithPasskey();
+      expect(await storage.readPasskeyCredentialId(), 'cred-1');
+    });
+
+    test('validateSession distingue válida, rechazada y desconocida', () async {
+      await storage.saveToken('jwt');
+      backend.routes[PasskeyEndpoints.sessionValidate] = (
+        200,
+        {'valid': true, 'usuario_id': 7, 'expires_in': 3000},
+      );
+      expect(await repo.validateSession(), isTrue);
+      backend.routes[PasskeyEndpoints.sessionValidate] = (
+        401,
+        {'detail': 'Sesión inválida o expirada'},
+      );
+      expect(await repo.validateSession(), isFalse);
+      backend.routes[PasskeyEndpoints.sessionValidate] = (
+        503,
+        {'detail': 'Valkey no disponible'},
+      );
+      expect(await repo.validateSession(), isNull);
+    });
+
+    test(
+      'restoreSession no pide /perfil si Valkey rechaza la sesión',
+      () async {
+        await storage.saveToken('jwt');
+        backend.routes[PasskeyEndpoints.sessionValidate] = (
+          401,
+          {'detail': 'Sesión inválida o expirada'},
+        );
+        backend.routes['/perfil'] = (
+          200,
+          {'usuario_id': 7, 'correo': 'a@b.co'},
+        );
+        expect(await repo.restoreSession(), isNull);
+        expect(await storage.readToken(), isNull);
+        expect(backend.received.containsKey('/perfil'), isFalse);
+      },
+    );
+
+    test('restoreSession sigue con /perfil si no se puede validar', () async {
+      await storage.saveToken('jwt');
+      // Sin ruta de validación: el backend responde 404 (versión anterior).
+      backend.routes['/perfil'] = (200, {'usuario_id': 7, 'correo': 'a@b.co'});
+      final user = await repo.restoreSession();
+      expect(user!.id, 7);
+      expect(await storage.readToken(), 'jwt');
+    });
+
+    test(
+      'lista y revoca; la de este dispositivo apaga el auto-login',
+      () async {
+        await storage.saveToken('jwt');
+        await storage.savePasskeyUser('ana@test.com');
+        await storage.savePasskeyCredentialId('cred-1');
+        backend.routes[PasskeyEndpoints.credentials] = (
+          200,
+          [passkeyJson(1, 'cred-1'), passkeyJson(2, 'otra')],
+        );
+        backend.routes['${PasskeyEndpoints.credentials}/1'] = (
+          200,
+          {'success': true},
+        );
+        backend.routes['${PasskeyEndpoints.credentials}/2'] = (
+          200,
+          {'success': true},
+        );
+
+        final passkeys = await repo.listPasskeys();
+        expect(passkeys.map((p) => p.id), [1, 2]);
+        expect(passkeys.first.backedUp, isTrue);
+        expect(passkeys.first.createdAt, DateTime(2026, 11, 7, 10, 30));
+        expect(passkeys.first.lastUsedAt, isNull);
+        expect(backend.headers[PasskeyEndpoints.credentials], isNotNull);
+
+        await repo.revokePasskey(passkeys[1]);
+        expect(await storage.readPasskeyUser(), 'ana@test.com');
+        await repo.revokePasskey(passkeys[0]);
+        expect(await storage.readPasskeyUser(), isNull);
+        expect(await storage.readPasskeyCredentialId(), isNull);
+      },
+    );
+
+    testWidgets('PasskeysPage lista, marca este dispositivo y revoca', (
+      tester,
+    ) async {
+      GoogleFonts.config.allowRuntimeFetching = false;
+      final original = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if ('${details.exception}'.contains('GoogleFonts')) return;
+        original?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = original);
+
+      backend.routes[PasskeyEndpoints.credentials] = (
+        200,
+        [passkeyJson(1, 'cred-1'), passkeyJson(2, 'otra')],
+      );
+      backend.routes['${PasskeyEndpoints.credentials}/2'] = (
+        200,
+        {'success': true},
+      );
+      await tester.runAsync(() => storage.savePasskeyCredentialId('cred-1'));
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(repo),
+            sessionStorageProvider.overrideWithValue(storage),
+          ],
+          child: const MaterialApp(home: PasskeysPage()),
+        ),
+      );
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(find.byKey(const Key('passkey-tile-1')), findsOneWidget);
+      expect(find.byKey(const Key('passkey-tile-2')), findsOneWidget);
+      expect(find.text('Este dispositivo'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('passkey-revoke-2')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('passkey-revoke-confirm')));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(
+        backend.received.containsKey('${PasskeyEndpoints.credentials}/2'),
+        isTrue,
+      );
+      expect(find.text('Passkey eliminada.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 
