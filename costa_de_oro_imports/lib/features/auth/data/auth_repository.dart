@@ -1,85 +1,255 @@
-import 'package:dio/dio.dart';
+// RAMA: feature/Auth
+// ============================================================================
+// REPOSITORIO: AuthRepository
+// ============================================================================
+// Capa de datos encargada de comunicarse con los endpoints de autenticación.
+// Maneja el almacenamiento del token JWT y la conversión de excepciones HTTP.
+// ============================================================================
 
-import '../../../core/network/api_client.dart';
-import '../domain/auth_response.dart';
-import 'social_auth_service.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:costa_de_oro_imports/core/network/api_client.dart';
+import 'package:costa_de_oro_imports/core/network/api_exception.dart';
+import 'package:costa_de_oro_imports/core/storage/session_storage.dart';
+import 'package:costa_de_oro_imports/features/auth/data/models/user_model.dart';
+import 'package:costa_de_oro_imports/features/auth/data/social_auth_service.dart';
 
 class AuthRepository {
-  AuthRepository(this.api, {SocialAuthService? socialAuth})
+  AuthRepository(this._dio, this._storage, {SocialAuthService? socialAuth})
     : _socialAuth = socialAuth ?? SocialAuthService();
 
-  final ApiClient api;
+  final Dio _dio;
+  final SessionStorage _storage;
   final SocialAuthService _socialAuth;
 
-  Future<AuthResponse> login(String email, String password) async {
-    return _saveSession(
-      await api.post(
-        '/auth/login',
-        data: {'correo': email.trim(), 'password': password},
-      ),
-    );
+  // ---------------------------------------------------------------------------
+  // LOGIN
+  // ---------------------------------------------------------------------------
+  /// Envía las credenciales al backend. Si la respuesta es exitosa, extrae el
+  /// token y los datos del usuario, guardando el token localmente.
+  Future<UserModel> login({required String correo, required String password}) {
+    return _authenticate('/auth/login', {
+      'correo': correo.trim(),
+      'password': password,
+    });
   }
 
+  // ---------------------------------------------------------------------------
+  // LOGIN SOCIAL
+  // ---------------------------------------------------------------------------
   /// Envía el ID token de Google al backend, que lo valida y crea o inicia
   /// la sesión del usuario. Contrato: `POST /auth/google {"id_token": ...}`.
-  Future<AuthResponse> loginWithGoogle(String idToken) async =>
-      _saveSession(await api.post('/auth/google', data: {'id_token': idToken}));
+  Future<UserModel> loginWithGoogle(String idToken) {
+    return _authenticate('/auth/google', {'id_token': idToken});
+  }
 
   /// Envía el identity token de Apple al backend.
   /// Contrato: `POST /auth/apple {"id_token": ..., "nombres"?, "apellidos"?}`.
   /// Apple solo comparte el nombre en la primera autorización, por eso se
   /// reenvía cuando viene para que el backend pueda registrar al usuario.
-  Future<AuthResponse> loginWithApple(
+  Future<UserModel> loginWithApple(
     String identityToken, {
     String? givenName,
     String? familyName,
-  }) async => _saveSession(
-    await api.post(
-      '/auth/apple',
-      data: {
-        'id_token': identityToken,
-        if (givenName != null && givenName.isNotEmpty) 'nombres': givenName,
-        if (familyName != null && familyName.isNotEmpty)
-          'apellidos': familyName,
-      },
-    ),
-  );
-
-  Future<AuthResponse> _saveSession(dynamic response) async {
-    final result = AuthResponse.fromJson(
-      Map<String, dynamic>.from(response as Map),
-    );
-    final session = api.session;
-    await session.saveToken(result.accessToken);
-    final refreshToken = result.refreshToken;
-    if (refreshToken != null) {
-      await session.saveRefreshToken(refreshToken);
-    }
-    final user = result.user;
-    if (user != null) {
-      await session.saveUser(user);
-    }
-    return result;
+  }) {
+    return _authenticate('/auth/apple', {
+      'id_token': identityToken,
+      if (givenName != null && givenName.isNotEmpty) 'nombres': givenName,
+      if (familyName != null && familyName.isNotEmpty) 'apellidos': familyName,
+    });
   }
 
-  Future<Map<String, dynamic>> register(Map<String, dynamic> payload) async =>
-      Map<String, dynamic>.from(
-        await api.post('/auth/registro', data: payload) as Map,
+  /// Flujo común de login: llama al endpoint, guarda el token y devuelve el
+  /// usuario (de la respuesta o, si no viene anidado, de `/perfil`).
+  Future<UserModel> _authenticate(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final String token;
+    try {
+      final res = await _dio.post<dynamic>(path, data: body);
+
+      final data = res.data;
+      token = _extractToken(data);
+
+      // El backend devuelve el objeto 'usuario' dentro del login.
+      // Se extrae directamente para evitar peticiones adicionales a /perfil.
+      if (data is Map && data['usuario'] is Map<String, dynamic>) {
+        await _storage.saveToken(token);
+        return UserModel.fromJson(data['usuario']);
+      }
+    } on DioException catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error crudo del backend en $path: ${e.response?.data}');
+      }
+      throw ApiException.fromDio(e);
+    }
+
+    // Respaldo: Si el backend no anida el usuario, se solicita a /perfil.
+    await _storage.saveToken(token);
+    return await fetchProfile();
+  }
+
+  // ---------------------------------------------------------------------------
+  // REGISTRO
+  // ---------------------------------------------------------------------------
+  /// Crea un nuevo usuario. El backend requiere múltiples campos, por lo que
+  /// se inyectan datos genéricos que el usuario completará en feature/Profile.
+  Future<UserModel> register({
+    required String correo,
+    required String password,
+  }) async {
+    final now = DateTime.now().millisecondsSinceEpoch.toString();
+    final randomId = now.substring(now.length - 10);
+    final nombreProvisional = correo.split('@').first;
+
+    try {
+      await _dio.post<dynamic>(
+        '/auth/registro',
+        data: {
+          'correo': correo.trim(),
+          'password': password,
+          'tipoIdentificacion': 'CC',
+          'numeroIdentificacion': randomId,
+          'nombres': nombreProvisional,
+          'apellidos': 'Pendiente',
+          'telefono': randomId,
+          'direccion': 'Por definir $randomId',
+          'rol': 'PERSONA_NATURAL',
+        },
       );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
 
-  Future<Map<String, dynamic>> profile() async =>
-      Map<String, dynamic>.from(await api.get('/perfil') as Map);
+    // Pausa para asegurar la transacción en la base de datos antes del auto-login.
+    await Future.delayed(const Duration(seconds: 1));
 
-  /// Cierra la sesión en la API y siempre borra la sesión local, aunque la
-  /// API no responda, para que el usuario nunca quede atrapado.
+    return login(correo: correo, password: password);
+  }
+
+  // ---------------------------------------------------------------------------
+  // ACTUALIZAR PERFIL
+  // ---------------------------------------------------------------------------
+  /// Método utilizado por feature/Profile para actualizar los datos del usuario.
+  Future<UserModel> updateProfile({
+    required String nombres,
+    required String apellidos,
+    required String telefono,
+    required String direccion,
+    required String tipoIdentificacion,
+    required String numeroIdentificacion,
+  }) async {
+    try {
+      await _dio.patch<dynamic>(
+        '/perfil',
+        data: {
+          'nombres': nombres.trim(),
+          'apellidos': apellidos.trim(),
+          'telefono': telefono.trim(),
+          'direccion': direccion.trim(),
+          'tipoIdentificacion': tipoIdentificacion,
+          'numeroIdentificacion': numeroIdentificacion.trim(),
+        },
+      );
+      return await fetchProfile();
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // SESIÓN
+  // ---------------------------------------------------------------------------
+  Future<UserModel> fetchProfile() async {
+    try {
+      final res = await _dio.get<dynamic>('/perfil');
+      final data = res.data;
+      if (data is! Map<String, dynamic>) {
+        throw const ApiException('Respuesta de perfil inesperada.');
+      }
+      return UserModel.fromJson(data);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<UserModel?> restoreSession() async {
+    final token = await _storage.readToken();
+    if (token == null || token.isEmpty) return null;
+
+    try {
+      return await fetchProfile();
+    } on ApiException catch (e) {
+      if (e.isUnauthorized) {
+        await _storage.clear();
+        return null;
+      }
+      rethrow;
+    }
+  }
+
   Future<void> logout() async {
     try {
-      await api.post('/auth/logout');
-    } on DioException {
-      // La sesión local se borra igual.
-    } finally {
-      await api.session.clearSession();
-      await _socialAuth.signOut();
+      await _dio.post<dynamic>('/auth/logout');
+    } catch (_) {
+      // La sesión local se borra aunque la API no responda.
     }
+    await _storage.clear();
+    // Para que el próximo login con Google permita elegir otra cuenta.
+    await _socialAuth.signOut();
+  }
+
+  // ---------------------------------------------------------------------------
+  // HELPERS
+  // ---------------------------------------------------------------------------
+  static const _tokenKeys = [
+    'access_token',
+    'accessToken',
+    'token',
+    'jwt',
+    'id_token',
+  ];
+
+  /// Extrae el token JWT de la respuesta del servidor.
+  String _extractToken(dynamic data) {
+    // Caso 1: El backend devuelve un String plano.
+    if (data is String && data.isNotEmpty) {
+      return data.replaceAll('"', '');
+    }
+
+    // Caso 2: El backend devuelve un objeto JSON.
+    if (data is Map) {
+      String? find(Map map) {
+        for (final key in _tokenKeys) {
+          final value = map[key];
+          if (value is String && value.isNotEmpty) return value;
+        }
+        return null;
+      }
+
+      final direct = find(data);
+      if (direct != null) return direct;
+
+      final inner = data['data'];
+      if (inner is Map) {
+        final nested = find(inner);
+        if (nested != null) return nested;
+      }
+    }
+
+    throw const ApiException(
+      'Token no encontrado en la respuesta del servidor.',
+    );
   }
 }
+
+/// Provider de Riverpod para inyección de dependencias.
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  return AuthRepository(
+    ref.watch(dioProvider),
+    ref.watch(sessionStorageProvider),
+  );
+});

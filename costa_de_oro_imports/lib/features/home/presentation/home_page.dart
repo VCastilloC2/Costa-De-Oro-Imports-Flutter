@@ -7,9 +7,8 @@ import 'package:intl/intl.dart';
 import '../../analytics/application/demand_prediction_controller.dart';
 import '../../analytics/presentation/widgets/demand_analytics_card.dart';
 import '../../../app/theme/app_colors.dart';
-import '../../../core/network/api_client.dart';
 import '../../../shared/widgets/app_skeletonizer.dart';
-import '../../auth/data/auth_repository.dart';
+import '../../auth/presentation/providers/auth_controller.dart';
 import '../application/dashboard_controller.dart';
 import '../domain/dashboard_models.dart';
 import 'widgets/dashboard_navigation.dart';
@@ -23,7 +22,6 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  late final AuthRepository _auth = AuthRepository(ApiClient());
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   DashboardSection _section = DashboardSection.home;
 
@@ -36,7 +34,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _logout() async {
-    await _auth.logout();
+    await ref.read(authControllerProvider.notifier).logout();
     if (mounted) context.go('/login');
   }
 

@@ -1,33 +1,13 @@
-import 'package:flutter/foundation.dart';
-
-/// Valores de configuración que cambian entre entornos (local / producción).
+/// Identificadores de Google Sign-In por entorno.
 ///
-/// Todos se leen de `--dart-define` en tiempo de compilación, así no hay
-/// URLs ni identificadores escritos en las páginas. Ejemplo:
+/// Se leen de `--dart-define` en tiempo de compilación para no dejarlos
+/// escritos en el código. La URL de la API está en [ApiConfig].
 ///
 /// ```bash
-/// flutter run --dart-define=API_BASE_URL=http://192.168.1.50:8000
 /// flutter run --dart-define-from-file=config/dev.json
 /// ```
 class AppConfig {
   AppConfig._();
-
-  static const _apiBaseUrlOverride = String.fromEnvironment('API_BASE_URL');
-
-  /// URL base de la API FastAPI.
-  ///
-  /// Si no se define `API_BASE_URL`, apunta al backend local:
-  /// - Android Emulator: `10.0.2.2` es el `localhost` de la computadora.
-  /// - iOS Simulator, web y escritorio: `localhost`.
-  static String get apiBaseUrl {
-    if (_apiBaseUrlOverride.isNotEmpty) {
-      return _apiBaseUrlOverride;
-    }
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000';
-    }
-    return 'http://localhost:8000';
-  }
 
   /// Client ID de tipo "Web application" de Google Cloud.
   ///

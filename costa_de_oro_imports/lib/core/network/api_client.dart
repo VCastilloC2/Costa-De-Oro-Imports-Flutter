@@ -1,65 +1,75 @@
+// RAMA: chore/Core
+// ============================================================================
+// API CLIENT
+// ============================================================================
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:costa_de_oro_imports/core/config/api_config.dart';
+import 'package:costa_de_oro_imports/core/storage/session_storage.dart';
 
-import '../config/app_config.dart';
-import '../storage/session_storage.dart';
+/// Rutas que nunca deben llevar el token (login, registro y login social).
+const _publicAuthPaths = [
+  '/auth/login',
+  '/auth/registro',
+  '/auth/google',
+  '/auth/apple',
+];
 
+/// Crea el [Dio] de la app con la URL base, los tiempos de espera y el
+/// interceptor que agrega el token. Lo usan [dioProvider] y [ApiClient],
+/// así la configuración HTTP vive en un solo lugar.
+Dio createApiDio(SessionStorage storage) {
+  final dio = Dio(
+    BaseOptions(
+      baseUrl: ApiConfig.baseUrl,
+      connectTimeout: ApiConfig.connectTimeout,
+      receiveTimeout: ApiConfig.receiveTimeout,
+      contentType: Headers.jsonContentType,
+      headers: {'Accept': 'application/json'},
+    ),
+  );
+
+  dio.interceptors.add(
+    InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        // --- SOLUCIÓN: Evitar enviar el token en rutas de autenticación ---
+        final isAuthRoute = _publicAuthPaths.any(options.path.contains);
+
+        if (!isAuthRoute) {
+          final token = await storage.readToken();
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+        }
+
+        handler.next(options);
+      },
+      onError: (error, handler) async {
+        final hadToken = error.requestOptions.headers.containsKey(
+          'Authorization',
+        );
+        if (error.response?.statusCode == 401 && hadToken) {
+          await storage.clear();
+        }
+        handler.next(error);
+      },
+    ),
+  );
+
+  return dio;
+}
+
+final dioProvider = Provider<Dio>((ref) {
+  return createApiDio(ref.watch(sessionStorageProvider));
+});
+
+/// Cliente HTTP simple para los repositorios que no usan Riverpod
+/// (panel `home` y analítica). Comparte la configuración de [createApiDio].
 class ApiClient {
-  ApiClient({Dio? dio, FlutterSecureStorage? storage, SessionStorage? session})
-    : session = session ?? SessionStorage(storage: storage),
-      dio =
-          dio ??
-          Dio(
-            BaseOptions(
-              baseUrl: baseUrl,
-              connectTimeout: const Duration(seconds: 20),
-              receiveTimeout: const Duration(seconds: 30),
-              headers: const {'Accept': 'application/json'},
-            ),
-          ) {
-    this.dio.interceptors.add(
-      InterceptorsWrapper(onRequest: _attachToken, onError: _handleError),
-    );
-  }
-
-  /// URL base centralizada. Se cambia con `--dart-define=API_BASE_URL=...`
-  /// (ver [AppConfig.apiBaseUrl]).
-  static String get baseUrl => AppConfig.apiBaseUrl;
-  static const accessTokenKey = SessionStorage.accessTokenKey;
-
-  /// Se ejecuta cuando una petición autenticada recibe 401 (token vencido o
-  /// inválido). La app la usa para volver al login. La sesión ya se borró.
-  static void Function()? onUnauthorized;
+  ApiClient({Dio? dio, SessionStorage? storage})
+    : dio = dio ?? createApiDio(storage ?? SessionStorage());
 
   final Dio dio;
-  final SessionStorage session;
-
-  Future<void> _attachToken(
-    RequestOptions options,
-    RequestInterceptorHandler handler,
-  ) async {
-    final token = await session.getToken();
-    if (token != null && token.isNotEmpty) {
-      options.headers['Authorization'] = 'Bearer $token';
-    }
-    handler.next(options);
-  }
-
-  Future<void> _handleError(
-    DioException error,
-    ErrorInterceptorHandler handler,
-  ) async {
-    final options = error.requestOptions;
-    // Un 401 en /auth/* es una credencial incorrecta, no una sesión vencida.
-    final hadSession = options.headers.containsKey('Authorization');
-    if (error.response?.statusCode == 401 &&
-        hadSession &&
-        !options.path.contains('/auth/')) {
-      await session.clearSession();
-      onUnauthorized?.call();
-    }
-    handler.next(error);
-  }
 
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) async =>
       (await dio.get<dynamic>(path, queryParameters: query)).data;
@@ -75,8 +85,4 @@ class ApiClient {
 
   Future<dynamic> delete(String path) async =>
       (await dio.delete<dynamic>(path)).data;
-
-  Future<void> saveToken(String token) => session.saveToken(token);
-
-  Future<void> clearToken() => session.clearSession();
 }

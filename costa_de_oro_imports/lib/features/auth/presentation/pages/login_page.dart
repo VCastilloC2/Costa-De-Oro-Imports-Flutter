@@ -1,24 +1,28 @@
+// RAMA: feature/Auth
+// ============================================================================
+// PANTALLA: LoginPage
+// ============================================================================
+// Gestiona la autenticación del usuario. Incluye validaciones, animaciones
+// de entrada y el manejo del teclado para evitar parpadeos.
+// ============================================================================
+
 import 'package:flutter/material.dart';
-
-import 'dart:async';
-
-import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../data/auth_repository.dart';
-import '../../data/social_auth_service.dart';
-import '../auth_error_message.dart';
-import '../../../../core/network/api_client.dart';
-import '../../../home/application/dashboard_controller.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../../shared/widgets/app_svg_icon.dart';
 import '../../../../shared/widgets/app_terms_checkbox.dart';
 import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/auth_header_card.dart'; // <-- IMPORTANTE: Widget compartido
+import '../../../../shared/widgets/auth_header_card.dart';
+import '../../../../shared/widgets/auth_loading_overlay.dart';
 import '../../../../shared/widgets/decor_circle.dart';
 import '../../../../shared/widgets/social_button.dart';
+import '../../data/social_auth_service.dart';
+import '../providers/auth_controller.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -37,95 +41,13 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   bool _obscurePassword = true;
   bool _acceptTerms = false;
-  bool _isLoading = false;
-  final _auth = AuthRepository(ApiClient());
+
+  /// Bloquea la interacción con los campos de texto mientras se procesa el
+  /// login para evitar múltiples envíos y la reapertura del teclado.
+  bool _leaving = false;
+
   final _socialAuth = SocialAuthService();
 
-  Future<void> _login() async {
-    if (_isLoading) {
-      return;
-    }
-    FocusScope.of(context).unfocus();
-    final emailValid = _emailKey.currentState?.validate() ?? false;
-    final passwordValid = _passwordKey.currentState?.validate() ?? false;
-    if (!emailValid || !passwordValid) {
-      return;
-    }
-    await _authenticate(
-      () => _auth.login(_emailController.text, _passwordController.text),
-      fallbackError: 'No fue posible iniciar sesión',
-    );
-  }
-
-  Future<void> _loginWithGoogle() async {
-    await _authenticate(() async {
-      final idToken = await _socialAuth.signInWithGoogle();
-      if (idToken == null) {
-        // El usuario cerró el selector de cuentas.
-        return false;
-      }
-      await _auth.loginWithGoogle(idToken);
-      return true;
-    }, fallbackError: 'No fue posible iniciar sesión con Google');
-  }
-
-  Future<void> _loginWithApple() async {
-    await _authenticate(() async {
-      final credential = await _socialAuth.signInWithApple();
-      if (credential == null) {
-        return false;
-      }
-      await _auth.loginWithApple(
-        credential.identityToken,
-        givenName: credential.givenName,
-        familyName: credential.familyName,
-      );
-      return true;
-    }, fallbackError: 'No fue posible iniciar sesión con Apple');
-  }
-
-  /// Flujo común: carga → autenticación → navegación o mensaje de error.
-  /// [action] devuelve `false` si el usuario canceló (no se muestra error).
-  Future<void> _authenticate(
-    Future<Object?> Function() action, {
-    required String fallbackError,
-  }) async {
-    if (_isLoading) {
-      return;
-    }
-    FocusScope.of(context).unfocus();
-    setState(() => _isLoading = true);
-    try {
-      final result = await action();
-      if (!mounted) {
-        return;
-      }
-      if (result == false) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Inicio de sesión cancelado.')),
-        );
-        return;
-      }
-      // Set isLoading before navigation so Home renders its skeleton immediately.
-      unawaited(ref.read(dashboardProvider.notifier).load(force: true));
-      context.go('/home');
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authErrorMessage(error, fallback: fallbackError)),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  // --- CONTROLADORES DE ANIMACIÓN ---
   late AnimationController _entryController;
   late AnimationController _floatController;
 
@@ -207,12 +129,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
     if (value == null || value.trim().isEmpty) {
       return 'El correo es obligatorio';
     }
-    final emailRegex = RegExp(
-      r'^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$',
-      caseSensitive: false,
-    );
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value.trim())) {
-      return 'That email doesn\'t look right';
+      return 'Correo inválido';
     }
     return null;
   }
@@ -221,397 +140,503 @@ class _LoginPageState extends ConsumerState<LoginPage>
     if (value == null || value.isEmpty) {
       return 'La contraseña es obligatoria';
     }
+    if (value.length < 5) {
+      return 'Debe tener al menos 5 caracteres';
+    }
     return null;
+  }
+
+  Future<void> _submit() async {
+    if (_leaving) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+
+    final isEmailValid = _emailKey.currentState?.validate() ?? false;
+    final isPasswordValid = _passwordKey.currentState?.validate() ?? false;
+
+    if (!(isEmailValid && isPasswordValid && _acceptTerms)) {
+      return;
+    }
+
+    setState(() => _leaving = true);
+
+    await _completeLogin(
+      () => ref
+          .read(authControllerProvider.notifier)
+          .login(
+            correo: _emailController.text,
+            password: _passwordController.text,
+          ),
+    );
+  }
+
+  Future<void> _loginWithGoogle() async {
+    if (_leaving) {
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() => _leaving = true);
+
+    final String? idToken;
+    try {
+      idToken = await _socialAuth.signInWithGoogle();
+    } on SocialAuthException catch (e) {
+      _showLoginError(e.message);
+      return;
+    }
+    if (idToken == null) {
+      // El usuario cerró el selector de cuentas: no es un error.
+      _cancelSocialLogin();
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    await _completeLogin(
+      () => ref.read(authControllerProvider.notifier).loginWithGoogle(idToken!),
+    );
+  }
+
+  Future<void> _loginWithApple() async {
+    if (_leaving) {
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() => _leaving = true);
+
+    final AppleCredential? credential;
+    try {
+      credential = await _socialAuth.signInWithApple();
+    } on SocialAuthException catch (e) {
+      _showLoginError(e.message);
+      return;
+    }
+    if (credential == null) {
+      _cancelSocialLogin();
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    await _completeLogin(
+      () => ref
+          .read(authControllerProvider.notifier)
+          .loginWithApple(
+            credential!.identityToken,
+            givenName: credential.givenName,
+            familyName: credential.familyName,
+          ),
+    );
+  }
+
+  void _cancelSocialLogin() {
+    if (!mounted) {
+      return;
+    }
+    setState(() => _leaving = false);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Inicio de sesión cancelado.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  /// Muestra la animación de carga mientras corre [task] y, si sale bien,
+  /// navega al dashboard. Común al login con correo, Google y Apple.
+  Future<void> _completeLogin(Future<void> Function() task) async {
+    try {
+      await showAuthLoading<void>(
+        context,
+        loadingText: 'Iniciando sesión',
+        successText: '¡Bienvenido!',
+        task: task,
+      );
+    } on ApiException catch (e) {
+      _showLoginError(e.message);
+      return;
+    } catch (_) {
+      _showLoginError('Ocurrió un error inesperado. Inténtalo de nuevo.');
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+
+    // Pausa necesaria para que el diálogo de carga se cierre completamente
+    // antes de que el enrutador intente cambiar la pantalla.
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (mounted) {
+      context.go('/dashboard');
+    }
+  }
+
+  void _showLoginError(String message) {
+    if (!mounted) {
+      return;
+    }
+    setState(() => _leaving = false);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   @override
   Widget build(BuildContext context) {
     final s = MediaQuery.sizeOf(context).width / 390;
 
-    return Scaffold(
-      backgroundColor: AppColors.cream,
-      body: SizedBox.expand(
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // --- CÍRCULOS DE FONDO DEGRADADOS ---
-
-            // 1. Círculo superior derecho (Dorado)
-            Positioned(
-              top: -70 * s,
-              right: -70 * s,
-              child: DecorCircle(
-                diameter: 280 * s,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.gold.withValues(alpha: 0.25),
-                    AppColors.gold.withValues(alpha: 0.0),
-                  ],
+    return ExcludeFocus(
+      excluding: _leaving,
+      child: Scaffold(
+        backgroundColor: AppColors.cream,
+        body: SizedBox.expand(
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: -70 * s,
+                right: -70 * s,
+                child: DecorCircle(
+                  diameter: 280 * s,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.gold.withValues(alpha: 0.25),
+                      AppColors.gold.withValues(alpha: 0.0),
+                    ],
+                  ),
                 ),
               ),
-            ),
-
-            // 2. Círculo justo debajo del cuadrado a la izquierda
-            Positioned(
-              top: 180 * s,
-              left: -60 * s,
-              child: DecorCircle(
-                diameter: 160 * s,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.beige.withValues(alpha: 0.6),
-                    AppColors.beige.withValues(alpha: 0.0),
-                  ],
+              Positioned(
+                top: 180 * s,
+                left: -60 * s,
+                child: DecorCircle(
+                  diameter: 160 * s,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.beige.withValues(alpha: 0.6),
+                      AppColors.beige.withValues(alpha: 0.0),
+                    ],
+                  ),
                 ),
               ),
-            ),
-
-            // 3. Círculo abajo a la derecha (Dorado suave)
-            Positioned(
-              bottom: -40 * s,
-              right: -40 * s,
-              child: DecorCircle(
-                diameter: 220 * s,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.goldLight.withValues(alpha: 0.3),
-                    AppColors.goldLight.withValues(alpha: 0.0),
-                  ],
+              Positioned(
+                bottom: -40 * s,
+                right: -40 * s,
+                child: DecorCircle(
+                  diameter: 220 * s,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.goldLight.withValues(alpha: 0.3),
+                      AppColors.goldLight.withValues(alpha: 0.0),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            // 4. Círculo medio a la derecha
-            Positioned(
-              top: 400 * s,
-              right: -80 * s,
-              child: DecorCircle(
-                diameter: 250 * s,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.beige.withValues(alpha: 0.4),
-                    AppColors.beige.withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-
-            // 5. Círculo abajo a la izquierda
-            Positioned(
-              bottom: 50 * s,
-              left: -70 * s,
-              child: DecorCircle(
-                diameter: 200 * s,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.gold.withValues(alpha: 0.15),
-                    AppColors.gold.withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-
-            // --- CONTENIDO PRINCIPAL ---
-            SafeArea(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // --- TARJETA SUPERIOR COMPARTIDA ---
-                    // Aquí llamamos al widget AuthHeaderCard
-                    FadeTransition(
-                      opacity: _cardFade,
-                      child: SlideTransition(
-                        position: _cardSlide,
-                        child: AuthHeaderCard(
-                          floatAnimation: _floatAnimation,
-                          s: s,
+              SafeArea(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      FadeTransition(
+                        opacity: _cardFade,
+                        child: SlideTransition(
+                          position: _cardSlide,
+                          child: AuthHeaderCard(
+                            floatAnimation: _floatAnimation,
+                            s: s,
+                          ),
                         ),
                       ),
-                    ),
 
-                    // --- FORMULARIO ---
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16 * s),
-                      child: Column(
-                        children: [
-                          FadeTransition(
-                            opacity: _titleFade,
-                            child: SlideTransition(
-                              position: _titleSlide,
-                              child: Column(
-                                children: [
-                                  Text(
-                                    'Welcome Back!',
-                                    style: AppFonts.style(
-                                      size: 35,
-                                      weight: FontWeight.w700,
-                                      color: AppColors.brownDark,
-                                    ),
-                                  ),
-                                  SizedBox(height: 8 * s),
-                                  Text(
-                                    'Ingresa para disfrutar de tu licor favorito.',
-                                    textAlign: TextAlign.center,
-                                    style: AppFonts.style(
-                                      size: 18,
-                                      weight: FontWeight.w600,
-                                      color: AppColors.brown.withValues(
-                                        alpha: 0.7,
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16 * s),
+                        child: Column(
+                          children: [
+                            FadeTransition(
+                              opacity: _titleFade,
+                              child: SlideTransition(
+                                position: _titleSlide,
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'Welcome Back!',
+                                      style: AppFonts.style(
+                                        size: 35,
+                                        weight: FontWeight.w700,
+                                        color: AppColors.brownDark,
                                       ),
                                     ),
-                                  ),
-                                ],
+                                    SizedBox(height: 8 * s),
+                                    Text(
+                                      'Ingresa para disfrutar de tu licor favorito.',
+                                      textAlign: TextAlign.center,
+                                      style: AppFonts.style(
+                                        size: 18,
+                                        weight: FontWeight.w600,
+                                        color: AppColors.brown.withValues(
+                                          alpha: 0.7,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
+                            SizedBox(height: 22 * s),
 
-                          SizedBox(height: 22 * s),
-
-                          // --- INPUT EMAIL ---
-                          FadeTransition(
-                            opacity: _emailFade,
-                            child: SlideTransition(
-                              position: _emailSlide,
-                              child: AppTextField(
-                                key: _emailKey,
-                                label: 'Email',
-                                hint: 'Enter you email',
-                                controller: _emailController,
-                                keyboardType: TextInputType.emailAddress,
-                                validator: _validateEmail,
-                                prefixIcon: const AppSvgIcon(AppSvgIcon.mail),
+                            FadeTransition(
+                              opacity: _emailFade,
+                              child: SlideTransition(
+                                position: _emailSlide,
+                                child: AppTextField(
+                                  key: _emailKey,
+                                  label: 'Email',
+                                  hint: 'Enter your email',
+                                  controller: _emailController,
+                                  keyboardType: TextInputType.emailAddress,
+                                  validator: _validateEmail,
+                                  prefixIcon: const AppSvgIcon(AppSvgIcon.mail),
+                                ),
                               ),
                             ),
-                          ),
+                            SizedBox(height: 16 * s),
 
-                          SizedBox(height: 16 * s),
-
-                          // --- INPUT CONTRASEÑA ---
-                          FadeTransition(
-                            opacity: _passwordFade,
-                            child: SlideTransition(
-                              position: _passwordSlide,
-                              child: AppTextField(
-                                key: _passwordKey,
-                                label: 'Password',
-                                hint: 'Enter you Password',
-                                controller: _passwordController,
-                                obscureText: _obscurePassword,
-                                validator: _validatePassword,
-                                prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
-                                suffixIcon: GestureDetector(
-                                  onTap: () => setState(
-                                    () => _obscurePassword = !_obscurePassword,
-                                  ),
-                                  child: AppSvgIcon(
-                                    _obscurePassword
-                                        ? AppSvgIcon.eyeOff
-                                        : AppSvgIcon.eye,
+                            FadeTransition(
+                              opacity: _passwordFade,
+                              child: SlideTransition(
+                                position: _passwordSlide,
+                                child: AppTextField(
+                                  key: _passwordKey,
+                                  label: 'Password',
+                                  hint: 'Enter your password',
+                                  controller: _passwordController,
+                                  obscureText: _obscurePassword,
+                                  validator: _validatePassword,
+                                  prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
+                                  suffixIcon: GestureDetector(
+                                    onTap: () => setState(
+                                      () =>
+                                          _obscurePassword = !_obscurePassword,
+                                    ),
+                                    child: AppSvgIcon(
+                                      _obscurePassword
+                                          ? AppSvgIcon.eyeOff
+                                          : AppSvgIcon.eye,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
+                            SizedBox(height: 16 * s),
 
-                          SizedBox(height: 16 * s),
-
-                          FadeTransition(
-                            opacity: _buttonsFade,
-                            child: SlideTransition(
-                              position: _buttonsSlide,
-                              child: Column(
-                                children: [
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Expanded(
-                                        child: AppTermsCheckbox(
-                                          value: _acceptTerms,
-                                          onChanged: (val) {
-                                            setState(() {
-                                              _acceptTerms = val;
-                                            });
-                                            FocusScope.of(context).unfocus();
-                                          },
-                                        ),
-                                      ),
-                                      SizedBox(width: 12 * s),
-                                      TextButton(
-                                        onPressed: () =>
-                                            context.push('/forgot-password'),
-                                        style: TextButton.styleFrom(
-                                          padding: EdgeInsets.zero,
-                                          minimumSize: Size.zero,
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
-                                        ),
-                                        child: Text(
-                                          'Forgot Password?',
-                                          style: AppFonts.style(
-                                            size: 16,
-                                            weight: FontWeight.w500,
-                                            color: AppColors.goldDark,
+                            FadeTransition(
+                              opacity: _buttonsFade,
+                              child: SlideTransition(
+                                position: _buttonsSlide,
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Expanded(
+                                          child: AppTermsCheckbox(
+                                            value: _acceptTerms,
+                                            onChanged: (val) {
+                                              setState(
+                                                () => _acceptTerms = val,
+                                              );
+                                              FocusScope.of(context).unfocus();
+                                            },
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 24 * s),
-
-                                  // BOTÓN CON DEGRADADO
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 62,
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(30),
-                                        gradient: const LinearGradient(
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
-                                          colors: [
-                                            AppColors.brownDark,
-                                            AppColors.brown,
-                                            AppColors.goldLight,
-                                          ],
-                                        ),
-                                      ),
-                                      child: ElevatedButton(
-                                        onPressed: _isLoading ? null : _login,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.transparent,
-                                          shadowColor: Colors.transparent,
-                                          elevation: 0,
-                                          padding: EdgeInsets.zero,
-                                          minimumSize: Size.zero,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              16,
-                                            ),
+                                        SizedBox(width: 12 * s),
+                                        TextButton(
+                                          onPressed: () =>
+                                              context.push('/forgot-password'),
+                                          style: TextButton.styleFrom(
+                                            padding: EdgeInsets.zero,
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
                                           ),
-                                        ),
-                                        child: _isLoading
-                                            ? const CircularProgressIndicator(
-                                                color: AppColors.creamText,
-                                              )
-                                            : Text(
-                                                'Iniciar sesión',
-                                                style: AppFonts.style(
-                                                  size: 20,
-                                                  weight: FontWeight.w600,
-                                                  color: AppColors.creamText,
-                                                ),
-                                              ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          SizedBox(height: 32 * s),
-
-                          // Redes sociales y pie
-                          FadeTransition(
-                            opacity: _socialsFade,
-                            child: SlideTransition(
-                              position: _socialsSlide,
-                              child: Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Expanded(
-                                        child: Divider(
-                                          color: AppColors.border,
-                                          thickness: 1.5,
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 16 * s,
-                                        ),
-                                        child: Text(
-                                          'Or continue with',
-                                          style: AppFonts.style(
-                                            size: 15,
-                                            weight: FontWeight.w500,
-                                            color: AppColors.muted,
-                                          ),
-                                        ),
-                                      ),
-                                      const Expanded(
-                                        child: Divider(
-                                          color: AppColors.border,
-                                          thickness: 1.5,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 24 * s),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: SocialButton(
-                                          label: 'Google',
-                                          iconAsset: 'assets/icons/google.svg',
-                                          onPressed: _isLoading
-                                              ? null
-                                              : _loginWithGoogle,
-                                        ),
-                                      ),
-                                      SizedBox(width: 16 * s),
-                                      Expanded(
-                                        child: SocialButton(
-                                          label: 'Apple',
-                                          iconAsset:
-                                              'assets/icons/Apple_light.svg',
-                                          onPressed: _isLoading
-                                              ? null
-                                              : _loginWithApple,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 32 * s),
-                                  GestureDetector(
-                                    onTap: () => context.go('/register'),
-                                    child: Text.rich(
-                                      TextSpan(
-                                        text: '¿No tienes una cuenta? ',
-                                        style: AppFonts.style(
-                                          size: 16,
-                                          weight: FontWeight.w500,
-                                          color: AppColors.brown.withValues(
-                                            alpha: 0.75,
-                                          ),
-                                        ),
-                                        children: [
-                                          TextSpan(
-                                            text: 'Regístrate',
+                                          child: Text(
+                                            'Forgot Password?',
                                             style: AppFonts.style(
                                               size: 16,
-                                              weight: FontWeight.w700,
+                                              weight: FontWeight.w500,
                                               color: AppColors.goldDark,
                                             ),
                                           ),
-                                        ],
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 24 * s),
+
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 62,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            30,
+                                          ),
+                                          gradient: const LinearGradient(
+                                            begin: Alignment.centerLeft,
+                                            end: Alignment.centerRight,
+                                            colors: [
+                                              AppColors.brownDark,
+                                              AppColors.brown,
+                                              AppColors.goldLight,
+                                            ],
+                                          ),
+                                        ),
+                                        child: ElevatedButton(
+                                          onPressed: _leaving ? null : _submit,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.transparent,
+                                            shadowColor: Colors.transparent,
+                                            elevation: 0,
+                                            padding: EdgeInsets.zero,
+                                            minimumSize: Size.zero,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'Sign in',
+                                            style: AppFonts.style(
+                                              size: 20,
+                                              weight: FontWeight.w600,
+                                              color: AppColors.creamText,
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  SizedBox(height: 40 * s),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+
+                            SizedBox(height: 32 * s),
+
+                            FadeTransition(
+                              opacity: _socialsFade,
+                              child: SlideTransition(
+                                position: _socialsSlide,
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Expanded(
+                                          child: Divider(
+                                            color: AppColors.border,
+                                            thickness: 1.5,
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 16 * s,
+                                          ),
+                                          child: Text(
+                                            'Or continue with',
+                                            style: AppFonts.style(
+                                              size: 15,
+                                              weight: FontWeight.w500,
+                                              color: AppColors.muted,
+                                            ),
+                                          ),
+                                        ),
+                                        const Expanded(
+                                          child: Divider(
+                                            color: AppColors.border,
+                                            thickness: 1.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 24 * s),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: SocialButton(
+                                            label: 'Google',
+                                            iconAsset:
+                                                'assets/icons/google.svg',
+                                            onPressed: _leaving
+                                                ? null
+                                                : _loginWithGoogle,
+                                          ),
+                                        ),
+                                        SizedBox(width: 16 * s),
+                                        Expanded(
+                                          child: SocialButton(
+                                            label: 'Apple',
+                                            iconAsset:
+                                                'assets/icons/Apple_light.svg',
+                                            onPressed: _leaving
+                                                ? null
+                                                : _loginWithApple,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 32 * s),
+                                    GestureDetector(
+                                      onTap: () => context.go('/register'),
+                                      child: Text.rich(
+                                        TextSpan(
+                                          text: '¿No tienes una cuenta? ',
+                                          style: AppFonts.style(
+                                            size: 16,
+                                            weight: FontWeight.w500,
+                                            color: AppColors.brown.withValues(
+                                              alpha: 0.75,
+                                            ),
+                                          ),
+                                          children: [
+                                            TextSpan(
+                                              text: 'Regístrate',
+                                              style: AppFonts.style(
+                                                size: 16,
+                                                weight: FontWeight.w700,
+                                                color: AppColors.goldDark,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(height: 40 * s),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

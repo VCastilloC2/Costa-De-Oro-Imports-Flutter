@@ -12,13 +12,14 @@ LoginPage ──► SocialAuthService ──► (Google / Apple) ──► id_to
 
 | Archivo | Responsabilidad |
 | --- | --- |
-| `lib/core/config/app_config.dart` | URL de la API y client IDs (vía `--dart-define`) |
-| `lib/core/storage/session_storage.dart` | Tokens y usuario en almacenamiento seguro |
+| `lib/core/config/api_config.dart` | URL de la API (`API_BASE_URL`) y tiempos de espera |
+| `lib/core/config/app_config.dart` | Client IDs de Google (vía `--dart-define`) |
+| `lib/core/storage/session_storage.dart` | Token en almacenamiento seguro |
 | `lib/core/network/api_client.dart` | Dio, header `Authorization`, manejo de 401 |
+| `lib/core/network/api_exception.dart` | Mensajes de error de la API para el usuario |
 | `lib/features/auth/data/social_auth_service.dart` | Token de Google / Apple |
 | `lib/features/auth/data/auth_repository.dart` | Llamadas a `/auth/*` y guardado de sesión |
-| `lib/features/auth/domain/auth_response.dart` | Modelo de la respuesta de login |
-| `lib/features/auth/presentation/auth_error_message.dart` | Mensajes de error para el usuario |
+| `lib/features/auth/presentation/providers/auth_controller.dart` | Estado de sesión (`loginWithGoogle`, `loginWithApple`) |
 
 ---
 
@@ -28,7 +29,7 @@ Nada está escrito en las páginas. Todo se pasa al compilar:
 
 | Variable | Uso | Valor por defecto |
 | --- | --- | --- |
-| `API_BASE_URL` | URL de la API | Android: `http://10.0.2.2:8000` · resto: `http://localhost:8000` |
+| `API_BASE_URL` | URL de la API | `http://192.168.1.63:8000` (backend en la LAN, ver `api_config.dart`) |
 | `GOOGLE_SERVER_CLIENT_ID` | Client ID **Web** de Google (obligatorio en Android) | vacío |
 | `GOOGLE_IOS_CLIENT_ID` | Client ID **iOS** de Google | vacío |
 
@@ -45,8 +46,8 @@ flutter run --dart-define-from-file=config/dev.json
 - **iOS Simulator:** usa `http://localhost:8000`.
 - **Celular físico:** usa la IP de tu PC en la red, por ejemplo `http://192.168.1.50:8000`, y arranca FastAPI con `uvicorn main:app --host 0.0.0.0 --port 8000`.
 
-`http://` solo está permitido en desarrollo:
-- **Android:** solo en builds *debug* (`android/app/src/debug/AndroidManifest.xml`).
+`http://` está permitido:
+- **Android:** en todos los builds (`android:usesCleartextTraffic`), porque el backend local no usa HTTPS. Antes de publicar, pasa la API a `https://` y quita ese atributo.
 - **iOS:** solo hacia la red local (`NSAllowsLocalNetworking`).
 
 ### Producción (más adelante)
@@ -143,10 +144,10 @@ Autorización: no requerida.
 }
 ```
 
-- `accessToken` es obligatorio. También se acepta `access_token`.
-- `refreshToken` / `refresh_token` y `usuario` / `user` son opcionales. Si vienen, se guardan.
+- El token es obligatorio. Se acepta `access_token`, `accessToken`, `token`, `jwt` o `id_token`, también dentro de `data`.
+- `usuario` es opcional: si no viene, Flutter pide el perfil a `GET /perfil`.
 - Para los errores, usa `HTTPException(status_code=..., detail="mensaje para el usuario")`. Flutter muestra `detail` en las respuestas 4xx.
-- Una respuesta **401** en cualquier endpoint protegido (no `/auth/*`) borra la sesión y lleva al login.
+- Una respuesta **401** en una petición con token borra el token guardado.
 
 ---
 
