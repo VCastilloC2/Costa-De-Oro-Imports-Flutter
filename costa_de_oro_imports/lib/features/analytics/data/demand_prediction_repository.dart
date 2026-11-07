@@ -2,6 +2,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/network/offline_cache_interceptor.dart';
 import '../domain/demand_prediction.dart';
 
 enum PredictionFailureKind {
@@ -27,13 +28,9 @@ class DemandPredictionRepository {
   final Connectivity _connectivity;
 
   Future<DemandPrediction> fetch({int? year, int? month}) async {
-    if (!await _hasNetwork()) {
-      throw const PredictionRequestException(
-        PredictionFailureKind.noInternet,
-        'Activa Wi-Fi o datos móviles e inténtalo de nuevo.',
-      );
-    }
-
+    // No se corta antes si no hay red: sin conexión, el interceptor responde
+    // con la última predicción guardada. Si no hay ninguna, _classify
+    // devuelve el error de "sin internet".
     try {
       final response = await _api.dio.post<dynamic>(
         '/api/v1/predictions/demand',
@@ -41,6 +38,8 @@ class DemandPredictionRepository {
         options: Options(
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 45),
+          // Es una consulta aunque use POST: se guarda para verla sin conexión.
+          extra: {OfflineCacheInterceptor.enable: true},
         ),
       );
       if (response.data is! Map) {

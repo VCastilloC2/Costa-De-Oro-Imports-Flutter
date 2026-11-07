@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/presentation/providers/auth_controller.dart';
 import 'router/app_router.dart';
+import '../shared/widgets/offline_banner.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 
@@ -44,7 +45,8 @@ class _AppState extends ConsumerState<App> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: router,
-      builder: (context, child) => _PhoneFrame(child: child),
+      builder: (context, child) =>
+          _PhoneFrame(child: OfflineBanner(child: child ?? const SizedBox())),
     );
   }
 }

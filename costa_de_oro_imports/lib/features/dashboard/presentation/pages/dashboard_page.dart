@@ -6,6 +6,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/network/network_status.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../../../shared/widgets/app_skeletonizer.dart';
@@ -133,6 +134,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
   @override
   Widget build(BuildContext context) {
+    // Al volver la conexión, se reemplazan los datos guardados por los reales.
+    ref.listen(networkStatusProvider, (previous, next) {
+      if (previous != null && !previous.isOnline && next.isOnline) {
+        _refresh();
+        ref.read(demandPredictionProvider.notifier).load(force: true);
+      }
+    });
+
     final state = ref.watch(dashboardProvider);
     final data = state.data;
 

@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:costa_de_oro_imports/core/config/api_config.dart';
 import 'package:costa_de_oro_imports/core/storage/session_storage.dart';
 
+import 'offline_cache_interceptor.dart';
+
 /// Rutas que nunca deben llevar el token (login, registro y login social).
 const _publicAuthPaths = [
   '/auth/login',
@@ -16,7 +18,7 @@ const _publicAuthPaths = [
 ];
 
 /// Crea el [Dio] de la app con la URL base, los tiempos de espera y el
-/// interceptor que agrega el token. Lo usan [dioProvider] y [ApiClient],
+/// interceptor que agrega el token y el de modo sin conexión. Lo usan [dioProvider] y [ApiClient],
 /// así la configuración HTTP vive en un solo lugar.
 Dio createApiDio(SessionStorage storage) {
   final dio = Dio(
@@ -55,6 +57,9 @@ Dio createApiDio(SessionStorage storage) {
       },
     ),
   );
+  // Va después del de autenticación: guarda las respuestas y, sin conexión,
+  // responde con la última copia guardada.
+  dio.interceptors.add(OfflineCacheInterceptor());
 
   return dio;
 }

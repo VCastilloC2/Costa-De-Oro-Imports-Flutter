@@ -12,17 +12,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:costa_de_oro_imports/core/network/api_client.dart';
 import 'package:costa_de_oro_imports/core/network/api_exception.dart';
+import 'package:costa_de_oro_imports/core/storage/response_cache.dart';
 import 'package:costa_de_oro_imports/core/storage/session_storage.dart';
 import 'package:costa_de_oro_imports/features/auth/data/models/user_model.dart';
 import 'package:costa_de_oro_imports/features/auth/data/social_auth_service.dart';
 
 class AuthRepository {
-  AuthRepository(this._dio, this._storage, {SocialAuthService? socialAuth})
-    : _socialAuth = socialAuth ?? SocialAuthService();
+  AuthRepository(
+    this._dio,
+    this._storage, {
+    SocialAuthService? socialAuth,
+    ResponseCache? cache,
+  }) : _socialAuth = socialAuth ?? SocialAuthService(),
+       _cache = cache ?? ResponseCache.instance;
 
   final Dio _dio;
   final SessionStorage _storage;
   final SocialAuthService _socialAuth;
+
+  /// Datos guardados para usar sin conexión; se borran al cambiar de sesión.
+  final ResponseCache _cache;
 
   // ---------------------------------------------------------------------------
   // LOGIN
@@ -77,7 +86,7 @@ class AuthRepository {
       // El backend devuelve el objeto 'usuario' dentro del login.
       // Se extrae directamente para evitar peticiones adicionales a /perfil.
       if (data is Map && data['usuario'] is Map<String, dynamic>) {
-        await _storage.saveToken(token);
+        await _startSession(token);
         return UserModel.fromJson(data['usuario']);
       }
     } on DioException catch (e) {
@@ -88,8 +97,15 @@ class AuthRepository {
     }
 
     // Respaldo: Si el backend no anida el usuario, se solicita a /perfil.
-    await _storage.saveToken(token);
+    await _startSession(token);
     return await fetchProfile();
+  }
+
+  /// Guarda el token nuevo y descarta los datos sin conexión de cualquier
+  /// sesión anterior (podría ser de otra cuenta).
+  Future<void> _startSession(String token) async {
+    await _cache.clear();
+    await _storage.saveToken(token);
   }
 
   // ---------------------------------------------------------------------------
@@ -198,6 +214,7 @@ class AuthRepository {
       // La sesión local se borra aunque la API no responda.
     }
     await _storage.clear();
+    await _cache.clear();
     // Para que el próximo login con Google permita elegir otra cuenta.
     await _socialAuth.signOut();
   }
