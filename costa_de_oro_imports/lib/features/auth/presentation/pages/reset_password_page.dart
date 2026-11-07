@@ -237,8 +237,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                                     ),
                                   ),
                                   validator: (val) {
-                                    if (val == null || val.isEmpty)
+                                    if (val == null || val.isEmpty) {
                                       return 'La contraseña es obligatoria';
+                                    }
                                     return null;
                                   },
                                 ),
@@ -261,10 +262,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage>
                                     ),
                                   ),
                                   validator: (val) {
-                                    if (val == null || val.isEmpty)
+                                    if (val == null || val.isEmpty) {
                                       return 'Debes confirmar la contraseña';
-                                    if (val != _passwordController.text)
+                                    }
+                                    if (val != _passwordController.text) {
                                       return 'Las contraseñas no coinciden';
+                                    }
                                     return null;
                                   },
                                 ),

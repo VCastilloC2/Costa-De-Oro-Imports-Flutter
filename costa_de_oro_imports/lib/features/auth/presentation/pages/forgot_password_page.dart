@@ -227,11 +227,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                               keyboardType: TextInputType.emailAddress,
                               prefixIcon: const AppSvgIcon(AppSvgIcon.mail),
                               validator: (val) {
-                                if (val == null || val.isEmpty)
+                                if (val == null || val.isEmpty) {
                                   return 'El correo es obligatorio';
+                                }
                                 if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                                    .hasMatch(val))
+                                    .hasMatch(val)) {
                                   return 'Correo inválido';
+                                }
                                 return null;
                               },
                             ),

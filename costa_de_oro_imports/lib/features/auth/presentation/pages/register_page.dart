@@ -120,19 +120,23 @@ class _RegisterPageState extends State<RegisterPage>
   }
 
   String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty)
+    if (value == null || value.trim().isEmpty) {
       return 'El correo es obligatorio';
+    }
     final emailRegex = RegExp(
       r'^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$',
       caseSensitive: false,
     );
-    if (!emailRegex.hasMatch(value.trim()))
+    if (!emailRegex.hasMatch(value.trim())) {
       return 'That email doesn\'t look right';
+    }
     return null;
   }
 
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) return 'La contraseña es obligatoria';
+    if (value == null || value.isEmpty) {
+      return 'La contraseña es obligatoria';
+    }
     return null;
   }
 
@@ -142,7 +146,9 @@ class _RegisterPageState extends State<RegisterPage>
         (_emailKey.currentState?.validate() ?? false) &&
         (_passwordKey.currentState?.validate() ?? false) &&
         (_confirmPasswordKey.currentState?.validate() ?? false);
-    if (!valid) return;
+    if (!valid) {
+      return;
+    }
     if (_firstNameController.text.trim().isEmpty ||
         _lastNameController.text.trim().isEmpty ||
         _phoneController.text.trim().length < 5 ||
@@ -175,7 +181,9 @@ class _RegisterPageState extends State<RegisterPage>
         'apellidos': _lastNameController.text.trim(),
         'telefono': _phoneController.text.trim(),
       });
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Cuenta creada. Ya puedes iniciar sesión.'),
@@ -183,7 +191,9 @@ class _RegisterPageState extends State<RegisterPage>
       );
       context.go('/login');
     } on DioException catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       final detail = error.response?.data is Map
           ? error.response?.data['detail']?.toString() ??
                 'No fue posible crear la cuenta'
@@ -196,9 +206,12 @@ class _RegisterPageState extends State<RegisterPage>
   }
 
   String? _validateConfirmPassword(String? value) {
-    if (value == null || value.isEmpty) return 'Debes confirmar la contraseña';
-    if (value != _passwordController.text)
+    if (value == null || value.isEmpty) {
+      return 'Debes confirmar la contraseña';
+    }
+    if (value != _passwordController.text) {
       return 'Las contraseñas no coinciden';
+    }
     return null;
   }
 
@@ -347,8 +360,9 @@ class _RegisterPageState extends State<RegisterPage>
                                     )
                                     .toList(),
                             onChanged: (value) {
-                              if (value != null)
+                              if (value != null) {
                                 setState(() => _idType = value);
+                              }
                             },
                           ),
                           SizedBox(height: 16 * s),
