@@ -16,6 +16,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
 import '../../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../../../features/auth/presentation/providers/auth_controller.dart';
+import '../../../../features/auth/presentation/widgets/passkey_widgets.dart';
 
 class UserProfilePage extends ConsumerWidget {
   const UserProfilePage({super.key});
@@ -240,6 +241,17 @@ class UserProfilePage extends ConsumerWidget {
                     subtitle: 'Gestiona tu información personal',
                     onTap: () => context.push('/account-details'),
                   ),
+                  // Solo aparece si el dispositivo soporta passkeys y
+                  // PASSKEY_RP_ID está configurado.
+                  if (ref.watch(passkeyAvailableProvider).value == true) ...[
+                    _buildDivider(),
+                    _buildMenuItem(
+                      icon: passkeyBiometricIcon(),
+                      title: 'Passkey y biometría',
+                      subtitle: 'Inicia sesión con ${passkeyBiometricLabel()}',
+                      onTap: () => PasskeyEnrollment.enroll(context, ref),
+                    ),
+                  ],
                   _buildDivider(),
                   _buildMenuItem(
                     icon: Icons.payment_outlined,

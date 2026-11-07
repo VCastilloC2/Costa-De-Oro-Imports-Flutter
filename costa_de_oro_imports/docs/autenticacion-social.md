@@ -4,6 +4,8 @@ Flutter obtiene el token de identidad del proveedor y se lo envía a la API.
 **La API FastAPI es la que valida el token** y crea o inicia la sesión del usuario.
 Flutter nunca maneja contraseñas de Google ni de Apple.
 
+> Inicio de sesión con Face ID / huella (passkeys): ver [passkeys.md](passkeys.md).
+
 ```
 LoginPage ──► SocialAuthService ──► (Google / Apple) ──► id_token
           └─► AuthRepository ──► POST /auth/google | /auth/apple ──► accessToken

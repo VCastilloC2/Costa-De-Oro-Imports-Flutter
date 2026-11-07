@@ -28,6 +28,54 @@ class SessionStorage {
       await _storage.delete(key: _tokenKey);
     } catch (_) {}
   }
+
+  // ---------------------------------------------------------------------------
+  // PASSKEYS
+  // ---------------------------------------------------------------------------
+  // Solo se guardan marcas no secretas: la clave privada vive en el Secure
+  // Enclave / Keystore y la clave pública en el backend. [clear] (logout)
+  // NO borra estas marcas a propósito: la passkey sigue existiendo en el
+  // dispositivo y el siguiente login debe poder ofrecer Face ID / huella.
+
+  static const _passkeyUserKey = 'passkey_user';
+  static const _passkeyOfferDismissedKey = 'passkey_offer_dismissed';
+
+  /// Correo de la cuenta que registró o usó una passkey en este dispositivo.
+  Future<String?> readPasskeyUser() => _safeRead(_passkeyUserKey);
+
+  Future<void> savePasskeyUser(String correo) =>
+      _safeWrite(_passkeyUserKey, correo);
+
+  Future<void> clearPasskeyUser() => _safeDelete(_passkeyUserKey);
+
+  /// `true` si el usuario rechazó activar la passkey tras iniciar sesión.
+  Future<bool> readPasskeyOfferDismissed() async =>
+      await _safeRead(_passkeyOfferDismissedKey) == 'true';
+
+  Future<void> savePasskeyOfferDismissed() =>
+      _safeWrite(_passkeyOfferDismissedKey, 'true');
+
+  Future<String?> _safeRead(String key) async {
+    try {
+      return await _storage.read(key: key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _safeWrite(String key, String value) async {
+    try {
+      await _storage.write(key: key, value: value);
+    } catch (_) {
+      // Son marcas de conveniencia: si fallan, solo se pierde el aviso.
+    }
+  }
+
+  Future<void> _safeDelete(String key) async {
+    try {
+      await _storage.delete(key: key);
+    } catch (_) {}
+  }
 }
 
 final sessionStorageProvider = Provider<SessionStorage>(

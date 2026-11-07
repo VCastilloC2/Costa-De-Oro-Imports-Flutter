@@ -10,11 +10,16 @@ import 'package:costa_de_oro_imports/core/storage/session_storage.dart';
 import 'offline_cache_interceptor.dart';
 
 /// Rutas que nunca deben llevar el token (login, registro y login social).
+///
+/// `/auth/passkey/login/*` es público (aún no hay sesión). En cambio
+/// `/auth/passkey/register/*` SÍ lleva el token: solo un usuario con sesión
+/// puede vincular una passkey a su cuenta.
 const _publicAuthPaths = [
   '/auth/login',
   '/auth/registro',
   '/auth/google',
   '/auth/apple',
+  '/auth/passkey/login',
 ];
 
 /// Crea el [Dio] de la app con la URL base, los tiempos de espera y el
