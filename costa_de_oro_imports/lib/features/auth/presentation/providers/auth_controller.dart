@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:costa_de_oro_imports/core/config/passkey_config.dart';
 import 'package:costa_de_oro_imports/features/auth/data/auth_repository.dart';
 import 'package:costa_de_oro_imports/features/auth/data/models/user_model.dart';
 
@@ -77,6 +78,18 @@ class AuthController extends Notifier<AuthState> {
     state = AuthState(status: AuthStatus.authenticated, user: user);
   }
 
+  /// Inicia sesión con una passkey (Face ID / Touch ID / huella).
+  /// Lanza [PasskeyException] o [ApiException]; el estado solo cambia si
+  /// el backend aceptó la firma.
+  Future<void> loginWithPasskey({bool autoPrompt = false}) async {
+    final user = await _repo.loginWithPasskey(autoPrompt: autoPrompt);
+    state = AuthState(status: AuthStatus.authenticated, user: user);
+  }
+
+  /// Vincula una passkey nueva a la cuenta con sesión activa.
+  /// No cambia el estado de sesión.
+  Future<void> registerPasskey() => _repo.registerPasskey();
+
   /// Registra al usuario y lo deja autenticado automáticamente.
   Future<void> register({
     required String correo,
@@ -120,3 +133,10 @@ class AuthController extends Notifier<AuthState> {
 final authControllerProvider = NotifierProvider<AuthController, AuthState>(
   AuthController.new,
 );
+
+/// `true` si la app puede ofrecer passkeys en este dispositivo.
+/// Con `PASSKEY_RP_ID` vacío responde `false` sin crear ningún servicio.
+final passkeyAvailableProvider = FutureProvider.autoDispose<bool>((ref) async {
+  if (!PasskeyConfig.isEnabled) return false;
+  return ref.read(authRepositoryProvider).isPasskeyAvailable();
+});

@@ -13,6 +13,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
+import '../../../../core/config/passkey_config.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../shared/widgets/app_svg_icon.dart';
 import '../../../../shared/widgets/app_terms_checkbox.dart';
@@ -21,8 +22,11 @@ import '../../../../shared/widgets/auth_header_card.dart';
 import '../../../../shared/widgets/auth_loading_overlay.dart';
 import '../../../../shared/widgets/decor_circle.dart';
 import '../../../../shared/widgets/social_button.dart';
+import '../../data/auth_repository.dart';
+import '../../data/passkey_service.dart';
 import '../../data/social_auth_service.dart';
 import '../providers/auth_controller.dart';
+import '../widgets/passkey_widgets.dart';
 import '../../../../core/utils/validators.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -51,6 +55,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
   bool _leaving = false;
 
   final _socialAuth = SocialAuthService();
+
+  /// Se vuelve `true` si el dispositivo soporta passkeys y la función está
+  /// configurada. Mientras sea `false`, la pantalla es idéntica a la original.
+  bool _passkeyAvailable = false;
 
   late AnimationController _entryController;
   late AnimationController _floatController;
@@ -108,6 +116,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _entryController.forward();
+      _initPasskeys();
     });
 
     _floatController = AnimationController(
@@ -216,6 +225,50 @@ class _LoginPageState extends ConsumerState<LoginPage>
     );
   }
 
+  /// Detecta si hay passkeys y, si este dispositivo ya usó una, lanza
+  /// Face ID / Touch ID / huella automáticamente. Cualquier fallo deja la
+  /// pantalla igual que siempre (login con contraseña intacto).
+  Future<void> _initPasskeys() async {
+    // Sin dominio configurado no se toca nada nuevo: pantalla original.
+    if (!PasskeyConfig.isEnabled) return;
+    final bool available;
+    final bool autoPrompt;
+    try {
+      final repo = ref.read(authRepositoryProvider);
+      available = await repo.isPasskeyAvailable();
+      autoPrompt = available && await repo.shouldAutoPromptPasskey();
+    } catch (error) {
+      PasskeyService.log('login-init', error);
+      return;
+    }
+    if (!mounted || !available) return;
+    setState(() => _passkeyAvailable = true);
+
+    if (autoPrompt) {
+      // Deja terminar la animación de entrada antes de la hoja del sistema.
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      if (mounted && !_leaving) {
+        await _loginWithPasskey(autoPrompt: true);
+      }
+    }
+  }
+
+  Future<void> _loginWithPasskey({bool autoPrompt = false}) async {
+    if (_leaving) {
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() => _leaving = true);
+
+    await _completeLogin(
+      () => ref
+          .read(authControllerProvider.notifier)
+          .loginWithPasskey(autoPrompt: autoPrompt),
+      offerPasskey: false,
+      silentPasskeyErrors: autoPrompt,
+    );
+  }
+
   void _cancelSocialLogin() {
     if (!mounted) {
       return;
@@ -232,8 +285,17 @@ class _LoginPageState extends ConsumerState<LoginPage>
   }
 
   /// Muestra la animación de carga mientras corre [task] y, si sale bien,
-  /// navega al dashboard. Común al login con correo, Google y Apple.
-  Future<void> _completeLogin(Future<void> Function() task) async {
+  /// navega al dashboard. Común al login con correo, Google, Apple y passkey.
+  ///
+  /// - [offerPasskey]: tras un login exitoso, ofrece activar la passkey
+  ///   (solo si el dispositivo la soporta y no se rechazó antes).
+  /// - [silentPasskeyErrors]: en el intento automático, la cancelación o la
+  ///   ausencia de passkeys no muestran mensaje; el login normal sigue.
+  Future<void> _completeLogin(
+    Future<void> Function() task, {
+    bool offerPasskey = true,
+    bool silentPasskeyErrors = false,
+  }) async {
     try {
       await showAuthLoading<void>(
         context,
@@ -242,7 +304,22 @@ class _LoginPageState extends ConsumerState<LoginPage>
         task: task,
       );
     } on ApiException catch (e) {
+      if (silentPasskeyErrors) {
+        // El usuario no pidió nada aún: sin red o sin backend no se le
+        // interrumpe; puede entrar con contraseña o tocar el botón.
+        if (mounted) setState(() => _leaving = false);
+        return;
+      }
       _showLoginError(e.message);
+      return;
+    } on PasskeyException catch (e) {
+      if (silentPasskeyErrors && e.isSilentOnAutoPrompt) {
+        if (mounted) setState(() => _leaving = false);
+      } else if (e.isCancelled) {
+        _cancelSocialLogin();
+      } else {
+        _showLoginError(e.message);
+      }
       return;
     } catch (_) {
       _showLoginError('Ocurrió un error inesperado. Inténtalo de nuevo.');
@@ -257,6 +334,12 @@ class _LoginPageState extends ConsumerState<LoginPage>
     // Pausa necesaria para que el diálogo de carga se cierre completamente
     // antes de que el enrutador intente cambiar la pantalla.
     await Future.delayed(const Duration(milliseconds: 300));
+
+    // Migración de usuarios existentes: tras entrar con contraseña / Google /
+    // Apple se ofrece (una vez) activar Face ID / huella. Nunca bloquea.
+    if (offerPasskey && mounted) {
+      await PasskeyEnrollment.maybeOffer(context, ref);
+    }
 
     if (mounted) {
       context.go('/dashboard');
@@ -515,6 +598,14 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                         ),
                                       ),
                                     ),
+                                    if (_passkeyAvailable) ...[
+                                      SizedBox(height: 14),
+                                      PasskeyLoginButton(
+                                        onPressed: _leaving
+                                            ? null
+                                            : () => _loginWithPasskey(),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

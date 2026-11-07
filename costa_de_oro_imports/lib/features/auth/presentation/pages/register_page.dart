@@ -23,6 +23,7 @@ import '../../../../shared/widgets/auth_loading_overlay.dart';
 import '../../../../shared/widgets/decor_circle.dart';
 import '../../../../shared/widgets/social_button.dart';
 import '../providers/auth_controller.dart';
+import '../widgets/passkey_widgets.dart';
 import '../../../../core/utils/validators.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -205,6 +206,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
 
     // Pausa para evitar conflictos de navegación
     await Future.delayed(const Duration(milliseconds: 300));
+
+    // Paso 2 del registro: vincular una passkey a la cuenta recién creada.
+    // Es opcional y no bloquea: si falla o se omite, la cuenta ya existe y
+    // el usuario sigue entrando con correo y contraseña.
+    if (mounted) {
+      await PasskeyEnrollment.maybeOffer(context, ref, afterSignUp: true);
+    }
 
     if (mounted) {
       context.go('/dashboard');

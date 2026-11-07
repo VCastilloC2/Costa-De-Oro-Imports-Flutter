@@ -15,6 +15,7 @@ import 'package:costa_de_oro_imports/core/network/api_exception.dart';
 import 'package:costa_de_oro_imports/core/storage/response_cache.dart';
 import 'package:costa_de_oro_imports/core/storage/session_storage.dart';
 import 'package:costa_de_oro_imports/features/auth/data/models/user_model.dart';
+import 'package:costa_de_oro_imports/features/auth/data/passkey_service.dart';
 import 'package:costa_de_oro_imports/features/auth/data/social_auth_service.dart';
 
 class AuthRepository {
@@ -23,12 +24,17 @@ class AuthRepository {
     this._storage, {
     SocialAuthService? socialAuth,
     ResponseCache? cache,
+    PasskeyService? passkeys,
   }) : _socialAuth = socialAuth ?? SocialAuthService(),
-       _cache = cache ?? ResponseCache.instance;
+       _cache = cache ?? ResponseCache.instance,
+       _passkeys = passkeys ?? PasskeyService();
 
   final Dio _dio;
   final SessionStorage _storage;
   final SocialAuthService _socialAuth;
+
+  /// Ceremonias WebAuthn en el dispositivo (Face ID, Touch ID, huella).
+  final PasskeyService _passkeys;
 
   /// Datos guardados para usar sin conexión; se borran al cambiar de sesión.
   final ResponseCache _cache;
@@ -220,6 +226,175 @@ class AuthRepository {
   }
 
   // ---------------------------------------------------------------------------
+  // PASSKEYS (WebAuthn / FIDO2)
+  // ---------------------------------------------------------------------------
+  // Contrato (ver docs/passkeys.md):
+  //   POST /auth/passkey/register/options  (con token)  -> {challenge_id, options}
+  //   POST /auth/passkey/register/verify   (con token)  -> 200
+  //   POST /auth/passkey/login/options     (público)    -> {challenge_id, options}
+  //   POST /auth/passkey/login/verify      (público)    -> igual que /auth/login
+  //
+  // El backend genera challenges aleatorios de un solo uso con expiración,
+  // guarda la clave pública + contador al registrar, y al iniciar sesión
+  // verifica firma, origen, rpIdHash, flag UV y contador (anti-replay).
+
+  /// `true` si `PASSKEY_RP_ID` está configurado y el dispositivo soporta
+  /// passkeys. Si es `false`, la UI simplemente no muestra la opción.
+  Future<bool> isPasskeyAvailable() => _passkeys.isAvailable();
+
+  /// `true` si conviene lanzar Face ID / huella al abrir el login: el
+  /// dispositivo ya registró o usó una passkey de esta app.
+  Future<bool> shouldAutoPromptPasskey() async {
+    if (!await isPasskeyAvailable()) return false;
+    return await _storage.readPasskeyUser() != null;
+  }
+
+  /// `true` si se debe ofrecer activar la passkey tras un login exitoso.
+  /// Con [ignoreDismissed] se ofrece aunque antes se haya rechazado
+  /// (por ejemplo, justo después de crear la cuenta).
+  Future<bool> shouldOfferPasskeyEnrollment({
+    bool ignoreDismissed = false,
+  }) async {
+    if (!await isPasskeyAvailable()) return false;
+    if (await _storage.readPasskeyUser() != null) return false;
+    return ignoreDismissed || !await _storage.readPasskeyOfferDismissed();
+  }
+
+  /// Recuerda que el usuario no quiere activar la passkey por ahora.
+  Future<void> dismissPasskeyOffer() => _storage.savePasskeyOfferDismissed();
+
+  /// Inicia sesión con una passkey descubrible (no pide correo, así el
+  /// backend no revela qué cuentas existen).
+  ///
+  /// Con [autoPrompt] solo se usan passkeys guardadas en este dispositivo y
+  /// no se muestra nada si no hay ninguna.
+  ///
+  /// Lanza [PasskeyException] (cancelación, sin passkeys…) o [ApiException].
+  Future<UserModel> loginWithPasskey({bool autoPrompt = false}) async {
+    final challenge = await _requestPasskeyOptions(
+      '/auth/passkey/login/options',
+      const {},
+    );
+
+    final Map<String, dynamic> assertion;
+    try {
+      assertion = await _passkeys.getAssertion(
+        challenge.options,
+        preferImmediatelyAvailable: autoPrompt,
+      );
+    } on PasskeyException catch (e) {
+      if (e.failure == PasskeyFailure.noCredentials) {
+        // La passkey se borró del dispositivo: deja de ofrecerla sola.
+        await _storage.clearPasskeyUser();
+      }
+      rethrow;
+    }
+
+    try {
+      final user = await _authenticate('/auth/passkey/login/verify', {
+        'challenge_id': ?challenge.id,
+        'credential': assertion,
+      });
+      await _storage.savePasskeyUser(user.correo);
+      PasskeyService.log('login', 'sesión iniciada con passkey');
+      return user;
+    } on ApiException catch (e) {
+      if (e.isUnauthorized || e.statusCode == 404) {
+        // Credencial revocada o desconocida en el servidor.
+        await _storage.clearPasskeyUser();
+      }
+      rethrow;
+    }
+  }
+
+  /// Crea una passkey en este dispositivo y la vincula a la cuenta con
+  /// sesión activa. El backend guarda el ID de credencial y la clave
+  /// pública; la clave privada nunca sale del Secure Enclave / Keystore.
+  ///
+  /// Lanza [PasskeyException] o [ApiException].
+  Future<void> registerPasskey() async {
+    final token = await _storage.readToken();
+    if (token == null || token.isEmpty) {
+      throw const ApiException(
+        'Inicia sesión para activar la passkey.',
+        statusCode: 401,
+      );
+    }
+
+    final deviceName = _deviceName();
+    final challenge = await _requestPasskeyOptions(
+      '/auth/passkey/register/options',
+      {'device_name': deviceName},
+    );
+    final user = challenge.options['user'];
+    final correo = user is Map ? '${user['name'] ?? ''}' : '';
+
+    final Map<String, dynamic> credential;
+    try {
+      credential = await _passkeys.createCredential(challenge.options);
+    } on PasskeyException catch (e) {
+      if (e.failure == PasskeyFailure.alreadyRegistered) {
+        // `excludeCredentials` coincidió: ya está vinculada. No es error.
+        await _storage.savePasskeyUser(correo);
+        return;
+      }
+      rethrow;
+    }
+
+    try {
+      await _dio.post<dynamic>(
+        '/auth/passkey/register/verify',
+        data: {
+          'challenge_id': ?challenge.id,
+          'credential': credential,
+          'device_name': deviceName,
+        },
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+    await _storage.savePasskeyUser(correo);
+    PasskeyService.log('register', 'passkey vinculada');
+  }
+
+  /// Pide al backend un challenge nuevo. Acepta `{challenge_id, options}`,
+  /// `{publicKey: {...}}` o las opciones directamente (py_webauthn).
+  Future<({String? id, Map<String, dynamic> options})> _requestPasskeyOptions(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final dynamic data;
+    try {
+      data = (await _dio.post<dynamic>(path, data: body)).data;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+    if (data is! Map) {
+      throw const ApiException('Respuesta de passkey inesperada.');
+    }
+
+    Object? options = data['options'] ?? data['publicKey'] ?? data;
+    if (options is Map && options['publicKey'] is Map) {
+      options = options['publicKey'];
+    }
+    if (options is! Map) {
+      throw const ApiException('Respuesta de passkey inesperada.');
+    }
+
+    final id = data['challenge_id'] ?? data['challengeId'];
+    return (
+      id: id is String && id.isNotEmpty ? id : null,
+      options: options.cast<String, dynamic>(),
+    );
+  }
+
+  static String _deviceName() => switch (defaultTargetPlatform) {
+    TargetPlatform.iOS => 'iOS',
+    TargetPlatform.android => 'Android',
+    final other => other.name,
+  };
+
+  // ---------------------------------------------------------------------------
   // HELPERS
   // ---------------------------------------------------------------------------
   static const _tokenKeys = [
@@ -268,5 +443,6 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(
     ref.watch(dioProvider),
     ref.watch(sessionStorageProvider),
+    passkeys: ref.watch(passkeyServiceProvider),
   );
 });

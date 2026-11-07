@@ -50,6 +50,7 @@ dependencies:
   sign_in_with_apple: ^8.2.0
   visibility_detector: ^0.4.0+2
   hugeicons: ^4.4.0
+  passkeys: ^2.24.1
 
 dev_dependencies:
   flutter_test:
