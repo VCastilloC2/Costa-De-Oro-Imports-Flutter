@@ -4,9 +4,10 @@ import 'dart:async';
 
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dio/dio.dart';
 
 import '../../data/auth_repository.dart';
+import '../../data/social_auth_service.dart';
+import '../auth_error_message.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../home/application/dashboard_controller.dart';
 
@@ -38,34 +39,89 @@ class _LoginPageState extends ConsumerState<LoginPage>
   bool _acceptTerms = false;
   bool _isLoading = false;
   final _auth = AuthRepository(ApiClient());
+  final _socialAuth = SocialAuthService();
 
   Future<void> _login() async {
-    if (_isLoading) return;
+    if (_isLoading) {
+      return;
+    }
     FocusScope.of(context).unfocus();
     final emailValid = _emailKey.currentState?.validate() ?? false;
     final passwordValid = _passwordKey.currentState?.validate() ?? false;
-    if (!emailValid || !passwordValid) return;
+    if (!emailValid || !passwordValid) {
+      return;
+    }
+    await _authenticate(
+      () => _auth.login(_emailController.text, _passwordController.text),
+      fallbackError: 'No fue posible iniciar sesión',
+    );
+  }
+
+  Future<void> _loginWithGoogle() async {
+    await _authenticate(() async {
+      final idToken = await _socialAuth.signInWithGoogle();
+      if (idToken == null) {
+        // El usuario cerró el selector de cuentas.
+        return false;
+      }
+      await _auth.loginWithGoogle(idToken);
+      return true;
+    }, fallbackError: 'No fue posible iniciar sesión con Google');
+  }
+
+  Future<void> _loginWithApple() async {
+    await _authenticate(() async {
+      final credential = await _socialAuth.signInWithApple();
+      if (credential == null) {
+        return false;
+      }
+      await _auth.loginWithApple(
+        credential.identityToken,
+        givenName: credential.givenName,
+        familyName: credential.familyName,
+      );
+      return true;
+    }, fallbackError: 'No fue posible iniciar sesión con Apple');
+  }
+
+  /// Flujo común: carga → autenticación → navegación o mensaje de error.
+  /// [action] devuelve `false` si el usuario canceló (no se muestra error).
+  Future<void> _authenticate(
+    Future<Object?> Function() action, {
+    required String fallbackError,
+  }) async {
+    if (_isLoading) {
+      return;
+    }
+    FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
     try {
-      await _auth.login(_emailController.text, _passwordController.text);
-      if (!mounted) return;
+      final result = await action();
+      if (!mounted) {
+        return;
+      }
+      if (result == false) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Inicio de sesión cancelado.')),
+        );
+        return;
+      }
       // Set isLoading before navigation so Home renders its skeleton immediately.
       unawaited(ref.read(dashboardProvider.notifier).load(force: true));
       context.go('/home');
-    } on DioException catch (error) {
-      if (!mounted) return;
-      final detail = error.response?.data is Map
-          ? (error.response?.data['detail']?.toString() ??
-                'No fue posible iniciar sesión')
-          : 'No fue posible conectar con el servidor';
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(detail)));
     } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authErrorMessage(error, fallback: fallbackError)),
+        ),
+      );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -162,7 +218,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
   }
 
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) return 'La contraseña es obligatoria';
+    if (value == null || value.isEmpty) {
+      return 'La contraseña es obligatoria';
+    }
     return null;
   }
 
@@ -497,7 +555,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                         child: SocialButton(
                                           label: 'Google',
                                           iconAsset: 'assets/icons/google.svg',
-                                          onPressed: () {},
+                                          onPressed: _isLoading
+                                              ? null
+                                              : _loginWithGoogle,
                                         ),
                                       ),
                                       SizedBox(width: 16 * s),
@@ -506,7 +566,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                           label: 'Apple',
                                           iconAsset:
                                               'assets/icons/Apple_light.svg',
-                                          onPressed: () {},
+                                          onPressed: _isLoading
+                                              ? null
+                                              : _loginWithApple,
                                         ),
                                       ),
                                     ],

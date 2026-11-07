@@ -46,3 +46,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Configuración local de entorno (ver config/*.example)
+/config/*.json
+/ios/Flutter/GoogleSignIn.xcconfig

@@ -1,9 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../config/app_config.dart';
+import '../storage/session_storage.dart';
+
 class ApiClient {
-  ApiClient({Dio? dio, FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage(),
+  ApiClient({Dio? dio, FlutterSecureStorage? storage, SessionStorage? session})
+    : session = session ?? SessionStorage(storage: storage),
       dio =
           dio ??
           Dio(
@@ -15,22 +18,48 @@ class ApiClient {
             ),
           ) {
     this.dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          final token = await _storage.read(key: accessTokenKey);
-          if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
-          handler.next(options);
-        },
-      ),
+      InterceptorsWrapper(onRequest: _attachToken, onError: _handleError),
     );
   }
 
-  static const baseUrl = 'https://localhost:8000/';
-  static const accessTokenKey = 'access_token';
+  /// URL base centralizada. Se cambia con `--dart-define=API_BASE_URL=...`
+  /// (ver [AppConfig.apiBaseUrl]).
+  static String get baseUrl => AppConfig.apiBaseUrl;
+  static const accessTokenKey = SessionStorage.accessTokenKey;
+
+  /// Se ejecuta cuando una petición autenticada recibe 401 (token vencido o
+  /// inválido). La app la usa para volver al login. La sesión ya se borró.
+  static void Function()? onUnauthorized;
+
   final Dio dio;
-  final FlutterSecureStorage _storage;
+  final SessionStorage session;
+
+  Future<void> _attachToken(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
+    final token = await session.getToken();
+    if (token != null && token.isNotEmpty) {
+      options.headers['Authorization'] = 'Bearer $token';
+    }
+    handler.next(options);
+  }
+
+  Future<void> _handleError(
+    DioException error,
+    ErrorInterceptorHandler handler,
+  ) async {
+    final options = error.requestOptions;
+    // Un 401 en /auth/* es una credencial incorrecta, no una sesión vencida.
+    final hadSession = options.headers.containsKey('Authorization');
+    if (error.response?.statusCode == 401 &&
+        hadSession &&
+        !options.path.contains('/auth/')) {
+      await session.clearSession();
+      onUnauthorized?.call();
+    }
+    handler.next(error);
+  }
 
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) async =>
       (await dio.get<dynamic>(path, queryParameters: query)).data;
@@ -47,8 +76,7 @@ class ApiClient {
   Future<dynamic> delete(String path) async =>
       (await dio.delete<dynamic>(path)).data;
 
-  Future<void> saveToken(String token) =>
-      _storage.write(key: accessTokenKey, value: token);
+  Future<void> saveToken(String token) => session.saveToken(token);
 
-  Future<void> clearToken() => _storage.delete(key: accessTokenKey);
+  Future<void> clearToken() => session.clearSession();
 }
