@@ -1,8 +1,18 @@
+// RAMA: feature/Auth
+// ============================================================================
+// PANTALLA: ForgotPasswordPage
+// ============================================================================
+// Permite al usuario solicitar el restablecimiento de su contraseña
+// ingresando su correo electrónico. Incluye animaciones de entrada
+// y utiliza iconos de Hugeicons para mantener la consistencia visual.
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart'; 
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
-import '../../../../shared/widgets/app_svg_icon.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_header_card.dart';
 import '../../../../shared/widgets/decor_circle.dart';
@@ -152,10 +162,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
                             child: AppTextField(
                               key: _emailKey,
                               label: 'Email',
-                              hint: 'Enter you email',
+                              hint: 'Enter your email',
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
-                              prefixIcon: const AppSvgIcon(AppSvgIcon.mail),
+                              // NUEVO ICONO DE CORREO
+                              prefixIcon: const HugeIcon(
+                                icon: HugeIcons.strokeRoundedMail01, 
+                                size: 24,
+                              ),
                               validator: (val) {
                                 if (val == null || val.isEmpty) return 'El correo es obligatorio';
                                 if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(val)) return 'Correo inválido';

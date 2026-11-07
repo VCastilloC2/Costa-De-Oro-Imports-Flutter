@@ -4,18 +4,18 @@
 // ============================================================================
 // Gestiona la creación de nuevas cuentas. Utiliza un formulario simplificado
 // (solo correo y contraseña) y delega el resto de campos al perfilamiento
-// progresivo.
+// progresivo. Implementa iconos de Hugeicons para consistencia visual.
 // ============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart'; // <-- Importación de Hugeicons
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
 import '../../../../core/network/api_exception.dart';
-import '../../../../shared/widgets/app_svg_icon.dart';
 import '../../../../shared/widgets/app_terms_checkbox.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_header_card.dart';
@@ -127,9 +127,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
   /// LÓGICA DE REGISTRO
   /// ==========================================================================
   /// Envía los datos al backend. Si el registro es exitoso pero el auto-login
-  /// falla (por ejemplo, por un error 401 al intentar obtener el token),
-  /// se notifica al usuario y se le redirige al Login para que ingrese
-  /// manualmente.
+  /// falla, se notifica al usuario y se le redirige al Login.
   Future<void> _submit() async {
     if (_leaving) return;
 
@@ -305,7 +303,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                   controller: _emailController,
                                   keyboardType: TextInputType.emailAddress,
                                   validator: _validateEmail,
-                                  prefixIcon: const AppSvgIcon(AppSvgIcon.mail),
+                                  // NUEVO ICONO DE CORREO
+                                  prefixIcon: const HugeIcon(
+                                    icon: HugeIcons.strokeRoundedMail01, 
+                                    size: 24,
+                                  ),
                                 ),
                               ),
                             ),
@@ -318,14 +320,24 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                 child: AppTextField(
                                   key: _passwordKey,
                                   label: 'Password',
-                                  hint: 'Mínimo 5 caracteres',
+                                  hint: 'Enter your Password',
                                   controller: _passwordController,
                                   obscureText: _obscurePassword,
                                   validator: _validatePassword,
-                                  prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
+                                  // NUEVO ICONO DE CANDADO
+                                  prefixIcon: const HugeIcon(
+                                    icon: HugeIcons.strokeRoundedLockPassword, 
+                                    size: 24,
+                                  ),
                                   suffixIcon: GestureDetector(
                                     onTap: () => setState(() => _obscurePassword = !_obscurePassword),
-                                    child: AppSvgIcon(_obscurePassword ? AppSvgIcon.eyeOff : AppSvgIcon.eye),
+                                    // NUEVOS ICONOS DE OJO (VER / OCULTAR)
+                                    child: HugeIcon(
+                                      icon: _obscurePassword 
+                                          ? HugeIcons.strokeRoundedViewOffSlash 
+                                          : HugeIcons.strokeRoundedView,
+                                      size: 24,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -343,10 +355,20 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                   controller: _confirmPasswordController,
                                   obscureText: _obscureConfirmPassword,
                                   validator: _validateConfirmPassword,
-                                  prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
+                                  // NUEVO ICONO DE CANDADO
+                                  prefixIcon: const HugeIcon(
+                                    icon: HugeIcons.strokeRoundedLockPassword, 
+                                    size: 24,
+                                  ),
                                   suffixIcon: GestureDetector(
                                     onTap: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                                    child: AppSvgIcon(_obscureConfirmPassword ? AppSvgIcon.eyeOff : AppSvgIcon.eye),
+                                    // NUEVOS ICONOS DE OJO (VER / OCULTAR)
+                                    child: HugeIcon(
+                                      icon: _obscureConfirmPassword 
+                                          ? HugeIcons.strokeRoundedViewOffSlash 
+                                          : HugeIcons.strokeRoundedView,
+                                      size: 24,
+                                    ),
                                   ),
                                 ),
                               ),

@@ -1,8 +1,18 @@
+// RAMA: feature/Auth
+// ============================================================================
+// PANTALLA: ResetPasswordPage
+// ============================================================================
+// Permite al usuario restablecer su contraseña. Utiliza validaciones en
+// tiempo real y animaciones de entrada. Implementa iconos de Hugeicons
+// para mantener la consistencia visual del flujo de autenticación.
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart'; // <-- Importación de Hugeicons
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
-import '../../../../shared/widgets/app_svg_icon.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_header_card.dart';
 import '../../../../shared/widgets/decor_circle.dart';
@@ -142,10 +152,20 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> with TickerProvid
                                   hint: 'Enter your Password',
                                   controller: _passwordController,
                                   obscureText: _obscurePassword,
-                                  prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
+                                  // NUEVO ICONO DE CANDADO
+                                  prefixIcon: const HugeIcon(
+                                    icon: HugeIcons.strokeRoundedLockPassword, 
+                                    size: 24,
+                                  ),
                                   suffixIcon: GestureDetector(
                                     onTap: () => setState(() => _obscurePassword = !_obscurePassword),
-                                    child: AppSvgIcon(_obscurePassword ? AppSvgIcon.eyeOff : AppSvgIcon.eye),
+                                    // NUEVOS ICONOS DE OJO (VER / OCULTAR)
+                                    child: HugeIcon(
+                                      icon: _obscurePassword 
+                                          ? HugeIcons.strokeRoundedViewOffSlash 
+                                          : HugeIcons.strokeRoundedView,
+                                      size: 24,
+                                    ),
                                   ),
                                   validator: (val) {
                                     if (val == null || val.isEmpty) return 'La contraseña es obligatoria';
@@ -160,10 +180,20 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> with TickerProvid
                                   hint: 'Confirm your Password',
                                   controller: _confirmController,
                                   obscureText: _obscureConfirm,
-                                  prefixIcon: const AppSvgIcon(AppSvgIcon.lock),
+                                  // NUEVO ICONO DE CANDADO
+                                  prefixIcon: const HugeIcon(
+                                    icon: HugeIcons.strokeRoundedLockPassword, 
+                                    size: 24,
+                                  ),
                                   suffixIcon: GestureDetector(
                                     onTap: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                                    child: AppSvgIcon(_obscureConfirm ? AppSvgIcon.eyeOff : AppSvgIcon.eye),
+                                    // NUEVOS ICONOS DE OJO (VER / OCULTAR)
+                                    child: HugeIcon(
+                                      icon: _obscureConfirm 
+                                          ? HugeIcons.strokeRoundedViewOffSlash 
+                                          : HugeIcons.strokeRoundedView,
+                                      size: 24,
+                                    ),
                                   ),
                                   validator: (val) {
                                     if (val == null || val.isEmpty) return 'Debes confirmar la contraseña';
