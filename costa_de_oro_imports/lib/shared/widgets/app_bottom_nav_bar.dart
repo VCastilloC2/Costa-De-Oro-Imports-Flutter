@@ -3,13 +3,14 @@
 // WIDGET: AppBottomNavBar
 // ============================================================================
 // Barra de navegación inferior estilo "píldora expandible".
-// El ítem seleccionado se expande mostrando su icono relleno y texto.
-// Los ítems inactivos se muestran compactos con iconos de línea fina.
-// Utiliza iconos de Hugeicons y un BottomSheet para las opciones secundarias.
+// Opciones principales: Inicio, Buscar, Análisis y Perfil.
+// El botón "Más" abre un BottomSheet con los módulos de administración
+// (Productos, Compras, Clientes) y opciones de configuración.
 // ============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../app/theme/app_colors.dart';
@@ -25,7 +26,7 @@ class AppBottomNavBar extends StatelessWidget {
     required this.onTap,
   });
 
-  // Lista de iconos con el tipo de dato correcto para Hugeicons
+  // Los 4 módulos principales visibles en la barra
   static final List<_NavItem> _items = [
     const _NavItem(
       label: 'Inicio',
@@ -101,7 +102,7 @@ class AppBottomNavBar extends StatelessWidget {
   }
 
   // ==========================================================================
-  // MENÚ DESPLEGABLE (MÁS OPCIONES)
+  // MENÚ DESPLEGABLE (MÓDULOS DE ADMINISTRACIÓN)
   // ==========================================================================
   void _showMoreMenu(BuildContext context, double s) {
     showModalBottomSheet(
@@ -119,6 +120,7 @@ class AppBottomNavBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Handle superior
               Center(
                 child: Container(
                   width: 40 * s,
@@ -130,37 +132,53 @@ class AppBottomNavBar extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 24 * s),
+              
               Text(
-                'Más opciones',
+                'Módulos de Administración',
                 style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark),
               ),
               SizedBox(height: 16 * s),
+              
+              // Opciones del menú
+              _buildMenuItem(
+                context: bottomSheetContext,
+                icon: HugeIcons.strokeRoundedShoppingBag01,
+                title: 'Productos',
+                subtitle: 'Gestiona el inventario de licores',
+                route: '/products', // Ruta asumida
+                s: s,
+              ),
+              SizedBox(height: 8 * s),
+              _buildMenuItem(
+                context: bottomSheetContext,
+                icon: HugeIcons.strokeRoundedInvoice01,
+                title: 'Compras',
+                subtitle: 'Revisa el historial de pedidos',
+                route: '/orders', // Ruta asumida
+                s: s,
+              ),
+              SizedBox(height: 8 * s),
+              _buildMenuItem(
+                context: bottomSheetContext,
+                icon: HugeIcons.strokeRoundedUserGroup,
+                title: 'Clientes',
+                subtitle: 'Directorio de usuarios registrados',
+                route: '/clients', // Ruta asumida
+                s: s,
+              ),
+              
+              SizedBox(height: 24 * s),
+              Divider(color: Colors.grey.shade300),
+              SizedBox(height: 16 * s),
+              
+              // Opción de configuración (secundaria)
               _buildMenuItem(
                 context: bottomSheetContext,
                 icon: HugeIcons.strokeRoundedSettings01,
                 title: 'Configuración',
                 subtitle: 'Preferencias de la app',
-                onTap: () => Navigator.pop(bottomSheetContext),
+                route: '/settings', // Ruta asumida
                 s: s,
-              ),
-              SizedBox(height: 8 * s),
-              _buildMenuItem(
-                context: bottomSheetContext,
-                icon: HugeIcons.strokeRoundedHelpCircle,
-                title: 'Ayuda y Soporte',
-                subtitle: 'Preguntas frecuentes',
-                onTap: () => Navigator.pop(bottomSheetContext),
-                s: s,
-              ),
-              SizedBox(height: 8 * s),
-              _buildMenuItem(
-                context: bottomSheetContext,
-                icon: HugeIcons.strokeRoundedLogout01,
-                title: 'Cerrar sesión',
-                subtitle: 'Salir de tu cuenta',
-                onTap: () => Navigator.pop(bottomSheetContext),
-                s: s,
-                isDestructive: true,
               ),
               SizedBox(height: 24 * s),
             ],
@@ -175,30 +193,32 @@ class AppBottomNavBar extends StatelessWidget {
     required List<List<dynamic>> icon,
     required String title,
     required String subtitle,
-    required VoidCallback onTap,
+    required String route,
     required double s,
-    bool isDestructive = false,
   }) {
-    final color = isDestructive ? Colors.redAccent : AppColors.brownDark;
-
     return InkWell(
-      onTap: onTap,
+      onTap: () {
+        Navigator.pop(context); // Cierra el BottomSheet
+        // Aquí navegas a la ruta correspondiente (ajusta según tu GoRouter)
+        // context.push(route); 
+      },
       borderRadius: BorderRadius.circular(16 * s),
       child: Container(
         padding: EdgeInsets.all(16 * s),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16 * s),
+          border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
         ),
         child: Row(
           children: [
-            HugeIcon(icon: icon, color: color, size: 24 * s),
+            HugeIcon(icon: icon, color: AppColors.brownDark, size: 24 * s),
             SizedBox(width: 16 * s),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppFonts.style(size: 15 * s, weight: FontWeight.w600, color: color)),
+                  Text(title, style: AppFonts.style(size: 15 * s, weight: FontWeight.w600, color: AppColors.brownDark)),
                   SizedBox(height: 2 * s),
                   Text(subtitle, style: AppFonts.style(size: 12 * s, weight: FontWeight.w400, color: AppColors.muted)),
                 ],
@@ -217,7 +237,6 @@ class AppBottomNavBar extends StatelessWidget {
 // ============================================================================
 class _NavItem {
   final String label;
-  // Tipo correcto para Hugeicons
   final List<List<dynamic>> icon;
   final List<List<dynamic>> activeIcon;
 
@@ -257,14 +276,12 @@ class _NavBarItem extends StatelessWidget {
           vertical: 10 * s,
         ),
         decoration: BoxDecoration(
-          // Color de fondo de la píldora cuando está seleccionado
           color: isSelected ? AppColors.goldLight.withValues(alpha: 0.25) : Colors.transparent,
           borderRadius: BorderRadius.circular(30 * s),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Icono (cambia a activo si está seleccionado)
             HugeIcon(
               icon: isSelected ? item.activeIcon : item.icon,
               color: isSelected ? AppColors.brownDark : AppColors.muted,
@@ -272,7 +289,6 @@ class _NavBarItem extends StatelessWidget {
               strokeWidth: isSelected ? 2.2 : 1.5,
             ),
             
-            // Texto animado (solo aparece si está seleccionado)
             AnimatedSize(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOutCubic,
