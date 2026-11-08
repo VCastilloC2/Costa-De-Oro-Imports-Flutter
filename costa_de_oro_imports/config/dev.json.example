@@ -1,5 +1,5 @@
 {
-  "API_BASE_URL": "http://10.0.2.2:8000",
+  "API_BASE_URL": "http://192.168.1.9:8000",
   "GOOGLE_SERVER_CLIENT_ID": "TU_WEB_CLIENT_ID.apps.googleusercontent.com",
   "GOOGLE_IOS_CLIENT_ID": "TU_IOS_CLIENT_ID.apps.googleusercontent.com",
   "PASSKEY_RP_ID": ""

@@ -1,1 +1,25 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"costa-de-oro-imports-93a1a","appId":"1:183133000087:android:335a49d47900a09cb7f4d2","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"costa-de-oro-imports-93a1a","configurations":{"android":"1:183133000087:android:335a49d47900a09cb7f4d2","ios":"1:183133000087:ios:c81f65dba750c1ceb7f4d2","macos":"1:183133000087:ios:c81f65dba750c1ceb7f4d2","web":"1:183133000087:web:91e14e8bdb6da6adb7f4d2","windows":"1:183133000087:web:b0f3c8692d5aa2f4b7f4d2"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "costa-de-oro-imports-93a1a",
+          "appId": "1:183133000087:android:335a49d47900a09cb7f4d2",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "costa-de-oro-imports-93a1a",
+          "configurations": {
+            "android": "1:183133000087:android:335a49d47900a09cb7f4d2",
+            "ios": "1:183133000087:ios:c81f65dba750c1ceb7f4d2",
+            "macos": "1:183133000087:ios:c81f65dba750c1ceb7f4d2",
+            "web": "1:183133000087:web:91e14e8bdb6da6adb7f4d2",
+            "windows": "1:183133000087:web:b0f3c8692d5aa2f4b7f4d2"
+          }
+        }
+      }
+    }
+  }
+}
