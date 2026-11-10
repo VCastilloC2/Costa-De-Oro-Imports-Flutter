@@ -44,9 +44,12 @@ class _LoginPageState extends ConsumerState<LoginPage>
   bool _obscurePassword = true;
   bool _acceptTerms = false;
 
-  /// Bloquea la interacción con los campos de texto mientras se procesa el
-  /// login para evitar múltiples envíos y la reapertura del teclado.
+  /// Bloquea la interacción mientras se procesa el login.
   bool _leaving = false;
+
+  /// Muestra el escudo sólido SOLO después de que la animación de carga termina.
+  /// Esto mantiene el efecto translúcido del diálogo de carga original.
+  bool _showShield = false;
 
   late AnimationController _entryController;
   late AnimationController _floatController;
@@ -161,10 +164,16 @@ class _LoginPageState extends ConsumerState<LoginPage>
               password: _passwordController.text,
             ),
       );
+      
+      // La animación terminó y el diálogo se cerró. Ahora activamos el escudo.
+      if (mounted) setState(() => _showShield = true);
+      
     } on ApiException catch (e) {
+      if (mounted) setState(() { _leaving = false; _showShield = false; });
       _showLoginError(e.message);
       return;
     } catch (_) {
+      if (mounted) setState(() { _leaving = false; _showShield = false; });
       _showLoginError('Ocurrió un error inesperado. Inténtalo de nuevo.');
       return;
     }
@@ -172,8 +181,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
     if (!mounted) return;
     SystemChannels.textInput.invokeMethod('TextInput.hide');
     
-    // Pausa necesaria para que el diálogo de carga se cierre completamente 
-    // antes de que el enrutador intente cambiar la pantalla.
     await Future.delayed(const Duration(milliseconds: 300));
     
     if (mounted) {
@@ -183,7 +190,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   void _showLoginError(String message) {
     if (!mounted) return;
-    setState(() => _leaving = false);
+    setState(() {
+      _leaving = false;
+      _showShield = false;
+    });
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -197,7 +207,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   @override
   Widget build(BuildContext context) {
-    // 1. Usamos la extensión para obtener el factor de escala limitado
     final s = context.s;
 
     return ExcludeFocus(
@@ -207,9 +216,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
         body: Stack(
           clipBehavior: Clip.none,
           children: [
-            // --- CÍRCULOS DECORATIVOS DE FONDO ---
-            // Se mantienen fuera del ResponsiveLayout para que sigan 
-            // cubriendo los bordes de la pantalla en tablets.
             Positioned(
               top: -70 * s, right: -70 * s,
               child: DecorCircle(
@@ -241,7 +247,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
               ),
             ),
 
-            // --- CONTENIDO PRINCIPAL (RESPONSIVO) ---
             ResponsiveLayout(
               useSafeArea: true,
               useScrollView: true,
@@ -429,9 +434,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
             ),
             
             // ESCUDO ANTI-PARPADEO:
-            // Evita que se vea el fondo del login por un milisegundo
-            // cuando la animación de carga se cierra antes de navegar.
-            if (_leaving)
+            // Solo se muestra después de que la animación del vaso desaparece,
+            // evitando el parpadeo sin arruinar la transparencia del diálogo.
+            if (_showShield)
               Positioned.fill(
                 child: Container(
                   color: AppColors.cream,
