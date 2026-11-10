@@ -214,7 +214,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
 
   @override
   Widget build(BuildContext context) {
-    // 1. Factor de escala responsivo
+    // Factor de escala responsivo
     final s = context.s;
 
     return ExcludeFocus(
@@ -224,7 +224,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
         body: Stack(
           clipBehavior: Clip.none,
           children: [
-            // Círculos decorativos de fondo (fuera del ResponsiveLayout para abarcar toda la pantalla)
+            // Círculos decorativos de fondo
             Positioned(
               top: -70 * s, right: -70 * s, 
               child: DecorCircle(
@@ -477,6 +477,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                 ],
               ),
             ),
+            
+            // ESCUDO ANTI-PARPADEO:
+            // Evita que se vea el fondo del registro por un milisegundo
+            // cuando la animación de carga se cierra antes de navegar.
+            if (_leaving)
+              Positioned.fill(
+                child: Container(
+                  color: AppColors.cream,
+                ),
+              ),
           ],
         ),
       ),
