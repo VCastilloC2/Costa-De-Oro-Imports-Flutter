@@ -5,15 +5,18 @@
 // Muestra la información del usuario y las opciones de configuración.
 // Implementa el "Perfilamiento Progresivo": si el usuario tiene datos
 // incompletos (registro rápido), muestra un banner para motivarlo a
-// completar su perfil antes de hacer un pedido.
+// completar su perfil antes de hacer un pedido. Utiliza Hugeicons con
+// trazos más gruesos para mejor visibilidad.
 // ============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../../../features/auth/presentation/providers/auth_controller.dart';
 
@@ -22,7 +25,7 @@ class UserProfilePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final s = MediaQuery.sizeOf(context).width / 390;
+    final s = context.s;
     
     // Observamos el estado global para obtener los datos reales del usuario.
     final user = ref.watch(authControllerProvider).user;
@@ -36,8 +39,10 @@ class UserProfilePage extends ConsumerWidget {
           if (index == 4) return; 
         },
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
+      body: ResponsiveLayout(
+        useSafeArea: true,
+        useScrollView: true,
+        child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 24 * s, vertical: 16 * s),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,7 +59,12 @@ class UserProfilePage extends ConsumerWidget {
                         shape: BoxShape.circle,
                         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new, size: 18, color: AppColors.brownDark),
+                      child: HugeIcon(
+                        icon: HugeIcons.strokeRoundedArrowLeft01, 
+                        size: 20 * s, 
+                        color: AppColors.brownDark,
+                        strokeWidth: 2.2, // <-- Trazo más grueso
+                      ),
                     ),
                   ),
                   SizedBox(width: 16 * s),
@@ -96,14 +106,19 @@ class UserProfilePage extends ConsumerWidget {
                       child: Container(
                         padding: EdgeInsets.all(10 * s),
                         decoration: const BoxDecoration(color: AppColors.cream, shape: BoxShape.circle),
-                        child: const Icon(Icons.edit_outlined, size: 20, color: AppColors.brownDark),
+                        child: HugeIcon(
+                          icon: HugeIcons.strokeRoundedPencilEdit02, 
+                          size: 20 * s, 
+                          color: AppColors.brownDark,
+                          strokeWidth: 2.2, // <-- Trazo más grueso
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
               
-              // BANNER DE PERFIL INCOMPLETO (Rediseñado)
+              // BANNER DE PERFIL INCOMPLETO
               if (user?.isProfileIncomplete ?? false) ...[
                 SizedBox(height: 16 * s),
                 GestureDetector(
@@ -130,7 +145,12 @@ class UserProfilePage extends ConsumerWidget {
                             color: AppColors.goldLight.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.goldDark, size: 24),
+                          child: HugeIcon(
+                            icon: HugeIcons.strokeRoundedAlert02, 
+                            color: AppColors.goldDark, 
+                            size: 24 * s,
+                            strokeWidth: 2.2, // <-- Trazo más grueso
+                          ),
                         ),
                         SizedBox(width: 16 * s),
                         Expanded(
@@ -149,7 +169,12 @@ class UserProfilePage extends ConsumerWidget {
                             ],
                           ),
                         ),
-                        const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.brownDark),
+                        HugeIcon(
+                          icon: HugeIcons.strokeRoundedArrowRight01, 
+                          size: 16 * s, 
+                          color: AppColors.brownDark,
+                          strokeWidth: 2.2, // <-- Trazo más grueso
+                        ),
                       ],
                     ),
                   ),
@@ -164,13 +189,37 @@ class UserProfilePage extends ConsumerWidget {
               _buildSectionCard(
                 s: s,
                 children: [
-                  _buildMenuItem(icon: Icons.person_outline_rounded, title: 'Detalles de la cuenta', subtitle: 'Gestiona tu información personal', onTap: () => context.push('/account-details'), s: s),
+                  _buildMenuItem(
+                    icon: HugeIcons.strokeRoundedUser, 
+                    title: 'Detalles de la cuenta', 
+                    subtitle: 'Gestiona tu información personal', 
+                    onTap: () => context.push('/account-details'), 
+                    s: s,
+                  ),
                   _buildDivider(),
-                  _buildMenuItem(icon: Icons.payment_outlined, title: 'Historial de pagos', subtitle: 'Revisa tus pedidos anteriores', onTap: () {}, s: s),
+                  _buildMenuItem(
+                    icon: HugeIcons.strokeRoundedInvoice01, 
+                    title: 'Historial de pagos', 
+                    subtitle: 'Revisa tus pedidos anteriores', 
+                    onTap: () {}, 
+                    s: s,
+                  ),
                   _buildDivider(),
-                  _buildMenuItem(icon: Icons.notifications_none_rounded, title: 'Notificaciones', subtitle: 'Configura tus alertas', onTap: () {}, s: s),
+                  _buildMenuItem(
+                    icon: HugeIcons.strokeRoundedNotification01, 
+                    title: 'Notificaciones', 
+                    subtitle: 'Configura tus alertas', 
+                    onTap: () {}, 
+                    s: s,
+                  ),
                   _buildDivider(),
-                  _buildMenuItem(icon: Icons.settings_outlined, title: 'Configuración', subtitle: 'Preferencias de la aplicación', onTap: () {}, s: s),
+                  _buildMenuItem(
+                    icon: HugeIcons.strokeRoundedSettings01, 
+                    title: 'Configuración', 
+                    subtitle: 'Preferencias de la aplicación', 
+                    onTap: () {}, 
+                    s: s,
+                  ),
                 ],
               ),
               SizedBox(height: 32 * s),
@@ -181,17 +230,41 @@ class UserProfilePage extends ConsumerWidget {
               _buildSectionCard(
                 s: s,
                 children: [
-                  _buildMenuItem(icon: Icons.headset_mic_outlined, title: 'Contáctanos', subtitle: '¿Necesitas ayuda?', onTap: () {}, s: s),
+                  _buildMenuItem(
+                    icon: HugeIcons.strokeRoundedCustomerSupport, 
+                    title: 'Contáctanos', 
+                    subtitle: '¿Necesitas ayuda?', 
+                    onTap: () {}, 
+                    s: s,
+                  ),
                   _buildDivider(),
-                  _buildMenuItem(icon: Icons.description_outlined, title: 'Términos y condiciones', subtitle: 'Lee nuestras políticas', onTap: () => context.push('/terms'), s: s),
+                  _buildMenuItem(
+                    icon: HugeIcons.strokeRoundedDocumentAttachment, 
+                    title: 'Términos y condiciones', 
+                    subtitle: 'Lee nuestras políticas', 
+                    onTap: () => context.push('/terms'), 
+                    s: s,
+                  ),
                   _buildDivider(),
-                  _buildMenuItem(icon: Icons.privacy_tip_outlined, title: 'Política de privacidad', subtitle: 'Cómo protegemos tus datos', onTap: () {}, s: s),
+                  _buildMenuItem(
+                    icon: HugeIcons.strokeRoundedShield01, 
+                    title: 'Política de privacidad', 
+                    subtitle: 'Cómo protegemos tus datos', 
+                    onTap: () {}, 
+                    s: s,
+                  ),
                   _buildDivider(),
-                  _buildMenuItem(icon: Icons.help_outline_rounded, title: 'Obtener ayuda', subtitle: 'Preguntas frecuentes', onTap: () {}, s: s),
+                  _buildMenuItem(
+                    icon: HugeIcons.strokeRoundedHelpCircle, 
+                    title: 'Obtener ayuda', 
+                    subtitle: 'Preguntas frecuentes', 
+                    onTap: () {}, 
+                    s: s,
+                  ),
                   _buildDivider(),
                   // Botón de Logout conectado a Riverpod. Abre el BottomSheet.
                   _buildMenuItem(
-                    icon: Icons.logout_rounded,
+                    icon: HugeIcons.strokeRoundedLogout01,
                     title: 'Cerrar sesión',
                     subtitle: null,
                     iconColor: Colors.redAccent,
@@ -315,8 +388,13 @@ class UserProfilePage extends ConsumerWidget {
   }
 
   Widget _buildMenuItem({
-    required IconData icon, required String title, String? subtitle, required VoidCallback onTap, required double s,
-    Color iconColor = AppColors.brownDark, Color textColor = AppColors.brownDark,
+    required List<List<dynamic>> icon, 
+    required String title, 
+    String? subtitle, 
+    required VoidCallback onTap, 
+    required double s,
+    Color iconColor = AppColors.brownDark, 
+    Color textColor = AppColors.brownDark,
   }) {
     return InkWell(
       onTap: onTap,
@@ -325,7 +403,12 @@ class UserProfilePage extends ConsumerWidget {
         padding: EdgeInsets.symmetric(horizontal: 20 * s, vertical: 16 * s),
         child: Row(
           children: [
-            Icon(icon, color: iconColor, size: 24 * s),
+            HugeIcon(
+              icon: icon, 
+              color: iconColor, 
+              size: 24 * s,
+              strokeWidth: 2.2, // <-- Trazo más grueso para todos los ítems
+            ),
             SizedBox(width: 16 * s),
             Expanded(
               child: Column(
@@ -340,7 +423,12 @@ class UserProfilePage extends ConsumerWidget {
               ),
             ),
             if (subtitle != null) 
-              const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.muted),
+              HugeIcon(
+                icon: HugeIcons.strokeRoundedArrowRight01, 
+                size: 16 * s, 
+                color: AppColors.muted,
+                strokeWidth: 2.2, // <-- Trazo más grueso en la flecha
+              ),
           ],
         ),
       ),
