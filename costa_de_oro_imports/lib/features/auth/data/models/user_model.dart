@@ -3,7 +3,7 @@
 // MODELO: UserModel
 // ============================================================================
 // Representa al usuario autenticado en la aplicación. Refleja el esquema
-// devuelto por el backend en el endpoint de login y perfil.
+// devuelto por el backend en los endpoints de login y perfil.
 // ============================================================================
 
 class UserModel {
@@ -16,6 +16,9 @@ class UserModel {
     this.imagen,
     this.isEnabled,
     this.rol,
+    this.direccion,
+    this.tipoIdentificacion,
+    this.numeroIdentificacion,
   });
 
   final int id;
@@ -26,6 +29,9 @@ class UserModel {
   final String? imagen;
   final bool? isEnabled;
   final String? rol;
+  final String? direccion;
+  final String? tipoIdentificacion;
+  final String? numeroIdentificacion;
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
@@ -37,11 +43,14 @@ class UserModel {
       imagen: json['imagen'] as String?,
       isEnabled: json['is_enabled'] as bool?,
       rol: json['rol'] as String?,
+      // NOTA: Si en Swagger las claves son en snake_case (ej. tipo_identificacion),
+      // cámbialas aquí.
+      direccion: json['direccion'] as String?,
+      tipoIdentificacion: json['tipoIdentificacion'] as String? ?? json['tipo_identificacion'] as String?,
+      numeroIdentificacion: json['numeroIdentificacion'] as String? ?? json['numero_identificacion'] as String?,
     );
   }
 
-  /// Retorna el nombre completo del usuario.
-  /// Si no hay nombres o apellidos, retorna el correo como respaldo.
   String get fullName {
     final name = [nombres, apellidos]
         .whereType<String>()
@@ -51,7 +60,6 @@ class UserModel {
     return name.isEmpty ? correo : name;
   }
 
-  /// Genera las iniciales para el avatar a partir del nombre o correo.
   String get initials {
     String first(String? s) {
       final t = s?.trim() ?? '';
@@ -61,9 +69,6 @@ class UserModel {
     return result.isEmpty ? first(correo) : result;
   }
 
-  /// Bandera de negocio para el "Perfilamiento Progresivo".
-  /// Retorna true si el usuario tiene los datos genéricos del registro rápido.
-  /// La UI de perfil (feature/Profile) consume este getter.
   bool get isProfileIncomplete {
     return apellidos == 'Pendiente' || 
            telefono == '0000000000' || 
