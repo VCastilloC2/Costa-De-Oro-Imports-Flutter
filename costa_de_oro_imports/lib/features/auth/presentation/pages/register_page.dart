@@ -45,9 +45,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
-
+  
   /// Bloquea la interacción durante el proceso de registro y navegación.
   bool _leaving = false;
+
+  /// Muestra el escudo sólido SOLO después de que la animación de carga termina.
+  /// Esto mantiene el efecto translúcido del diálogo de carga original.
+  bool _showShield = false;
 
   late AnimationController _entryController;
   late AnimationController _floatController;
@@ -124,11 +128,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
     return null;
   }
 
-  /// ==========================================================================
-  /// LÓGICA DE REGISTRO
-  /// ==========================================================================
-  /// Envía los datos al backend. Si el registro es exitoso pero el auto-login
-  /// falla, se notifica al usuario y se le redirige al Login.
   Future<void> _submit() async {
     if (_leaving) return;
 
@@ -160,11 +159,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
               password: _passwordController.text,
             ),
       );
+
+      // La animación terminó y el diálogo se cerró. Ahora activamos el escudo.
+      if (mounted) setState(() => _showShield = true);
+
     } on ApiException catch (e) {
       // Manejo del fallo en el auto-login post-registro
       if (e.statusCode == 401 || e.message.contains('Credenciales')) {
         if (!mounted) return;
-        setState(() => _leaving = false);
+        setState(() {
+          _leaving = false;
+          _showShield = false;
+        });
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -180,9 +186,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
       }
       
       // Manejo de otros errores de registro (ej. correo duplicado)
+      if (mounted) setState(() { _leaving = false; _showShield = false; });
       _showError(e.message);
       return;
     } catch (_) {
+      if (mounted) setState(() { _leaving = false; _showShield = false; });
       _showError('Ocurrió un error inesperado.');
       return;
     }
@@ -190,7 +198,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
     if (!mounted) return;
     SystemChannels.textInput.invokeMethod('TextInput.hide');
     
-    // Pausa para evitar conflictos de navegación
     await Future.delayed(const Duration(milliseconds: 300));
     
     if (mounted) {
@@ -200,7 +207,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
 
   void _showError(String message) {
     if (!mounted) return;
-    setState(() => _leaving = false);
+    setState(() {
+      _leaving = false;
+      _showShield = false;
+    });
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -214,7 +224,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
 
   @override
   Widget build(BuildContext context) {
-    // Factor de escala responsivo
     final s = context.s;
 
     return ExcludeFocus(
@@ -224,7 +233,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
         body: Stack(
           clipBehavior: Clip.none,
           children: [
-            // Círculos decorativos de fondo
             Positioned(
               top: -70 * s, right: -70 * s, 
               child: DecorCircle(
@@ -256,7 +264,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
               ),
             ),
 
-            // Contenido principal responsivo (limitado a 500px de ancho en tablets)
             ResponsiveLayout(
               useSafeArea: true,
               useScrollView: true,
@@ -479,9 +486,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
             ),
             
             // ESCUDO ANTI-PARPADEO:
-            // Evita que se vea el fondo del registro por un milisegundo
-            // cuando la animación de carga se cierra antes de navegar.
-            if (_leaving)
+            // Solo se muestra después de que la animación del vaso desaparece.
+            if (_showShield)
               Positioned.fill(
                 child: Container(
                   color: AppColors.cream,
