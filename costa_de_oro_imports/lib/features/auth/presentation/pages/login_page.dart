@@ -427,6 +427,16 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 ],
               ),
             ),
+            
+            // ESCUDO ANTI-PARPADEO:
+            // Evita que se vea el fondo del login por un milisegundo
+            // cuando la animación de carga se cierra antes de navegar.
+            if (_leaving)
+              Positioned.fill(
+                child: Container(
+                  color: AppColors.cream,
+                ),
+              ),
           ],
         ),
       ),
