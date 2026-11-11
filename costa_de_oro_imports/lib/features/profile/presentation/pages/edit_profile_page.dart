@@ -2,7 +2,15 @@
 // ============================================================================
 // PANTALLA: EditProfilePage
 // ============================================================================
-// Formulario de perfilamiento progresivo. Utiliza Hugeicons y diseño responsivo.
+// Formulario de perfilamiento progresivo.
+//
+// Idea central: el usuario "arma su credencial". Arriba, la credencial de
+// cliente se completa en vivo con lo que escribe (lo que falta se ve como
+// huecos punteados) y al llegar al 100 % brilla con un toque háptico.
+//
+// Debajo, los campos van en tres tarjetas plegables: al entrar, las secciones
+// ya completas se muestran cerradas con un resumen y solo se abren las que
+// faltan, de modo que el usuario ve únicamente lo que tiene que hacer.
 // ============================================================================
 
 import 'package:flutter/material.dart';
@@ -14,10 +22,13 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
+import '../profile_rules.dart';
+import '../widget/credential_card.dart';
 import '../widget/profile_field.dart';
-import '../widget/profile_hero.dart';
+import '../widget/profile_hero.dart' show kProfileAvatarHeroTag;
 import '../widget/profile_section_card.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
@@ -44,6 +55,18 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
   late final List<TextEditingController> _controllers;
   late final List<GlobalKey<ProfileTextFieldState>> _orderedKeys;
 
+  static const _sectionOfField = [0, 0, 1, 2, 2];
+
+  static const _fieldNames = [
+    'nombres',
+    'apellidos',
+    'documento',
+    'telefono',
+    'direccion',
+  ];
+
+  final Set<int> _open = {};
+
   String _tipo = 'CC';
   bool _isLoading = false;
   late final String _initialSnapshot;
@@ -56,13 +79,24 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
   void initState() {
     super.initState();
 
-    _controllers = [_nombresController, _apellidosController, _numeroIdController, _telefonoController, _direccionController];
+    _controllers = [
+      _nombresController,
+      _apellidosController,
+      _numeroIdController,
+      _telefonoController,
+      _direccionController,
+    ];
     _orderedKeys = [_nombresKey, _apellidosKey, _docKey, _telefonoKey, _direccionKey];
 
-    _entry = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
+    _entry = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
 
     _loadUserData();
     _initialSnapshot = _snapshot();
+    _openInitialSections();
+
     for (final c in _controllers) {
       c.addListener(_syncDirty);
     }
@@ -81,7 +115,44 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     _focusRequestedField();
   }
 
-  static const _fieldNames = ['nombres', 'apellidos', 'documento', 'telefono', 'direccion'];
+  @override
+  void dispose() {
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    _entry.dispose();
+    super.dispose();
+  }
+
+  void _loadUserData() {
+    final user = ref.read(authControllerProvider).user;
+    if (user == null) return;
+
+    final nombres = ProfileRules.cleanName(user.nombres);
+    if (nombres != null) _nombresController.text = nombres;
+
+    final apellidos = ProfileRules.cleanName(user.apellidos);
+    if (apellidos != null) _apellidosController.text = apellidos;
+
+    final phone = ProfileRules.cleanPhone(user.telefono);
+    if (phone != null) _telefonoController.text = phone;
+
+    final address = ProfileRules.cleanAddress(user.direccion);
+    if (address != null) _direccionController.text = address;
+
+    final tipo = ProfileRules.cleanText(user.tipoIdentificacion);
+    if (tipo != null) _tipo = tipo;
+
+    final numero = ProfileRules.cleanText(user.numeroIdentificacion);
+    if (numero != null) _numeroIdController.text = numero;
+  }
+
+  void _openInitialSections() {
+    if (_missingPersonal > 0) _open.add(0);
+    if (_missingDocument > 0) _open.add(1);
+    if (_missingContact > 0) _open.add(2);
+    if (_open.isEmpty) _open.addAll([0, 1, 2]);
+  }
 
   void _focusRequestedField() {
     String? campo;
@@ -93,41 +164,26 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     final index = _fieldNames.indexOf(campo ?? '');
     if (index == -1) return;
 
+    _open.add(_sectionOfField[index]);
+
     Future<void>.delayed(const Duration(milliseconds: 450), () {
       if (!mounted) return;
       final key = _orderedKeys[index];
       key.currentState?.focus();
       final ctx = key.currentContext;
       if (ctx != null) {
-        Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 350), curve: Curves.easeOutCubic, alignment: 0.25);
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+          alignment: 0.25,
+        );
       }
     });
   }
 
-  void _loadUserData() {
-    final user = ref.read(authControllerProvider).user;
-    if (user == null) return;
-
-    if (user.nombres != null && user.nombres != 'Pendiente') _nombresController.text = user.nombres!;
-    if (user.apellidos != null && user.apellidos != 'Pendiente') _apellidosController.text = user.apellidos!;
-    if (user.telefono != null && user.telefono != '0000000000') _telefonoController.text = user.telefono!.replaceAll(RegExp(r'\D'), '');
-    
-    // Datos reales de dirección y documento
-    if (user.direccion != null && user.direccion != 'Por definir') _direccionController.text = user.direccion!;
-    if (user.tipoIdentificacion != null) _tipo = user.tipoIdentificacion!;
-    if (user.numeroIdentificacion != null) _numeroIdController.text = user.numeroIdentificacion!;
-  }
-
-  @override
-  void dispose() {
-    for (final c in _controllers) {
-      c.dispose();
-    }
-    _entry.dispose();
-    super.dispose();
-  }
-
-  String _snapshot() => [for (final c in _controllers) c.text.trim(), _tipo].join('|');
+  String _snapshot() =>
+      [for (final c in _controllers) c.text.trim(), _tipo].join('|');
 
   void _syncDirty() {
     final dirty = _snapshot() != _initialSnapshot;
@@ -140,64 +196,118 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text('¿Salir sin guardar?', style: AppFonts.style(size: 18, weight: FontWeight.w700, color: AppColors.brownDark)),
-        content: Text('Tienes cambios sin guardar. Si sales ahora, se perderán.', style: AppFonts.style(size: 14, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.8), height: 1.4)),
+        title: Text(
+          '¿Salir sin guardar?',
+          style: AppFonts.style(
+            size: 18,
+            weight: FontWeight.w700,
+            color: AppColors.brownDark,
+          ),
+        ),
+        content: Text(
+          'Tienes cambios sin guardar. Si sales ahora, se perderán.',
+          style: AppFonts.style(
+            size: 14,
+            weight: FontWeight.w500,
+            color: AppColors.brown.withValues(alpha: 0.8),
+            height: 1.4,
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text('Seguir editando', style: AppFonts.style(size: 14, weight: FontWeight.w700, color: AppColors.goldDark))),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: Text('Salir', style: AppFonts.style(size: 14, weight: FontWeight.w600, color: AppColors.brown))),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Seguir editando',
+              style: AppFonts.style(
+                size: 14,
+                weight: FontWeight.w700,
+                color: AppColors.goldDark,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'Salir',
+              style: AppFonts.style(
+                size: 14,
+                weight: FontWeight.w600,
+                color: AppColors.brown,
+              ),
+            ),
+          ),
         ],
       ),
     );
     return leave ?? false;
   }
 
-  String? _name(String? v, String message) {
-    final t = (v ?? '').trim();
-    if (t.isEmpty) return message;
-    if (t.length < 2) return 'Es muy corto';
-    if (RegExp(r'\d').hasMatch(t)) return 'No puede contener números';
-    return null;
-  }
-
-  String? _vNombres(String? v) => _name(v, 'Escribe tus nombres');
-  String? _vApellidos(String? v) => _name(v, 'Escribe tus apellidos');
-
-  String? _vDocumento(String? v) {
-    final t = (v ?? '').trim();
-    if (t.isEmpty) return 'Escribe tu número de documento';
-    if (_tipo == 'Pasaporte') return RegExp(r'^[A-Za-z0-9]{5,15}$').hasMatch(t) ? null : 'Entre 5 y 15 letras o números';
-    if (!RegExp(r'^\d+$').hasMatch(t)) return 'Usa solo números';
-    if (_tipo == 'CC') return (t.length >= 6 && t.length <= 10) ? null : 'La cédula tiene entre 6 y 10 dígitos';
-    return (t.length >= 5 && t.length <= 15) ? null : 'Entre 5 y 15 dígitos';
-  }
-
-  String? _vTelefono(String? v) {
-    final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
-    if (digits.isEmpty) return 'Escribe tu teléfono';
-    if (digits.length != 10) return 'Debe tener 10 dígitos';
-    return null;
-  }
-
-  String? _vDireccion(String? v) {
-    final t = (v ?? '').trim();
-    if (t.isEmpty) return 'Escribe tu dirección de envío';
-    if (t.length < 6) return 'Escribe la dirección completa';
-    return null;
-  }
-
   int _missing(List<String?> results) => results.where((e) => e != null).length;
 
-  int get _doneCount => [
-        _vNombres(_nombresController.text),
-        _vApellidos(_apellidosController.text),
-        _vDocumento(_numeroIdController.text),
-        _vTelefono(_telefonoController.text),
-        _vDireccion(_direccionController.text),
-      ].where((e) => e == null).length;
+  int get _missingPersonal => _missing([
+        ProfileRules.nombres(_nombresController.text),
+        ProfileRules.apellidos(_apellidosController.text),
+      ]);
+
+  int get _missingDocument =>
+      _missing([ProfileRules.documento(_tipo, _numeroIdController.text)]);
+
+  int get _missingContact => _missing([
+        ProfileRules.telefono(_telefonoController.text),
+        ProfileRules.direccion(_direccionController.text),
+      ]);
+
+  int get _doneCount =>
+      ProfileRules.totalFields -
+      (_missingPersonal + _missingDocument + _missingContact);
+
+  String get _fullName =>
+      '${_nombresController.text.trim()} ${_apellidosController.text.trim()}'
+          .trim();
+
+  String get _initials {
+    String first(TextEditingController c) {
+      final t = c.text.trim();
+      return t.isEmpty ? '' : t[0].toUpperCase();
+    }
+
+    return '${first(_nombresController)}${first(_apellidosController)}';
+  }
+
+  String get _personalSummary =>
+      _fullName.isEmpty ? 'Sin completar' : _fullName;
+
+  String get _documentSummary {
+    final number = _numeroIdController.text.trim();
+    return number.isEmpty ? 'Sin completar' : '$_tipo  ${maskDocument(number)}';
+  }
+
+  String get _contactSummary {
+    final phone = _telefonoController.text.trim();
+    final address = _direccionController.text.trim();
+    final parts = [
+      if (phone.isNotEmpty) (phone.length == 10 ? formatPhoneCo(phone) : phone),
+      if (address.isNotEmpty) address,
+    ];
+    return parts.isEmpty ? 'Sin completar' : parts.join('  ·  ');
+  }
+
+  void _toggle(int section) {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      if (!_open.remove(section)) _open.add(section);
+    });
+  }
 
   List<TextInputFormatter> get _docFormatters => _tipo == 'Pasaporte'
-      ? [FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')), LengthLimitingTextInputFormatter(15)]
-      : [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(15)];
+      ? [
+          FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
+          LengthLimitingTextInputFormatter(15),
+        ]
+      : [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(15),
+        ];
 
   Future<void> _pickDocumentType() async {
     FocusScope.of(context).unfocus();
@@ -209,7 +319,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     if (picked != 'Pasaporte') {
       final digits = _numeroIdController.text.replaceAll(RegExp(r'\D'), '');
       if (digits != _numeroIdController.text) {
-        _numeroIdController.value = TextEditingValue(text: digits, selection: TextSelection.collapsed(offset: digits.length));
+        _numeroIdController.value = TextEditingValue(
+          text: digits,
+          selection: TextSelection.collapsed(offset: digits.length),
+        );
       }
     }
     _syncDirty();
@@ -228,13 +341,24 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
           content: Row(
             children: [
               HugeIcon(
-                icon: error ? HugeIcons.strokeRoundedAlert02 : HugeIcons.strokeRoundedCheckmarkCircle02,
+                icon: error
+                    ? HugeIcons.strokeRoundedAlert02
+                    : HugeIcons.strokeRoundedCheckmarkCircle02,
                 color: error ? const Color(0xFFFF8A80) : AppColors.goldLight,
                 size: 20,
                 strokeWidth: 2.0,
               ),
               const SizedBox(width: 12),
-              Expanded(child: Text(message, style: AppFonts.style(size: 14, weight: FontWeight.w500, color: Colors.white))),
+              Expanded(
+                child: Text(
+                  message,
+                  style: AppFonts.style(
+                    size: 14,
+                    weight: FontWeight.w500,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -244,14 +368,26 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
 
-    final results = [for (final k in _orderedKeys) k.currentState?.validate() ?? true];
+    final results = [
+      for (final k in _orderedKeys) k.currentState?.validate() ?? true,
+    ];
     final firstBad = results.indexOf(false);
     if (firstBad != -1) {
       HapticFeedback.lightImpact();
-      final ctx = _orderedKeys[firstBad].currentContext;
-      if (ctx != null) {
-        Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 350), curve: Curves.easeOutCubic, alignment: 0.25);
-      }
+      setState(() => _open.add(_sectionOfField[firstBad]));
+
+      Future<void>.delayed(const Duration(milliseconds: 320), () {
+        if (!mounted) return;
+        final ctx = _orderedKeys[firstBad].currentContext;
+        if (ctx != null) {
+          Scrollable.ensureVisible(
+            ctx,
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeOutCubic,
+            alignment: 0.25,
+          );
+        }
+      });
       return;
     }
 
@@ -284,27 +420,18 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
   }
 
   Widget _reveal(double start, double end, Widget child) {
-    final t = _entry.drive(CurveTween(curve: Interval(start, end, curve: Curves.easeOutCubic)));
+    final t = _entry.drive(
+      CurveTween(curve: Interval(start, end, curve: Curves.easeOutCubic)),
+    );
     return FadeTransition(
       opacity: t,
       child: SlideTransition(
-        position: t.drive(Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero)),
+        position: t.drive(
+          Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero),
+        ),
         child: child,
       ),
     );
-  }
-
-  String get _initials {
-    String first(TextEditingController c) {
-      final t = c.text.trim();
-      return t.isEmpty ? '' : t[0].toUpperCase();
-    }
-    return '${first(_nombresController)}${first(_apellidosController)}';
-  }
-
-  String get _firstName {
-    final t = _nombresController.text.trim();
-    return t.isEmpty ? '' : t.split(RegExp(r'\s+')).first;
   }
 
   @override
@@ -330,12 +457,28 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
             padding: EdgeInsets.only(left: 16 * s),
             child: IconButton(
               tooltip: 'Volver',
-              icon: HugeIcon(icon: HugeIcons.strokeRoundedArrowLeft01, color: AppColors.brownDark, size: 18, strokeWidth: 2.0),
-              style: IconButton.styleFrom(backgroundColor: Colors.white, side: const BorderSide(color: AppColors.border), shape: const CircleBorder()),
+              icon: const HugeIcon(
+                icon: HugeIcons.strokeRoundedArrowLeft01,
+                color: AppColors.brownDark,
+                size: 18,
+                strokeWidth: 2.0,
+              ),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white,
+                side: const BorderSide(color: AppColors.border),
+                shape: const CircleBorder(),
+              ),
               onPressed: () => Navigator.of(context).maybePop(),
             ),
           ),
-          title: Text('Editar perfil', style: AppFonts.style(size: 18, weight: FontWeight.w700, color: AppColors.brownDark)),
+          title: Text(
+            'Editar perfil',
+            style: AppFonts.style(
+              size: 25,
+              weight: FontWeight.w700,
+              color: AppColors.brownDark,
+            ),
+          ),
         ),
         body: ResponsiveLayout(
           useSafeArea: true,
@@ -347,25 +490,46 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _reveal(
-                    0.0, 0.35,
+                    0.0,
+                    0.4,
                     ListenableBuilder(
                       listenable: Listenable.merge(_controllers),
                       builder: (context, _) {
                         final done = _doneCount;
-                        return ProfileHero(progress: done / 5, remaining: 5 - done, firstName: _firstName, initials: _initials);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CredentialCard(
+                              name: _fullName,
+                              initials: _initials,
+                              progress: done / ProfileRules.totalFields,
+                              documentType: _tipo,
+                              documentNumber: _numeroIdController.text,
+                              maskNumber: false,
+                              heroTag: kProfileAvatarHeroTag,
+                            ),
+                            SizedBox(height: 12 * s),
+                            _CredentialCaption(done: done, s: s),
+                          ],
+                        );
                       },
                     ),
                   ),
                   SizedBox(height: 20 * s),
 
-                  // --- DATOS PERSONALES ---
                   _reveal(
-                    0.15, 0.55,
+                    0.15,
+                    0.55,
                     ProfileSectionCard(
                       icon: HugeIcons.strokeRoundedUser,
                       title: 'Datos personales',
-                      listenable: Listenable.merge([_nombresController, _apellidosController]),
-                      missingCount: () => _missing([_vNombres(_nombresController.text), _vApellidos(_apellidosController.text)]),
+                      listenable: Listenable.merge(
+                        [_nombresController, _apellidosController],
+                      ),
+                      missingCount: () => _missingPersonal,
+                      summary: () => _personalSummary,
+                      expanded: _open.contains(0),
+                      onToggle: () => _toggle(0),
                       children: [
                         ProfileTextField(
                           key: _nombresKey,
@@ -373,10 +537,14 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                           hint: 'Ej: Juan Camilo',
                           controller: _nombresController,
                           icon: HugeIcons.strokeRoundedUser,
-                          validator: _vNombres,
+                          validator: ProfileRules.nombres,
                           textCapitalization: TextCapitalization.words,
                           autofillHints: const [AutofillHints.givenName],
-                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' .-]"))],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' .-]"),
+                            ),
+                          ],
                         ),
                         ProfileTextField(
                           key: _apellidosKey,
@@ -384,29 +552,50 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                           hint: 'Ej: Pérez Gómez',
                           controller: _apellidosController,
                           icon: HugeIcons.strokeRoundedUser,
-                          validator: _vApellidos,
+                          validator: ProfileRules.apellidos,
                           textCapitalization: TextCapitalization.words,
                           autofillHints: const [AutofillHints.familyName],
-                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' .-]"))],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' .-]"),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
                   SizedBox(height: 16 * s),
 
-                  // --- DOCUMENTO ---
                   _reveal(
-                    0.3, 0.7,
+                    0.3,
+                    0.7,
                     ProfileSectionCard(
                       icon: HugeIcons.strokeRoundedIdentityCard,
                       title: 'Documento de identidad',
                       listenable: _numeroIdController,
-                      missingCount: () => _missing([_vDocumento(_numeroIdController.text)]),
+                      missingCount: () => _missingDocument,
+                      summary: () => _documentSummary,
+                      expanded: _open.contains(1),
+                      onToggle: () => _toggle(1),
                       footer: Row(
                         children: [
-                          HugeIcon(icon: HugeIcons.strokeRoundedSquareLock02, size: 15, color: AppColors.brown.withValues(alpha: 0.6), strokeWidth: 2.0),
+                          HugeIcon(
+                            icon: HugeIcons.strokeRoundedSquareLock02,
+                            size: 15,
+                            color: AppColors.brown.withValues(alpha: 0.6),
+                            strokeWidth: 2.0,
+                          ),
                           const SizedBox(width: 6),
-                          Expanded(child: Text('Lo usamos solo para tu facturación.', style: AppFonts.style(size: 12.5, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.68)))),
+                          Expanded(
+                            child: Text(
+                              'Lo usamos solo para tu facturación.',
+                              style: AppFonts.style(
+                                size: 12.5,
+                                weight: FontWeight.w500,
+                                color: AppColors.brown.withValues(alpha: 0.68),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                       children: [
@@ -415,9 +604,14 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                           label: 'Número de documento',
                           hint: '12345678',
                           controller: _numeroIdController,
-                          leading: DocTypeButton(value: _tipo, onTap: _pickDocumentType),
-                          validator: _vDocumento,
-                          keyboardType: _tipo == 'Pasaporte' ? TextInputType.text : TextInputType.number,
+                          leading: DocTypeButton(
+                            value: _tipo,
+                            onTap: _pickDocumentType,
+                          ),
+                          validator: (v) => ProfileRules.documento(_tipo, v),
+                          keyboardType: _tipo == 'Pasaporte'
+                              ? TextInputType.text
+                              : TextInputType.number,
                           inputFormatters: _docFormatters,
                         ),
                       ],
@@ -425,14 +619,19 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                   ),
                   SizedBox(height: 16 * s),
 
-                  // --- CONTACTO Y ENVÍO ---
                   _reveal(
-                    0.45, 0.9,
+                    0.45,
+                    0.9,
                     ProfileSectionCard(
                       icon: HugeIcons.strokeRoundedDeliveryTruck01,
                       title: 'Contacto y envío',
-                      listenable: Listenable.merge([_telefonoController, _direccionController]),
-                      missingCount: () => _missing([_vTelefono(_telefonoController.text), _vDireccion(_direccionController.text)]),
+                      listenable: Listenable.merge(
+                        [_telefonoController, _direccionController],
+                      ),
+                      missingCount: () => _missingContact,
+                      summary: () => _contactSummary,
+                      expanded: _open.contains(2),
+                      onToggle: () => _toggle(2),
                       children: [
                         ProfileTextField(
                           key: _telefonoKey,
@@ -441,19 +640,25 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                           controller: _telefonoController,
                           icon: HugeIcons.strokeRoundedSmartPhone01,
                           prefixText: '+57',
-                          validator: _vTelefono,
+                          validator: ProfileRules.telefono,
                           keyboardType: TextInputType.phone,
-                          autofillHints: const [AutofillHints.telephoneNumberNational],
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
+                          autofillHints: const [
+                            AutofillHints.telephoneNumberNational,
+                          ],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(10),
+                          ],
                         ),
                         ProfileTextField(
                           key: _direccionKey,
                           label: 'Dirección de envío',
                           hint: 'Calle 123 #45-67',
-                          helper: 'Incluye barrio, conjunto o apartamento si aplica.',
+                          helper:
+                              'Incluye barrio, conjunto o apartamento si aplica.',
                           controller: _direccionController,
                           icon: HugeIcons.strokeRoundedLocation01,
-                          validator: _vDireccion,
+                          validator: ProfileRules.direccion,
                           keyboardType: TextInputType.streetAddress,
                           textInputAction: TextInputAction.done,
                           textCapitalization: TextCapitalization.sentences,
@@ -468,14 +673,20 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
           ),
         ),
 
-        // --- BOTÓN ANCLADO ---
         bottomNavigationBar: DecoratedBox(
-          decoration: const BoxDecoration(color: AppColors.cream, border: Border(top: BorderSide(color: AppColors.border))),
+          decoration: const BoxDecoration(
+            color: AppColors.cream,
+            border: Border(top: BorderSide(color: AppColors.border)),
+          ),
           child: SafeArea(
             top: false,
             child: Padding(
               padding: EdgeInsets.fromLTRB(20 * s, 12 * s, 20 * s, 12 * s),
-              child: _SaveButton(loading: _isLoading, onPressed: _submit),
+              child: _SaveButton(
+                loading: _isLoading,
+                enabled: _dirty,
+                onPressed: _submit,
+              ),
             ),
           ),
         ),
@@ -484,34 +695,124 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
   }
 }
 
+class _CredentialCaption extends StatelessWidget {
+  const _CredentialCaption({required this.done, required this.s});
+
+  final int done;
+  final double s;
+
+  @override
+  Widget build(BuildContext context) {
+    final complete = done >= ProfileRules.totalFields;
+    final remaining = ProfileRules.totalFields - done;
+
+    final text = complete
+        ? 'Tu credencial está lista. Guarda para confirmarla.'
+        : (remaining == 1
+            ? 'Tu credencial se completa con lo que escribes. Falta 1 dato.'
+            : 'Tu credencial se completa con lo que escribes. Faltan $remaining datos.');
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(top: 1 * s),
+          child: HugeIcon(
+            icon: complete
+                ? HugeIcons.strokeRoundedCheckmarkBadge01
+                : HugeIcons.strokeRoundedTimer01,
+            size: 16 * s,
+            color: AppColors.goldDark,
+            strokeWidth: 2.0,
+          ),
+        ),
+        SizedBox(width: 8 * s),
+        Expanded(
+          child: Text(
+            text,
+            style: AppFonts.style(
+              size: 13 * s,
+              weight: FontWeight.w500,
+              color: AppColors.brown.withValues(alpha: 0.85),
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _SaveButton extends StatelessWidget {
-  const _SaveButton({required this.loading, required this.onPressed});
+  const _SaveButton({
+    required this.loading,
+    required this.enabled,
+    required this.onPressed,
+  });
 
   final bool loading;
+  final bool enabled;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 58,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          gradient: const LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [AppColors.brownDark, AppColors.brown, AppColors.goldLight]),
-          boxShadow: [BoxShadow(color: AppColors.brown.withValues(alpha: 0.22), blurRadius: 16, offset: const Offset(0, 8))],
-        ),
-        child: ElevatedButton(
-          onPressed: loading ? null : onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent, disabledBackgroundColor: Colors.transparent, shadowColor: Colors.transparent, elevation: 0, padding: EdgeInsets.zero, minimumSize: Size.zero,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: (enabled || loading) ? 1 : 0.45,
+      child: SizedBox(
+        width: double.infinity,
+        height: 58,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: const LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [AppColors.brownDark, AppColors.brown, AppColors.goldLight],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.brown.withValues(alpha: 0.22),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: loading
-                ? const SizedBox(key: ValueKey('loading'), height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                : Text('Guardar cambios', key: const ValueKey('label'), style: AppFonts.style(size: 17, weight: FontWeight.w700, color: AppColors.creamText)),
+          child: ElevatedButton(
+            onPressed: (loading || !enabled) ? null : onPressed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              disabledBackgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              elevation: 0,
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: loading
+                  ? const SizedBox(
+                      key: ValueKey('loading'),
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 3,
+                      ),
+                    )
+                  : Text(
+                      'Guardar cambios',
+                      key: const ValueKey('label'),
+                      style: AppFonts.style(
+                        size: 17,
+                        weight: FontWeight.w700,
+                        color: AppColors.creamText,
+                      ),
+                    ),
+            ),
           ),
         ),
       ),
