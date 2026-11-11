@@ -2,11 +2,12 @@
 // ============================================================================
 // PANTALLA: AccountDetailsPage
 // ============================================================================
-// Vista de solo lectura con la informacion de la cuenta del usuario.
-// Organiza los datos en tarjetas con etiqueta sobre valor, de modo que ningun
-// texto largo pueda desbordar la fila (el valor ocupa todo el ancho y, si hace
-// falta, pasa a una segunda linea). Utiliza Hugeicons y diseño responsivo.
+// Vista de solo lectura de la cuenta del usuario. Se han optimizado los
+// espacios verticales para evitar scroll innecesario y mejorar la densidad
+// de la información en pantalla.
 // ============================================================================
+
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,13 +19,10 @@ import '../../../../app/theme/app_fonts.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
+import '../profile_rules.dart';
+import '../widget/credential_card.dart';
 import '../widget/profile_hero.dart' show kProfileAvatarHeroTag;
 
-/// Valor que la API usa cuando el usuario no registro telefono.
-const String _emptyPhone = '0000000000';
-
-/// Abre la edicion de perfil directamente en el campo indicado.
-/// [field]: nombres, apellidos, documento, telefono o direccion.
 void _editField(BuildContext context, String field) =>
     context.push('/edit-profile?campo=$field');
 
@@ -36,26 +34,26 @@ class AccountDetailsPage extends ConsumerWidget {
     final s = context.s;
     final user = ref.watch(authControllerProvider).user;
 
-    // Telefono: null cuando no hay un valor util; si existe, con el mismo
-    // formato que se usa al editarlo (+57 310 223 3445).
-    final rawPhone = user?.telefono;
-    final phone =
-        (rawPhone == null || rawPhone.isEmpty || rawPhone == _emptyPhone)
-            ? null
-            : formatPhoneCo(rawPhone);
+    final nombres = ProfileRules.cleanName(user?.nombres);
+    final apellidos = ProfileRules.cleanName(user?.apellidos);
+    final displayName = [nombres, apellidos].whereType<String>().join(' ');
 
-    // Datos reales desde el UserModel
-    final address = (user?.direccion == null || user!.direccion!.isEmpty || user.direccion == 'Por definir') 
-        ? null 
-        : user.direccion;
+    final phoneDigits = ProfileRules.cleanPhone(user?.telefono);
+    final phone = phoneDigits == null ? null : formatPhoneCo(phoneDigits);
+    final address = ProfileRules.cleanAddress(user?.direccion);
+    final documentType = ProfileRules.cleanText(user?.tipoIdentificacion);
+    final documentNumber = ProfileRules.cleanText(user?.numeroIdentificacion);
 
-    final documentType = (user?.tipoIdentificacion == null || user!.tipoIdentificacion!.isEmpty) 
-        ? null 
-        : user.tipoIdentificacion;
-
-    final documentNumber = (user?.numeroIdentificacion == null || user!.numeroIdentificacion!.isEmpty) 
-        ? null 
-        : user.numeroIdentificacion;
+    final done = ProfileRules.doneCount(
+      nombres: user?.nombres,
+      apellidos: user?.apellidos,
+      tipo: user?.tipoIdentificacion,
+      numero: user?.numeroIdentificacion,
+      telefono: user?.telefono,
+      direccion: user?.direccion,
+    );
+    final remaining = ProfileRules.totalFields - done;
+    final progress = done / ProfileRules.totalFields;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F6F0),
@@ -106,127 +104,105 @@ class AccountDetailsPage extends ConsumerWidget {
           SizedBox(width: 8 * s),
         ],
       ),
-      body: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: IgnorePointer(
-              child: Container(
-                height: 380 * s,
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(0, -1),
-                    radius: 1.0,
-                    colors: [
-                      AppColors.goldLight.withValues(alpha: 0.42),
-                      Colors.transparent,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: const Alignment(0, -1),
+            radius: 1.0,
+            colors: [
+              AppColors.goldLight.withValues(alpha: 0.42),
+              Colors.transparent,
+            ],
+          ),
+        ),
+        child: ResponsiveLayout(
+          useSafeArea: true,
+          useScrollView: true,
+          child: Padding(
+            // REDUJIMOS EL MARGEN SUPERIOR PARA QUE EL CONTENIDO SUBA
+            padding: EdgeInsets.fromLTRB(20 * s, kToolbarHeight + 8 * s, 20 * s, 20 * s),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _Reveal(
+                  order: 0,
+                  child: _ProfileHeader(
+                    s: s,
+                    imageUrl: user?.imagen,
+                    initials: user?.initials ?? 'U',
+                    fullName: displayName.isEmpty ? 'Cliente' : displayName,
+                    email: user?.correo ?? 'correo@ejemplo.com',
+                    progress: progress,
+                    remaining: remaining,
+                    onTapProgress: () => context.push('/edit-profile'),
+                  ),
+                ),
+                // REDUJIMOS EL ESPACIO DE 24 A 16
+                SizedBox(height: 16 * s),
+
+                _Reveal(
+                  order: 1,
+                  child: CredentialCard(
+                    name: displayName,
+                    initials: user?.initials ?? 'U',
+                    progress: progress,
+                    documentType: documentType,
+                    documentNumber: documentNumber,
+                    maskNumber: true,
+                    onTap: () => _editField(context, 'documento'),
+                  ),
+                ),
+                // REDUJIMOS EL ESPACIO DE 20 A 16
+                SizedBox(height: 16 * s),
+
+                if (remaining > 0) ...[
+                  _Reveal(
+                    order: 2,
+                    child: _CompletionBanner(
+                      s: s,
+                      remaining: remaining,
+                      onTap: () => context.push('/edit-profile'),
+                    ),
+                  ),
+                  // REDUJIMOS EL ESPACIO DE 24 A 20
+                  SizedBox(height: 20 * s),
+                ],
+
+                _Reveal(
+                  order: 3,
+                  child: _Section(
+                    s: s,
+                    title: 'Contacto y envío',
+                    rows: [
+                      _InfoRow(
+                        s: s,
+                        icon: HugeIcons.strokeRoundedSmartPhone01,
+                        label: 'Teléfono',
+                        value: phone,
+                        onTap: () => _editField(context, 'telefono'),
+                      ),
+                      _InfoRow(
+                        s: s,
+                        icon: HugeIcons.strokeRoundedLocation01,
+                        label: 'Dirección de envío',
+                        value: address,
+                        onTap: () => _editField(context, 'direccion'),
+                      ),
                     ],
                   ),
                 ),
-              ),
+                SizedBox(height: 20 * s),
+              ],
             ),
           ),
-          
-          ResponsiveLayout(
-            useSafeArea: true,
-            useScrollView: true,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                20 * s,
-                kToolbarHeight + 12 * s,
-                20 * s,
-                32 * s,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _Reveal(
-                    order: 0,
-                    child: _ProfileHeader(
-                      s: s,
-                      imageUrl: user?.imagen,
-                      initials: user?.initials ?? 'U',
-                      fullName: user?.fullName ?? 'Usuario',
-                      email: user?.correo ?? 'correo@ejemplo.com',
-                    ),
-                  ),
-                  SizedBox(height: 24 * s),
-
-                  if (user?.isProfileIncomplete ?? false) ...[
-                    _Reveal(
-                      order: 1,
-                      child: _CompletionBanner(
-                        s: s,
-                        onTap: () => context.push('/edit-profile'),
-                      ),
-                    ),
-                    SizedBox(height: 24 * s),
-                  ],
-
-                  _Reveal(
-                    order: 1,
-                    child: _Section(
-                      s: s,
-                      title: 'Información de contacto',
-                      rows: [
-                        _InfoRow(
-                          s: s,
-                          icon: HugeIcons.strokeRoundedSmartPhone01,
-                          label: 'Teléfono',
-                          value: phone,
-                          onTap: () => _editField(context, 'telefono'),
-                        ),
-                        _InfoRow(
-                          s: s,
-                          icon: HugeIcons.strokeRoundedLocation01,
-                          label: 'Dirección de envío',
-                          value: address,
-                          onTap: () => _editField(context, 'direccion'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 24 * s),
-
-                  _Reveal(
-                    order: 2,
-                    child: _Section(
-                      s: s,
-                      title: 'Documento de identidad',
-                      rows: [
-                        _InfoRow(
-                          s: s,
-                          icon: HugeIcons.strokeRoundedIdentityCard,
-                          label: 'Tipo de documento',
-                          value: documentType,
-                          onTap: () => _editField(context, 'documento'),
-                        ),
-                        _InfoRow(
-                          s: s,
-                          icon: HugeIcons.strokeRoundedHashtag,
-                          label: 'Número de documento',
-                          value: documentNumber == null
-                              ? null
-                              : maskDocument(documentNumber),
-                          onTap: () => _editField(context, 'documento'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
 // ============================================================================
-// COMPONENTES PRIVADOS
+// COMPONENTES PRIVADOS (El resto del archivo queda exactamente igual)
 // ============================================================================
 
 class _Reveal extends StatelessWidget {
@@ -243,7 +219,10 @@ class _Reveal extends StatelessWidget {
       curve: Curves.easeOutCubic,
       builder: (context, t, child) => Opacity(
         opacity: t,
-        child: Transform.translate(offset: Offset(0, 16 * (1 - t)), child: child),
+        child: Transform.translate(
+          offset: Offset(0, 16 * (1 - t)),
+          child: child,
+        ),
       ),
       child: child,
     );
@@ -257,6 +236,9 @@ class _ProfileHeader extends StatelessWidget {
     required this.initials,
     required this.fullName,
     required this.email,
+    required this.progress,
+    required this.remaining,
+    required this.onTapProgress,
   });
 
   final double s;
@@ -264,28 +246,43 @@ class _ProfileHeader extends StatelessWidget {
   final String initials;
   final String fullName;
   final String email;
+  final double progress;
+  final int remaining;
+  final VoidCallback onTapProgress;
 
   @override
   Widget build(BuildContext context) {
-    final avatarSize = 108 * s;
+    final avatarSize = 100 * s; // Ligeramente reducido para ganar espacio
+    final arcSize = avatarSize + 20 * s;
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
 
     final initialsText = Text(
       initials,
-      style: AppFonts.style(size: 38 * s, weight: FontWeight.w700, color: AppColors.brownDark),
+      style: AppFonts.style(size: 34 * s, weight: FontWeight.w700, color: AppColors.brownDark),
     );
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20 * s, 8 * s, 20 * s, 0),
+      padding: EdgeInsets.fromLTRB(20 * s, 4 * s, 20 * s, 0),
       child: Column(
         children: [
           SizedBox(
-            width: avatarSize,
-            height: avatarSize,
+            width: arcSize,
+            height: arcSize,
             child: Stack(
+              alignment: Alignment.center,
               clipBehavior: Clip.none,
               children: [
+                Positioned.fill(
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: progress),
+                    duration: const Duration(milliseconds: 1100),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, _) => CustomPaint(
+                      painter: _ArcPainter(progress: value, stroke: 4.0 * s),
+                    ),
+                  ),
+                ),
                 Hero(
                   tag: kProfileAvatarHeroTag,
                   child: Material(
@@ -293,7 +290,7 @@ class _ProfileHeader extends StatelessWidget {
                     child: Container(
                       width: avatarSize,
                       height: avatarSize,
-                      padding: EdgeInsets.all(3.5 * s),
+                      padding: EdgeInsets.all(3.0 * s),
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
@@ -306,7 +303,7 @@ class _ProfileHeader extends StatelessWidget {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: AppColors.beige,
-                          border: Border.all(color: Colors.white, width: 3 * s),
+                          border: Border.all(color: Colors.white, width: 2.5 * s),
                         ),
                         alignment: Alignment.center,
                         child: hasImage
@@ -325,8 +322,8 @@ class _ProfileHeader extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  right: -2 * s,
-                  bottom: -2 * s,
+                  right: 4 * s,
+                  bottom: 4 * s,
                   child: GestureDetector(
                     onTap: () {
                       ScaffoldMessenger.of(context)
@@ -339,16 +336,16 @@ class _ProfileHeader extends StatelessWidget {
                         );
                     },
                     child: Container(
-                      padding: EdgeInsets.all(8 * s),
+                      padding: EdgeInsets.all(6 * s),
                       decoration: BoxDecoration(
                         color: AppColors.brownDark,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3 * s),
+                        border: Border.all(color: Colors.white, width: 2.5 * s),
                       ),
                       child: HugeIcon(
                         icon: HugeIcons.strokeRoundedCamera01,
                         color: Colors.white,
-                        size: 16 * s,
+                        size: 14 * s,
                         strokeWidth: 2.0,
                       ),
                     ),
@@ -357,26 +354,125 @@ class _ProfileHeader extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(height: 18 * s),
+          SizedBox(height: 8 * s), // Espacio reducido
           Text(
             fullName,
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: AppFonts.style(size: 22 * s, weight: FontWeight.w800, color: AppColors.brownDark),
+            style: AppFonts.style(size: 20 * s, weight: FontWeight.w800, color: AppColors.brownDark),
           ),
-          SizedBox(height: 4 * s),
+          SizedBox(height: 2 * s),
           Text(
             email,
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppFonts.style(size: 14 * s, weight: FontWeight.w500, color: AppColors.muted),
+            style: AppFonts.style(size: 13 * s, weight: FontWeight.w500, color: AppColors.muted),
+          ),
+          SizedBox(height: 10 * s), // Espacio reducido
+          _ProgressPill(
+            s: s,
+            progress: progress,
+            complete: remaining == 0,
+            onTap: onTapProgress,
           ),
         ],
       ),
     );
   }
+}
+
+class _ProgressPill extends StatelessWidget {
+  const _ProgressPill({
+    required this.s,
+    required this.progress,
+    required this.complete,
+    required this.onTap,
+  });
+
+  final double s;
+  final double progress;
+  final bool complete;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = StadiumBorder(
+      side: BorderSide(color: AppColors.goldDark.withValues(alpha: 0.45)),
+    );
+
+    return Material(
+      color: Colors.white.withValues(alpha: 0.85),
+      shape: shape,
+      child: InkWell(
+        customBorder: shape,
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 6 * s),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              HugeIcon(
+                icon: complete
+                    ? HugeIcons.strokeRoundedCheckmarkBadge01
+                    : HugeIcons.strokeRoundedTimer01,
+                size: 15 * s,
+                color: AppColors.goldDark,
+                strokeWidth: 2.0,
+              ),
+              SizedBox(width: 6 * s),
+              Text(
+                complete ? 'Perfil completo' : 'Perfil al ${(progress * 100).round()}%',
+                style: AppFonts.style(size: 12 * s, weight: FontWeight.w700, color: AppColors.brown),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ArcPainter extends CustomPainter {
+  _ArcPainter({required this.progress, required this.stroke});
+
+  final double progress;
+  final double stroke;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = (Offset.zero & size).deflate(stroke / 2);
+
+    canvas.drawArc(
+      rect,
+      0,
+      2 * math.pi,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..color = AppColors.beige.withValues(alpha: 0.7),
+    );
+
+    if (progress <= 0) return;
+
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      2 * math.pi * progress.clamp(0.0, 1.0),
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round
+        ..color = AppColors.goldDark,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ArcPainter old) =>
+      old.progress != progress || old.stroke != stroke;
 }
 
 class _Section extends StatelessWidget {
@@ -403,21 +499,37 @@ class _Section extends StatelessWidget {
           padding: EdgeInsets.only(left: 4 * s),
           child: Row(
             children: [
-              Container(width: 4 * s, height: 16 * s, decoration: BoxDecoration(color: AppColors.goldDark, borderRadius: BorderRadius.circular(4 * s))),
+              Container(
+                width: 4 * s,
+                height: 14 * s,
+                decoration: BoxDecoration(
+                  color: AppColors.goldDark,
+                  borderRadius: BorderRadius.circular(4 * s),
+                ),
+              ),
               SizedBox(width: 8 * s),
-              Text(title, style: AppFonts.style(size: 14 * s, weight: FontWeight.w700, color: AppColors.brown)),
+              Text(
+                title,
+                style: AppFonts.style(size: 13 * s, weight: FontWeight.w700, color: AppColors.brown),
+              ),
             ],
           ),
         ),
-        SizedBox(height: 12 * s),
+        SizedBox(height: 8 * s), // Espacio reducido
         DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22 * s),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 14, offset: const Offset(0, 6))],
+            borderRadius: BorderRadius.circular(20 * s),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: Material(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(22 * s),
+            borderRadius: BorderRadius.circular(20 * s),
             clipBehavior: Clip.antiAlias,
             child: SizedBox(width: double.infinity, child: Column(children: children)),
           ),
@@ -428,9 +540,14 @@ class _Section extends StatelessWidget {
 }
 
 class _CompletionBanner extends StatelessWidget {
-  const _CompletionBanner({required this.s, required this.onTap});
+  const _CompletionBanner({
+    required this.s,
+    required this.remaining,
+    required this.onTap,
+  });
 
   final double s;
+  final int remaining;
   final VoidCallback onTap;
 
   @override
@@ -439,6 +556,9 @@ class _CompletionBanner extends StatelessWidget {
       borderRadius: BorderRadius.circular(20 * s),
       side: BorderSide(color: AppColors.goldDark.withValues(alpha: 0.45)),
     );
+    final text = remaining == 1
+        ? 'Te falta 1 dato para gestionar tus envíos y tu facturación.'
+        : 'Te faltan $remaining datos para gestionar tus envíos y tu facturación.';
 
     return Material(
       color: AppColors.goldLight.withValues(alpha: 0.2),
@@ -447,26 +567,56 @@ class _CompletionBanner extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: EdgeInsets.all(16 * s),
+          padding: EdgeInsets.all(14 * s),
           child: Row(
             children: [
               Container(
-                width: 42 * s, height: 42 * s,
-                decoration: BoxDecoration(color: AppColors.brownDark, borderRadius: BorderRadius.circular(14 * s)),
-                child: HugeIcon(icon: HugeIcons.strokeRoundedPencilEdit02, size: 22 * s, color: AppColors.goldLight, strokeWidth: 2.0),
+                width: 38 * s,
+                height: 38 * s,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.brownDark,
+                  borderRadius: BorderRadius.circular(12 * s),
+                ),
+                child: HugeIcon(
+                  icon: HugeIcons.strokeRoundedPencilEdit02,
+                  size: 20 * s,
+                  color: AppColors.goldLight,
+                  strokeWidth: 2.0,
+                ),
               ),
-              SizedBox(width: 14 * s),
+              SizedBox(width: 12 * s),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Completa tu perfil', style: AppFonts.style(size: 15.5 * s, weight: FontWeight.w800, color: AppColors.brownDark)),
+                    Text(
+                      'Completa tu credencial',
+                      style: AppFonts.style(
+                        size: 14.5 * s,
+                        weight: FontWeight.w800,
+                        color: AppColors.brownDark,
+                      ),
+                    ),
                     SizedBox(height: 2 * s),
-                    Text('Te faltan datos para gestionar tus envios y tu facturacion.', style: AppFonts.style(size: 13 * s, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.85), height: 1.3)),
+                    Text(
+                      text,
+                      style: AppFonts.style(
+                        size: 12 * s,
+                        weight: FontWeight.w500,
+                        color: AppColors.brown.withValues(alpha: 0.85),
+                        height: 1.3,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 24 * s, color: AppColors.brown, strokeWidth: 2.0),
+              HugeIcon(
+                icon: HugeIcons.strokeRoundedArrowRight01,
+                size: 22 * s,
+                color: AppColors.brown,
+                strokeWidth: 2.0,
+              ),
             ],
           ),
         ),
@@ -499,50 +649,85 @@ class _InfoRow extends StatelessWidget {
       splashColor: AppColors.goldLight.withValues(alpha: 0.25),
       highlightColor: AppColors.goldLight.withValues(alpha: 0.12),
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16 * s, vertical: 14 * s),
+        padding: EdgeInsets.symmetric(horizontal: 14 * s, vertical: 12 * s),
         child: Row(
           children: [
             Container(
-              width: 38 * s, height: 38 * s,
+              width: 34 * s,
+              height: 34 * s,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: AppColors.beige.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(12 * s),
+                borderRadius: BorderRadius.circular(10 * s),
               ),
-              child: HugeIcon(icon: icon, color: AppColors.brown, size: 19 * s, strokeWidth: 2.0),
+              child: HugeIcon(
+                icon: icon,
+                color: AppColors.brown,
+                size: 18 * s,
+                strokeWidth: 2.0,
+              ),
             ),
-            SizedBox(width: 14 * s),
+            SizedBox(width: 12 * s),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: AppFonts.style(size: 13 * s, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.78))),
-                  SizedBox(height: 3 * s),
+                  Text(
+                    label,
+                    style: AppFonts.style(
+                      size: 12 * s,
+                      weight: FontWeight.w500,
+                      color: AppColors.brown.withValues(alpha: 0.78),
+                    ),
+                  ),
+                  SizedBox(height: 2 * s),
                   Text(
                     hasValue ? value! : 'Sin registrar',
-                    maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: AppFonts.style(size: 15.5 * s, weight: hasValue ? FontWeight.w600 : FontWeight.w500, color: hasValue ? AppColors.brownDark : AppColors.muted),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppFonts.style(
+                      size: 14.5 * s,
+                      weight: hasValue ? FontWeight.w600 : FontWeight.w500,
+                      color: hasValue ? AppColors.brownDark : AppColors.muted,
+                    ),
                   ),
                 ],
               ),
             ),
             SizedBox(width: 8 * s),
             if (hasValue)
-              HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 20 * s, color: AppColors.brown.withValues(alpha: 0.45), strokeWidth: 2.0)
+              HugeIcon(
+                icon: HugeIcons.strokeRoundedArrowRight01,
+                size: 18 * s,
+                color: AppColors.brown.withValues(alpha: 0.45),
+                strokeWidth: 2.0,
+              )
             else
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 7 * s),
+                padding: EdgeInsets.symmetric(horizontal: 10 * s, vertical: 6 * s),
                 decoration: BoxDecoration(
                   color: AppColors.goldLight.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(20 * s),
+                  borderRadius: BorderRadius.circular(16 * s),
                   border: Border.all(color: AppColors.goldDark.withValues(alpha: 0.55)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 14 * s, color: AppColors.brown, strokeWidth: 2.0),
+                    HugeIcon(
+                      icon: HugeIcons.strokeRoundedAdd01,
+                      size: 12 * s,
+                      color: AppColors.brown,
+                      strokeWidth: 2.0,
+                    ),
                     SizedBox(width: 4 * s),
-                    Text('Agregar', style: AppFonts.style(size: 13 * s, weight: FontWeight.w700, color: AppColors.brown)),
+                    Text(
+                      'Agregar',
+                      style: AppFonts.style(
+                        size: 12 * s,
+                        weight: FontWeight.w700,
+                        color: AppColors.brown,
+                      ),
+                    ),
                   ],
                 ),
               ),
