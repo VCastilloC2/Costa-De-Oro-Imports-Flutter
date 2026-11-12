@@ -3,10 +3,9 @@
 // PANTALLA: UserProfilePage
 // ============================================================================
 // Muestra la información del usuario y las opciones de configuración.
-// Implementa el "Perfilamiento Progresivo": si el usuario tiene datos
-// incompletos (registro rápido), muestra un banner para motivarlo a
-// completar su perfil antes de hacer un pedido. Utiliza Hugeicons con
-// trazos más gruesos para mejor visibilidad.
+// Implementa el "Perfilamiento Progresivo" y un esqueleto de carga (skeleton)
+// para evitar que se muestren datos viejos o incompletos mientras la app
+// consulta el backend al entrar a la pantalla.
 // ============================================================================
 
 import 'package:flutter/material.dart';
@@ -19,16 +18,50 @@ import '../../../../app/theme/app_fonts.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../../../features/auth/presentation/providers/auth_controller.dart';
+import '../../presentation/profile_rules.dart';
 
-class UserProfilePage extends ConsumerWidget {
+class UserProfilePage extends ConsumerStatefulWidget {
   const UserProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UserProfilePage> createState() => _UserProfilePageState();
+}
+
+class _UserProfilePageState extends ConsumerState<UserProfilePage> {
+  // Variable para controlar el estado de carga inicial.
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() async {
+      try {
+        // Pedimos los datos frescos al backend al abrir la pantalla.
+        await ref.read(authControllerProvider.notifier).refreshProfile();
+      } finally {
+        // Apagamos el esqueleto sin importar si hubo éxito o error.
+        if (mounted) setState(() => _isLoading = false);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final s = context.s;
     
     // Observamos el estado global para obtener los datos reales del usuario.
     final user = ref.watch(authControllerProvider).user;
+
+    // Calculamos cuántos campos están llenos usando la misma regla que Detalles.
+    final done = ProfileRules.doneCount(
+      nombres: user?.nombres,
+      apellidos: user?.apellidos,
+      tipo: user?.tipoIdentificacion,
+      numero: user?.numeroIdentificacion,
+      telefono: user?.telefono,
+      direccion: user?.direccion,
+    );
+    final isIncomplete = done < ProfileRules.totalFields;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F6F0), 
@@ -39,246 +72,248 @@ class UserProfilePage extends ConsumerWidget {
           if (index == 4) return; 
         },
       ),
-      body: ResponsiveLayout(
-        useSafeArea: true,
-        useScrollView: true,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24 * s, vertical: 16 * s),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // HEADER
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => context.go('/dashboard'), 
-                    child: Container(
-                      padding: EdgeInsets.all(8 * s),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
-                      ),
-                      child: HugeIcon(
-                        icon: HugeIcons.strokeRoundedArrowLeft01, 
-                        size: 20 * s, 
-                        color: AppColors.brownDark,
-                        strokeWidth: 2.2, // <-- Trazo más grueso
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 16 * s),
-                  Text('Perfil', style: AppFonts.style(size: 24 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
-                  const Spacer(),
-                ],
-              ),
-              SizedBox(height: 24 * s),
-
-              // TARJETA DEL USUARIO
-              Container(
-                padding: EdgeInsets.all(20 * s),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24 * s),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15, offset: const Offset(0, 8))],
-                ),
-                child: Row(
+      // SI ESTAMOS CARGANDO, MOSTRAMOS EL ESQUELETO.
+      body: _isLoading 
+          ? _UserProfileSkeleton(s: s)
+          : ResponsiveLayout(
+              useSafeArea: true,
+              useScrollView: true,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24 * s, vertical: 16 * s),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 56 * s, height: 56 * s,
-                      decoration: const BoxDecoration(color: AppColors.beige, shape: BoxShape.circle),
-                      alignment: Alignment.center,
-                      child: Text(user?.initials ?? 'U', style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
-                    ),
-                    SizedBox(width: 16 * s),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(user?.fullName ?? 'Usuario', style: AppFonts.style(size: 18 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
-                          SizedBox(height: 4 * s),
-                          Text(user?.correo ?? 'correo@ejemplo.com', style: AppFonts.style(size: 13 * s, weight: FontWeight.w500, color: AppColors.muted)),
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => context.push('/edit-profile'),
-                      child: Container(
-                        padding: EdgeInsets.all(10 * s),
-                        decoration: const BoxDecoration(color: AppColors.cream, shape: BoxShape.circle),
-                        child: HugeIcon(
-                          icon: HugeIcons.strokeRoundedPencilEdit02, 
-                          size: 20 * s, 
-                          color: AppColors.brownDark,
-                          strokeWidth: 2.2, // <-- Trazo más grueso
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // BANNER DE PERFIL INCOMPLETO
-              if (user?.isProfileIncomplete ?? false) ...[
-                SizedBox(height: 16 * s),
-                GestureDetector(
-                  onTap: () => context.push('/edit-profile'),
-                  child: Container(
-                    padding: EdgeInsets.all(20 * s),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20 * s),
-                      border: Border.all(color: AppColors.goldDark.withValues(alpha: 0.3)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.goldDark.withValues(alpha: 0.05), 
-                          blurRadius: 15, 
-                          offset: const Offset(0, 8)
-                        ),
-                      ],
-                    ),
-                    child: Row(
+                    // HEADER
+                    Row(
                       children: [
-                        Container(
-                          padding: EdgeInsets.all(10 * s),
-                          decoration: BoxDecoration(
-                            color: AppColors.goldLight.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: HugeIcon(
-                            icon: HugeIcons.strokeRoundedAlert02, 
-                            color: AppColors.goldDark, 
-                            size: 24 * s,
-                            strokeWidth: 2.2, // <-- Trazo más grueso
+                        GestureDetector(
+                          onTap: () => context.go('/dashboard'), 
+                          child: Container(
+                            padding: EdgeInsets.all(8 * s),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                            ),
+                            child: HugeIcon(
+                              icon: HugeIcons.strokeRoundedArrowLeft01, 
+                              size: 20 * s, 
+                              color: AppColors.brownDark,
+                              strokeWidth: 2.2,
+                            ),
                           ),
                         ),
                         SizedBox(width: 16 * s),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Completa tu perfil',
-                                style: AppFonts.style(size: 14 * s, weight: FontWeight.w700, color: AppColors.brownDark),
+                        Text('Perfil', style: AppFonts.style(size: 24 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
+                        const Spacer(),
+                      ],
+                    ),
+                    SizedBox(height: 24 * s),
+
+                    // TARJETA DEL USUARIO
+                    Container(
+                      padding: EdgeInsets.all(20 * s),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24 * s),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15, offset: const Offset(0, 8))],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 56 * s, height: 56 * s,
+                            decoration: const BoxDecoration(color: AppColors.beige, shape: BoxShape.circle),
+                            alignment: Alignment.center,
+                            child: Text(user?.initials ?? 'U', style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
+                          ),
+                          SizedBox(width: 16 * s),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(user?.fullName ?? 'Usuario', style: AppFonts.style(size: 18 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
+                                SizedBox(height: 4 * s),
+                                Text(user?.correo ?? 'correo@ejemplo.com', style: AppFonts.style(size: 13 * s, weight: FontWeight.w500, color: AppColors.muted)),
+                              ],
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => context.push('/edit-profile'),
+                            child: Container(
+                              padding: EdgeInsets.all(10 * s),
+                              decoration: const BoxDecoration(color: AppColors.cream, shape: BoxShape.circle),
+                              child: HugeIcon(
+                                icon: HugeIcons.strokeRoundedPencilEdit02, 
+                                size: 20 * s, 
+                                color: AppColors.brownDark,
+                                strokeWidth: 2.2,
                               ),
-                              SizedBox(height: 4 * s),
-                              Text(
-                                'Agiliza tus envíos agregando tus datos reales.',
-                                style: AppFonts.style(size: 12 * s, weight: FontWeight.w500, color: AppColors.muted),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // BANNER DE PERFIL INCOMPLETO (Solo sale si isIncomplete es true)
+                    if (isIncomplete) ...[
+                      SizedBox(height: 16 * s),
+                      GestureDetector(
+                        onTap: () => context.push('/edit-profile'),
+                        child: Container(
+                          padding: EdgeInsets.all(20 * s),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20 * s),
+                            border: Border.all(color: AppColors.goldDark.withValues(alpha: 0.3)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.goldDark.withValues(alpha: 0.05), 
+                                blurRadius: 15, 
+                                offset: const Offset(0, 8)
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(10 * s),
+                                decoration: BoxDecoration(
+                                  color: AppColors.goldLight.withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: HugeIcon(
+                                  icon: HugeIcons.strokeRoundedAlert02, 
+                                  color: AppColors.goldDark, 
+                                  size: 24 * s,
+                                  strokeWidth: 2.2,
+                                ),
+                              ),
+                              SizedBox(width: 16 * s),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Completa tu perfil',
+                                      style: AppFonts.style(size: 14 * s, weight: FontWeight.w700, color: AppColors.brownDark),
+                                    ),
+                                    SizedBox(height: 4 * s),
+                                    Text(
+                                      'Agiliza tus envíos agregando tus datos reales.',
+                                      style: AppFonts.style(size: 12 * s, weight: FontWeight.w500, color: AppColors.muted),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              HugeIcon(
+                                icon: HugeIcons.strokeRoundedArrowRight01, 
+                                size: 16 * s, 
+                                color: AppColors.brownDark,
+                                strokeWidth: 2.2,
                               ),
                             ],
                           ),
                         ),
-                        HugeIcon(
-                          icon: HugeIcons.strokeRoundedArrowRight01, 
-                          size: 16 * s, 
-                          color: AppColors.brownDark,
-                          strokeWidth: 2.2, // <-- Trazo más grueso
+                      ),
+                    ],
+
+                    SizedBox(height: 24 * s),
+
+                    // SECCIÓN 1: MI CUENTA
+                    _buildSectionTitle('Mi cuenta', s),
+                    SizedBox(height: 12 * s),
+                    _buildSectionCard(
+                      s: s,
+                      children: [
+                        _buildMenuItem(
+                          icon: HugeIcons.strokeRoundedUser, 
+                          title: 'Detalles de la cuenta', 
+                          subtitle: 'Gestiona tu información personal', 
+                          onTap: () => context.push('/account-details'), 
+                          s: s,
+                        ),
+                        _buildDivider(),
+                        _buildMenuItem(
+                          icon: HugeIcons.strokeRoundedInvoice01, 
+                          title: 'Historial de pagos', 
+                          subtitle: 'Revisa tus pedidos anteriores', 
+                          onTap: () {}, 
+                          s: s,
+                        ),
+                        _buildDivider(),
+                        _buildMenuItem(
+                          icon: HugeIcons.strokeRoundedNotification01, 
+                          title: 'Notificaciones', 
+                          subtitle: 'Configura tus alertas', 
+                          onTap: () {}, 
+                          s: s,
+                        ),
+                        _buildDivider(),
+                        _buildMenuItem(
+                          icon: HugeIcons.strokeRoundedSettings01, 
+                          title: 'Configuración', 
+                          subtitle: 'Preferencias de la aplicación', 
+                          onTap: () {}, 
+                          s: s,
                         ),
                       ],
                     ),
-                  ),
+                    SizedBox(height: 32 * s),
+
+                    // SECCIÓN 2: SOPORTE Y LEGAL
+                    _buildSectionTitle('Soporte y Legal', s),
+                    SizedBox(height: 12 * s),
+                    _buildSectionCard(
+                      s: s,
+                      children: [
+                        _buildMenuItem(
+                          icon: HugeIcons.strokeRoundedCustomerSupport, 
+                          title: 'Contáctanos', 
+                          subtitle: '¿Necesitas ayuda?', 
+                          onTap: () {}, 
+                          s: s,
+                        ),
+                        _buildDivider(),
+                        _buildMenuItem(
+                          icon: HugeIcons.strokeRoundedDocumentAttachment, 
+                          title: 'Términos y condiciones', 
+                          subtitle: 'Lee nuestras políticas', 
+                          onTap: () => context.push('/terms'), 
+                          s: s,
+                        ),
+                        _buildDivider(),
+                        _buildMenuItem(
+                          icon: HugeIcons.strokeRoundedShield01, 
+                          title: 'Política de privacidad', 
+                          subtitle: 'Cómo protegemos tus datos', 
+                          onTap: () {}, 
+                          s: s,
+                        ),
+                        _buildDivider(),
+                        _buildMenuItem(
+                          icon: HugeIcons.strokeRoundedHelpCircle, 
+                          title: 'Obtener ayuda', 
+                          subtitle: 'Preguntas frecuentes', 
+                          onTap: () {}, 
+                          s: s,
+                        ),
+                        _buildDivider(),
+                        _buildMenuItem(
+                          icon: HugeIcons.strokeRoundedLogout01,
+                          title: 'Cerrar sesión',
+                          subtitle: null,
+                          iconColor: Colors.redAccent,
+                          textColor: Colors.redAccent,
+                          onTap: () => _showLogoutBottomSheet(context, ref, s),
+                          s: s,
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 40 * s), 
+                  ],
                 ),
-              ],
-
-              SizedBox(height: 24 * s),
-
-              // SECCIÓN 1: MI CUENTA
-              _buildSectionTitle('Mi cuenta', s),
-              SizedBox(height: 12 * s),
-              _buildSectionCard(
-                s: s,
-                children: [
-                  _buildMenuItem(
-                    icon: HugeIcons.strokeRoundedUser, 
-                    title: 'Detalles de la cuenta', 
-                    subtitle: 'Gestiona tu información personal', 
-                    onTap: () => context.push('/account-details'), 
-                    s: s,
-                  ),
-                  _buildDivider(),
-                  _buildMenuItem(
-                    icon: HugeIcons.strokeRoundedInvoice01, 
-                    title: 'Historial de pagos', 
-                    subtitle: 'Revisa tus pedidos anteriores', 
-                    onTap: () {}, 
-                    s: s,
-                  ),
-                  _buildDivider(),
-                  _buildMenuItem(
-                    icon: HugeIcons.strokeRoundedNotification01, 
-                    title: 'Notificaciones', 
-                    subtitle: 'Configura tus alertas', 
-                    onTap: () {}, 
-                    s: s,
-                  ),
-                  _buildDivider(),
-                  _buildMenuItem(
-                    icon: HugeIcons.strokeRoundedSettings01, 
-                    title: 'Configuración', 
-                    subtitle: 'Preferencias de la aplicación', 
-                    onTap: () {}, 
-                    s: s,
-                  ),
-                ],
               ),
-              SizedBox(height: 32 * s),
-
-              // SECCIÓN 2: SOPORTE Y LEGAL
-              _buildSectionTitle('Soporte y Legal', s),
-              SizedBox(height: 12 * s),
-              _buildSectionCard(
-                s: s,
-                children: [
-                  _buildMenuItem(
-                    icon: HugeIcons.strokeRoundedCustomerSupport, 
-                    title: 'Contáctanos', 
-                    subtitle: '¿Necesitas ayuda?', 
-                    onTap: () {}, 
-                    s: s,
-                  ),
-                  _buildDivider(),
-                  _buildMenuItem(
-                    icon: HugeIcons.strokeRoundedDocumentAttachment, 
-                    title: 'Términos y condiciones', 
-                    subtitle: 'Lee nuestras políticas', 
-                    onTap: () => context.push('/terms'), 
-                    s: s,
-                  ),
-                  _buildDivider(),
-                  _buildMenuItem(
-                    icon: HugeIcons.strokeRoundedShield01, 
-                    title: 'Política de privacidad', 
-                    subtitle: 'Cómo protegemos tus datos', 
-                    onTap: () {}, 
-                    s: s,
-                  ),
-                  _buildDivider(),
-                  _buildMenuItem(
-                    icon: HugeIcons.strokeRoundedHelpCircle, 
-                    title: 'Obtener ayuda', 
-                    subtitle: 'Preguntas frecuentes', 
-                    onTap: () {}, 
-                    s: s,
-                  ),
-                  _buildDivider(),
-                  // Botón de Logout conectado a Riverpod. Abre el BottomSheet.
-                  _buildMenuItem(
-                    icon: HugeIcons.strokeRoundedLogout01,
-                    title: 'Cerrar sesión',
-                    subtitle: null,
-                    iconColor: Colors.redAccent,
-                    textColor: Colors.redAccent,
-                    onTap: () => _showLogoutBottomSheet(context, ref, s),
-                    s: s,
-                  ),
-                ],
-              ),
-              SizedBox(height: 40 * s), 
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 
@@ -407,7 +442,7 @@ class UserProfilePage extends ConsumerWidget {
               icon: icon, 
               color: iconColor, 
               size: 24 * s,
-              strokeWidth: 2.2, // <-- Trazo más grueso para todos los ítems
+              strokeWidth: 2.2,
             ),
             SizedBox(width: 16 * s),
             Expanded(
@@ -427,7 +462,7 @@ class UserProfilePage extends ConsumerWidget {
                 icon: HugeIcons.strokeRoundedArrowRight01, 
                 size: 16 * s, 
                 color: AppColors.muted,
-                strokeWidth: 2.2, // <-- Trazo más grueso en la flecha
+                strokeWidth: 2.2,
               ),
           ],
         ),
@@ -436,4 +471,139 @@ class UserProfilePage extends ConsumerWidget {
   }
 
   Widget _buildDivider() => const Divider(color: Color(0xFFF0F0F0), height: 1, thickness: 1);
+}
+
+// ============================================================================
+// ESQUELETO DE CARGA (SKELETON)
+// ============================================================================
+class _UserProfileSkeleton extends StatefulWidget {
+  const _UserProfileSkeleton({required this.s});
+  final double s;
+
+  @override
+  State<_UserProfileSkeleton> createState() => _UserProfileSkeletonState();
+}
+
+class _UserProfileSkeletonState extends State<_UserProfileSkeleton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s;
+
+    return ResponsiveLayout(
+      useSafeArea: true,
+      useScrollView: true,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 24 * s, vertical: 16 * s),
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            return ShaderMask(
+              blendMode: BlendMode.srcATop,
+              shaderCallback: (bounds) {
+                return LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    const Color(0xFFF2ECE2),
+                    const Color(0xFFF9F6F0),
+                    const Color(0xFFF2ECE2),
+                  ],
+                  stops: [
+                    (_controller.value - 0.3).clamp(0.0, 1.0),
+                    _controller.value,
+                    (_controller.value + 0.3).clamp(0.0, 1.0),
+                  ],
+                ).createShader(bounds);
+              },
+              child: child,
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Skeleton
+              Row(
+                children: [
+                  Container(
+                    width: 40 * s, height: 40 * s,
+                    decoration: const BoxDecoration(color: Color(0xFFF2ECE2), shape: BoxShape.circle),
+                  ),
+                  SizedBox(width: 16 * s),
+                  Container(
+                    width: 80 * s, height: 24 * s,
+                    decoration: BoxDecoration(color: const Color(0xFFF2ECE2), borderRadius: BorderRadius.circular(12 * s)),
+                  ),
+                ],
+              ),
+              SizedBox(height: 24 * s),
+              
+              // Tarjeta de Usuario Skeleton
+              Container(
+                width: double.infinity,
+                height: 96 * s,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2ECE2),
+                  borderRadius: BorderRadius.circular(24 * s),
+                ),
+              ),
+              SizedBox(height: 24 * s),
+              
+              // Título Sección Skeleton
+              Container(
+                width: 100 * s, height: 16 * s,
+                decoration: BoxDecoration(color: const Color(0xFFF2ECE2), borderRadius: BorderRadius.circular(8 * s)),
+              ),
+              SizedBox(height: 12 * s),
+              
+              // Contenedor de Sección Skeleton
+              Container(
+                width: double.infinity,
+                height: 200 * s,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2ECE2),
+                  borderRadius: BorderRadius.circular(24 * s),
+                ),
+              ),
+              SizedBox(height: 32 * s),
+              
+              // Título Sección Skeleton
+              Container(
+                width: 120 * s, height: 16 * s,
+                decoration: BoxDecoration(color: const Color(0xFFF2ECE2), borderRadius: BorderRadius.circular(8 * s)),
+              ),
+              SizedBox(height: 12 * s),
+              
+              // Contenedor de Sección Skeleton
+              Container(
+                width: double.infinity,
+                height: 240 * s,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2ECE2),
+                  borderRadius: BorderRadius.circular(24 * s),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -2,8 +2,8 @@
 // ============================================================================
 // MODELO: UserModel
 // ============================================================================
-// Representa al usuario autenticado en la aplicación. Refleja el esquema
-// devuelto por el backend en los endpoints de login y perfil.
+// Representa al usuario. Mapea los datos asegurando que el documento se lea
+// sin importar si el backend envía snake_case o camelCase.
 // ============================================================================
 
 class UserModel {
@@ -35,19 +35,30 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: (json['usuario_id'] as num?)?.toInt() ?? 0,
+      id: (json['usuarioId'] ?? json['usuario_id'] ?? json['id'] as num?)?.toInt() ?? 0,
       correo: json['correo'] as String? ?? '',
       nombres: json['nombres'] as String?,
       apellidos: json['apellidos'] as String?,
       telefono: json['telefono'] as String?,
       imagen: json['imagen'] as String?,
-      isEnabled: json['is_enabled'] as bool?,
+      isEnabled: json['enabled'] as bool? ?? json['is_enabled'] as bool?,
       rol: json['rol'] as String?,
-      // NOTA: Si en Swagger las claves son en snake_case (ej. tipo_identificacion),
-      // cámbialas aquí.
       direccion: json['direccion'] as String?,
-      tipoIdentificacion: json['tipoIdentificacion'] as String? ?? json['tipo_identificacion'] as String?,
-      numeroIdentificacion: json['numeroIdentificacion'] as String? ?? json['numero_identificacion'] as String?,
+      
+      // MAGIA AQUÍ: Buscamos el tipo de documento en todas las variantes posibles.
+      tipoIdentificacion: (
+        json['tipoIdentificacion'] ?? 
+        json['tipo_identificacion'] ?? 
+        json['tipo_documento']
+      )?.toString(),
+      
+      // MAGIA AQUÍ: Buscamos el número en todas las variantes posibles.
+      numeroIdentificacion: (
+        json['numeroIdentificacion'] ?? 
+        json['numero_identificacion'] ?? 
+        json['documento'] ?? 
+        json['identificacion']
+      )?.toString(),
     );
   }
 
@@ -75,6 +86,8 @@ class UserModel {
            telefono == null || 
            telefono!.isEmpty ||
            apellidos == null || 
-           apellidos!.isEmpty;
+           apellidos!.isEmpty ||
+           tipoIdentificacion == null ||
+           numeroIdentificacion == null;
   }
 }
