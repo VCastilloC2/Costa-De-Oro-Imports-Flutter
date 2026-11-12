@@ -2,8 +2,8 @@
 // ============================================================================
 // WIDGET: TotalSalesCard
 // ============================================================================
-// Gráfica de dona (PieChart) para las ventas totales. Utiliza un CustomClipper
-// en forma de cuña para simular que la dona se va dibujando en sentido horario.
+// Gráfica de dona (PieChart) para las ventas totales. Recibe los datos reales
+// de la API y los dibuja en sentido horario usando un CustomClipper.
 // ============================================================================
 
 import 'dart:math' as math;
@@ -11,21 +11,41 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
+import '../../../../core/utils/formatters.dart'; // Para el formato de dinero.
 
 class TotalSalesCard extends StatelessWidget {
+  /// Factor de escala para responsividad.
   final double s;
+  
+  /// Bandera que activa la animación de dibujo.
   final bool isVisible;
+  
+  /// Valores de cada porción de la dona.
+  final List<double> series;
+  
+  /// Nombres de cada porción (ej. "Envíos $29,881,614.00 (28%)").
+  final List<String> labels;
+  
+  /// Total de ventas para mostrar en el centro.
+  final double totalSales;
 
-  const TotalSalesCard({super.key, required this.s, required this.isVisible});
+  const TotalSalesCard({
+    super.key, 
+    required this.s, 
+    required this.isVisible,
+    required this.series,
+    required this.labels,
+    required this.totalSales,
+  });
 
-  static const _green = Color(0xFF2E9E4F);
-  static const _yellow = Color(0xFFF5B800);
-  static const _red = Color(0xFFE53935);
-  static const _blue = Color(0xFF1E88E5);
+  static const _startDegrees = 255.0;
+  static const _colors = [Color(0xFF2E9E4F), Color(0xFFF5B800), Color(0xFFE53935), Color(0xFF1E88E5)];
 
   @override
   Widget build(BuildContext context) {
-    const startDegrees = 255.0;
+    // Si no hay datos, no dibujamos nada.
+    if (series.isEmpty) return const SizedBox.shrink();
+    
     final radius = 20.0 * s;
 
     return Container(
@@ -55,19 +75,23 @@ class TotalSalesCard extends StatelessWidget {
                     duration: const Duration(milliseconds: 2000),
                     curve: Curves.easeInOutCubic,
                     builder: (context, progress, child) => ClipPath(
-                      clipper: _DonutSweepClipper(progress, startDegrees),
+                      clipper: _DonutSweepClipper(progress, _startDegrees),
                       child: child,
                     ),
                     child: PieChart(
                       PieChartData(
-                        startDegreeOffset: startDegrees,
+                        startDegreeOffset: _startDegrees,
                         sectionsSpace: 2,
                         centerSpaceRadius: 62 * s,
+                        // Generamos las secciones dinámicamente a partir de la lista 'series'.
                         sections: [
-                          PieChartSectionData(color: _blue, value: 7, radius: radius, showTitle: false),
-                          PieChartSectionData(color: _green, value: 65, radius: radius, showTitle: false),
-                          PieChartSectionData(color: _yellow, value: 18, radius: radius, showTitle: false),
-                          PieChartSectionData(color: _red, value: 10, radius: radius, showTitle: false),
+                          for (var i = 0; i < series.length; i++)
+                            PieChartSectionData(
+                              color: _colors[i % _colors.length],
+                              value: series[i],
+                              radius: radius,
+                              showTitle: false,
+                            ),
                         ],
                       ),
                       duration: Duration.zero, // Animación manejada por el clipper.
@@ -76,7 +100,11 @@ class TotalSalesCard extends StatelessWidget {
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('9,600', style: AppFonts.style(size: 24 * s, weight: FontWeight.w800, color: AppColors.brownDark)),
+                      // Formateamos el total a algo compacto (ej. $107,7 M).
+                      Text(
+                        Formatters.compactMoney(totalSales), 
+                        style: AppFonts.style(size: 24 * s, weight: FontWeight.w800, color: AppColors.brownDark)
+                      ),
                       Text('Ventas totales', style: AppFonts.style(size: 10 * s, color: AppColors.muted)),
                     ],
                   ),
@@ -85,26 +113,38 @@ class TotalSalesCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: 18 * s),
-          _buildSalesLegend(color: _green, title: 'Envíos', value: '\$32,98', percent: '(2%)', s: s),
-          SizedBox(height: 8 * s),
-          _buildSalesLegend(color: _yellow, title: 'Reembolsos', value: '\$11', percent: '(11%)', s: s),
-          SizedBox(height: 8 * s),
-          _buildSalesLegend(color: _red, title: 'Pedidos', value: '\$14,87', percent: '(1%)', s: s),
-          SizedBox(height: 8 * s),
-          _buildSalesLegend(color: _blue, title: 'Ingresos', value: '\$3.271', percent: '(86%)', s: s),
+          // Generamos la leyenda dinámicamente a partir de la lista 'labels'.
+          for (var i = 0; i < labels.length; i++) ...[
+            if (i > 0) SizedBox(height: 8 * s),
+            _buildSalesLegend(
+              color: _colors[i % _colors.length], 
+              label: labels[i], 
+              s: s,
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildSalesLegend({required Color color, required String title, required String value, required String percent, required double s}) {
+  /// Construye una fila de la leyenda. Recibe el label completo (ej. "Envíos $29,8M (28%)")
+  /// y lo divide para mostrar el título a la izquierda y el valor a la derecha.
+  Widget _buildSalesLegend({required Color color, required String label, required double s}) {
+    final parts = label.split(' ');
+    final title = parts.first;
+    final rest = label.replaceFirst(title, '').trim();
+
     return Row(
       children: [
         Container(width: 9, height: 9, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         SizedBox(width: 8 * s),
-        Text(title, style: AppFonts.style(size: 12 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
-        Text(' $value ', style: AppFonts.style(size: 12 * s, color: AppColors.brownDark)),
-        Text(percent, style: AppFonts.style(size: 11 * s, color: AppColors.muted)),
+        Expanded(
+          child: Text(
+            title, 
+            style: AppFonts.style(size: 12 * s, weight: FontWeight.w700, color: AppColors.brownDark)
+          ),
+        ),
+        Text(rest, style: AppFonts.style(size: 11 * s, color: AppColors.muted)),
       ],
     );
   }
