@@ -2,16 +2,15 @@
 // ============================================================================
 // PANTALLA: UserProfilePage
 // ============================================================================
-// Muestra la información del usuario y las opciones de configuración.
-// Implementa el "Perfilamiento Progresivo" y un esqueleto de carga (skeleton)
-// para evitar que se muestren datos viejos o incompletos mientras la app
-// consulta el backend al entrar a la pantalla.
+// Muestra la informacion del usuario y las opciones de configuracion.
+// Implementa el Perfilamiento Progresivo y un esqueleto de carga.
 // ============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
@@ -28,7 +27,7 @@ class UserProfilePage extends ConsumerStatefulWidget {
 }
 
 class _UserProfilePageState extends ConsumerState<UserProfilePage> {
-  // Variable para controlar el estado de carga inicial.
+  // Variable para controlar el estado de carga inicial
   bool _isLoading = true;
 
   @override
@@ -36,10 +35,10 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
     super.initState();
     Future.microtask(() async {
       try {
-        // Pedimos los datos frescos al backend al abrir la pantalla.
+        // Pedimos los datos frescos al backend al abrir la pantalla
         await ref.read(authControllerProvider.notifier).refreshProfile();
       } finally {
-        // Apagamos el esqueleto sin importar si hubo éxito o error.
+        // Apagamos el esqueleto sin importar si hubo exito o error
         if (mounted) setState(() => _isLoading = false);
       }
     });
@@ -49,10 +48,10 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   Widget build(BuildContext context) {
     final s = context.s;
     
-    // Observamos el estado global para obtener los datos reales del usuario.
+    // Observamos el estado global para obtener los datos reales del usuario
     final user = ref.watch(authControllerProvider).user;
 
-    // Calculamos cuántos campos están llenos usando la misma regla que Detalles.
+    // Calculamos cuantos campos estan llenos
     final done = ProfileRules.doneCount(
       nombres: user?.nombres,
       apellidos: user?.apellidos,
@@ -72,7 +71,6 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
           if (index == 4) return; 
         },
       ),
-      // SI ESTAMOS CARGANDO, MOSTRAMOS EL ESQUELETO.
       body: _isLoading 
           ? _UserProfileSkeleton(s: s)
           : ResponsiveLayout(
@@ -83,7 +81,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // HEADER
+                    // Header de la pantalla
                     Row(
                       children: [
                         GestureDetector(
@@ -93,7 +91,13 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.circle,
-                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05), 
+                                  blurRadius: 10, 
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
                             child: HugeIcon(
                               icon: HugeIcons.strokeRoundedArrowLeft01, 
@@ -104,36 +108,105 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                           ),
                         ),
                         SizedBox(width: 16 * s),
-                        Text('Perfil', style: AppFonts.style(size: 24 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
+                        Text(
+                          'Perfil', 
+                          style: AppFonts.style(
+                            size: 24 * s, 
+                            weight: FontWeight.w700, 
+                            color: AppColors.brownDark,
+                          ),
+                        ),
                         const Spacer(),
                       ],
                     ),
                     SizedBox(height: 24 * s),
 
-                    // TARJETA DEL USUARIO
+                    // Tarjeta del usuario
                     Container(
                       padding: EdgeInsets.all(20 * s),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(24 * s),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15, offset: const Offset(0, 8))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03), 
+                            blurRadius: 15, 
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
                       ),
                       child: Row(
                         children: [
+                          // Avatar del usuario
                           Container(
-                            width: 56 * s, height: 56 * s,
-                            decoration: const BoxDecoration(color: AppColors.beige, shape: BoxShape.circle),
+                            width: 56 * s, 
+                            height: 56 * s,
+                            decoration: BoxDecoration(
+                              color: AppColors.beige, 
+                              shape: BoxShape.circle,
+                              // Borde sutil para resaltar la foto
+                              border: Border.all(color: AppColors.goldLight, width: 1.5),
+                            ),
                             alignment: Alignment.center,
-                            child: Text(user?.initials ?? 'U', style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
+                            // ClipOval asegura que la imagen no se salga del circulo
+                            child: ClipOval(
+                              child: (user?.imagen != null && user!.imagen!.startsWith('http'))
+                                  ? CachedNetworkImage(
+                                      imageUrl: user.imagen!,
+                                      width: 56 * s,
+                                      height: 56 * s,
+                                      fit: BoxFit.cover,
+                                      // Mientras carga, mostramos un fondo solido
+                                      placeholder: (context, url) => Container(
+                                        color: AppColors.beige,
+                                      ),
+                                      // Si falla, mostramos las iniciales
+                                      errorWidget: (context, url, error) => Center(
+                                        child: Text(
+                                          user.initials ?? 'U', 
+                                          style: AppFonts.style(
+                                            size: 20 * s, 
+                                            weight: FontWeight.w700, 
+                                            color: AppColors.brownDark,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  // Si no hay url, mostramos las iniciales
+                                  : Center(
+                                      child: Text(
+                                        user?.initials ?? 'U', 
+                                        style: AppFonts.style(
+                                          size: 20 * s, 
+                                          weight: FontWeight.w700, 
+                                          color: AppColors.brownDark,
+                                        ),
+                                      ),
+                                    ),
+                            ),
                           ),
                           SizedBox(width: 16 * s),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(user?.fullName ?? 'Usuario', style: AppFonts.style(size: 18 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
+                                Text(
+                                  user?.fullName ?? 'Usuario', 
+                                  style: AppFonts.style(
+                                    size: 18 * s, 
+                                    weight: FontWeight.w700, 
+                                    color: AppColors.brownDark,
+                                  ),
+                                ),
                                 SizedBox(height: 4 * s),
-                                Text(user?.correo ?? 'correo@ejemplo.com', style: AppFonts.style(size: 13 * s, weight: FontWeight.w500, color: AppColors.muted)),
+                                Text(
+                                  user?.correo ?? 'correo@ejemplo.com', 
+                                  style: AppFonts.style(
+                                    size: 13 * s, 
+                                    weight: FontWeight.w500, 
+                                    color: AppColors.muted,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -141,7 +214,10 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                             onTap: () => context.push('/edit-profile'),
                             child: Container(
                               padding: EdgeInsets.all(10 * s),
-                              decoration: const BoxDecoration(color: AppColors.cream, shape: BoxShape.circle),
+                              decoration: const BoxDecoration(
+                                color: AppColors.cream, 
+                                shape: BoxShape.circle,
+                              ),
                               child: HugeIcon(
                                 icon: HugeIcons.strokeRoundedPencilEdit02, 
                                 size: 20 * s, 
@@ -154,7 +230,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                       ),
                     ),
                     
-                    // BANNER DE PERFIL INCOMPLETO (Solo sale si isIncomplete es true)
+                    // Banner de perfil incompleto
                     if (isIncomplete) ...[
                       SizedBox(height: 16 * s),
                       GestureDetector(
@@ -169,7 +245,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                               BoxShadow(
                                 color: AppColors.goldDark.withValues(alpha: 0.05), 
                                 blurRadius: 15, 
-                                offset: const Offset(0, 8)
+                                offset: const Offset(0, 8),
                               ),
                             ],
                           ),
@@ -195,12 +271,20 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                                   children: [
                                     Text(
                                       'Completa tu perfil',
-                                      style: AppFonts.style(size: 14 * s, weight: FontWeight.w700, color: AppColors.brownDark),
+                                      style: AppFonts.style(
+                                        size: 14 * s, 
+                                        weight: FontWeight.w700, 
+                                        color: AppColors.brownDark,
+                                      ),
                                     ),
                                     SizedBox(height: 4 * s),
                                     Text(
-                                      'Agiliza tus envíos agregando tus datos reales.',
-                                      style: AppFonts.style(size: 12 * s, weight: FontWeight.w500, color: AppColors.muted),
+                                      'Agiliza tus envios agregando tus datos reales.',
+                                      style: AppFonts.style(
+                                        size: 12 * s, 
+                                        weight: FontWeight.w500, 
+                                        color: AppColors.muted,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -219,7 +303,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
 
                     SizedBox(height: 24 * s),
 
-                    // SECCIÓN 1: MI CUENTA
+                    // Seccion Mi Cuenta
                     _buildSectionTitle('Mi cuenta', s),
                     SizedBox(height: 12 * s),
                     _buildSectionCard(
@@ -228,7 +312,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                         _buildMenuItem(
                           icon: HugeIcons.strokeRoundedUser, 
                           title: 'Detalles de la cuenta', 
-                          subtitle: 'Gestiona tu información personal', 
+                          subtitle: 'Gestiona tu informacion personal', 
                           onTap: () => context.push('/account-details'), 
                           s: s,
                         ),
@@ -251,8 +335,8 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                         _buildDivider(),
                         _buildMenuItem(
                           icon: HugeIcons.strokeRoundedSettings01, 
-                          title: 'Configuración', 
-                          subtitle: 'Preferencias de la aplicación', 
+                          title: 'Configuracion', 
+                          subtitle: 'Preferencias de la aplicacion', 
                           onTap: () {}, 
                           s: s,
                         ),
@@ -260,7 +344,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                     ),
                     SizedBox(height: 32 * s),
 
-                    // SECCIÓN 2: SOPORTE Y LEGAL
+                    // Seccion Soporte y Legal
                     _buildSectionTitle('Soporte y Legal', s),
                     SizedBox(height: 12 * s),
                     _buildSectionCard(
@@ -268,24 +352,24 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                       children: [
                         _buildMenuItem(
                           icon: HugeIcons.strokeRoundedCustomerSupport, 
-                          title: 'Contáctanos', 
-                          subtitle: '¿Necesitas ayuda?', 
+                          title: 'Contactanos', 
+                          subtitle: 'Necesitas ayuda?', 
                           onTap: () {}, 
                           s: s,
                         ),
                         _buildDivider(),
                         _buildMenuItem(
                           icon: HugeIcons.strokeRoundedDocumentAttachment, 
-                          title: 'Términos y condiciones', 
-                          subtitle: 'Lee nuestras políticas', 
+                          title: 'Terminos y condiciones', 
+                          subtitle: 'Lee nuestras politicas', 
                           onTap: () => context.push('/terms'), 
                           s: s,
                         ),
                         _buildDivider(),
                         _buildMenuItem(
                           icon: HugeIcons.strokeRoundedShield01, 
-                          title: 'Política de privacidad', 
-                          subtitle: 'Cómo protegemos tus datos', 
+                          title: 'Politica de privacidad', 
+                          subtitle: 'Como protegemos tus datos', 
                           onTap: () {}, 
                           s: s,
                         ),
@@ -300,7 +384,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                         _buildDivider(),
                         _buildMenuItem(
                           icon: HugeIcons.strokeRoundedLogout01,
-                          title: 'Cerrar sesión',
+                          title: 'Cerrar sesion',
                           subtitle: null,
                           iconColor: Colors.redAccent,
                           textColor: Colors.redAccent,
@@ -317,9 +401,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
     );
   }
 
-  // ==========================================================================
-  // MODAL DE CONFIRMACIÓN DE LOGOUT
-  // ==========================================================================
+  // Modal de confirmacion de logout
   void _showLogoutBottomSheet(BuildContext context, WidgetRef ref, double s) {
     showModalBottomSheet(
       context: context,
@@ -345,12 +427,12 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
               ),
               SizedBox(height: 24 * s),
               Text(
-                'Cerrar sesión',
+                'Cerrar sesion',
                 style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark),
               ),
               SizedBox(height: 12 * s),
               Text(
-                '¿Estás seguro que deseas cerrar sesión?',
+                'Estas seguro que deseas cerrar sesion?',
                 textAlign: TextAlign.center,
                 style: AppFonts.style(size: 14 * s, weight: FontWeight.w500, color: AppColors.muted),
               ),
@@ -386,7 +468,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16 * s)),
                       ),
                       child: Text(
-                        'Sí, cerrar sesión', 
+                        'Si, cerrar sesion', 
                         style: AppFonts.style(size: 15 * s, weight: FontWeight.w700, color: Colors.redAccent),
                       ),
                     ),
@@ -401,13 +483,14 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
     );
   }
 
-  // ==========================================================================
-  // WIDGETS AUXILIARES
-  // ==========================================================================
+  // Widgets auxiliares
   Widget _buildSectionTitle(String title, double s) {
     return Padding(
       padding: EdgeInsets.only(left: 8 * s),
-      child: Text(title, style: AppFonts.style(size: 16 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
+      child: Text(
+        title, 
+        style: AppFonts.style(size: 16 * s, weight: FontWeight.w700, color: AppColors.brownDark),
+      ),
     );
   }
 
@@ -416,7 +499,13 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24 * s),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15, offset: const Offset(0, 8))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03), 
+            blurRadius: 15, 
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(children: children),
     );
@@ -449,10 +538,16 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppFonts.style(size: 15 * s, weight: FontWeight.w600, color: textColor)),
+                  Text(
+                    title, 
+                    style: AppFonts.style(size: 15 * s, weight: FontWeight.w600, color: textColor),
+                  ),
                   if (subtitle != null) ...[
                     SizedBox(height: 4 * s),
-                    Text(subtitle, style: AppFonts.style(size: 12 * s, weight: FontWeight.w400, color: AppColors.muted)),
+                    Text(
+                      subtitle, 
+                      style: AppFonts.style(size: 12 * s, weight: FontWeight.w400, color: AppColors.muted),
+                    ),
                   ],
                 ],
               ),
@@ -473,9 +568,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   Widget _buildDivider() => const Divider(color: Color(0xFFF0F0F0), height: 1, thickness: 1);
 }
 
-// ============================================================================
-// ESQUELETO DE CARGA (SKELETON)
-// ============================================================================
+// Esqueleto de carga
 class _UserProfileSkeleton extends StatefulWidget {
   const _UserProfileSkeleton({required this.s});
   final double s;
@@ -521,10 +614,10 @@ class _UserProfileSkeletonState extends State<_UserProfileSkeleton>
                 return LinearGradient(
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
-                  colors: [
-                    const Color(0xFFF2ECE2),
-                    const Color(0xFFF9F6F0),
-                    const Color(0xFFF2ECE2),
+                  colors: const [
+                    Color(0xFFF2ECE2),
+                    Color(0xFFF9F6F0),
+                    Color(0xFFF2ECE2),
                   ],
                   stops: [
                     (_controller.value - 0.3).clamp(0.0, 1.0),
@@ -543,13 +636,21 @@ class _UserProfileSkeletonState extends State<_UserProfileSkeleton>
               Row(
                 children: [
                   Container(
-                    width: 40 * s, height: 40 * s,
-                    decoration: const BoxDecoration(color: Color(0xFFF2ECE2), shape: BoxShape.circle),
+                    width: 40 * s, 
+                    height: 40 * s,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF2ECE2), 
+                      shape: BoxShape.circle,
+                    ),
                   ),
                   SizedBox(width: 16 * s),
                   Container(
-                    width: 80 * s, height: 24 * s,
-                    decoration: BoxDecoration(color: const Color(0xFFF2ECE2), borderRadius: BorderRadius.circular(12 * s)),
+                    width: 80 * s, 
+                    height: 24 * s,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2ECE2), 
+                      borderRadius: BorderRadius.circular(12 * s),
+                    ),
                   ),
                 ],
               ),
@@ -566,14 +667,18 @@ class _UserProfileSkeletonState extends State<_UserProfileSkeleton>
               ),
               SizedBox(height: 24 * s),
               
-              // Título Sección Skeleton
+              // Titulo Seccion Skeleton
               Container(
-                width: 100 * s, height: 16 * s,
-                decoration: BoxDecoration(color: const Color(0xFFF2ECE2), borderRadius: BorderRadius.circular(8 * s)),
+                width: 100 * s, 
+                height: 16 * s,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2ECE2), 
+                  borderRadius: BorderRadius.circular(8 * s),
+                ),
               ),
               SizedBox(height: 12 * s),
               
-              // Contenedor de Sección Skeleton
+              // Contenedor de Seccion Skeleton
               Container(
                 width: double.infinity,
                 height: 200 * s,
@@ -584,14 +689,18 @@ class _UserProfileSkeletonState extends State<_UserProfileSkeleton>
               ),
               SizedBox(height: 32 * s),
               
-              // Título Sección Skeleton
+              // Titulo Seccion Skeleton
               Container(
-                width: 120 * s, height: 16 * s,
-                decoration: BoxDecoration(color: const Color(0xFFF2ECE2), borderRadius: BorderRadius.circular(8 * s)),
+                width: 120 * s, 
+                height: 16 * s,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2ECE2), 
+                  borderRadius: BorderRadius.circular(8 * s),
+                ),
               ),
               SizedBox(height: 12 * s),
               
-              // Contenedor de Sección Skeleton
+              // Contenedor de Seccion Skeleton
               Container(
                 width: double.infinity,
                 height: 240 * s,
