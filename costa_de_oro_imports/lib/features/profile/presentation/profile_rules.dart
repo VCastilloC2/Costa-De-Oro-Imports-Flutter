@@ -2,6 +2,9 @@
 // ============================================================================
 // REGLAS DE PERFIL
 // ============================================================================
+// Una sola fuente de verdad para saber qué datos del perfil son reales, si
+// son válidos y cuántos faltan.
+// ============================================================================
 
 abstract final class ProfileRules {
   static const String placeholderName = 'Pendiente';
@@ -15,7 +18,11 @@ abstract final class ProfileRules {
   }
 
   static String? cleanPhone(String? value) {
-    final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+    var digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+    // Eliminamos el prefijo 57 si viene con 12 dígitos.
+    if (digits.length == 12 && digits.startsWith('57')) {
+      digits = digits.substring(2);
+    }
     if (digits.isEmpty || digits.replaceAll('0', '').isEmpty) return null;
     return digits;
   }
@@ -45,21 +52,26 @@ abstract final class ProfileRules {
   static String? documento(String tipo, String? value) {
     final text = (value ?? '').trim();
     if (text.isEmpty) return 'Escribe tu número de documento';
-
+    
+    // Limpiamos cualquier máscara o caracter especial.
     final cleanText = text.replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
-
+    
     if (tipo == 'Pasaporte') {
-      return RegExp(r'^[A-Za-z0-9]{5,15}$').hasMatch(cleanText) ? null : 'Entre 5 y 15 letras o números';
+      return RegExp(r'^[A-Za-z0-9]{4,15}$').hasMatch(cleanText) ? null : 'Entre 4 y 15 letras o números';
     }
     if (!RegExp(r'^\d+$').hasMatch(cleanText)) return 'Usa solo números';
-    if (tipo == 'CC') {
-      return (cleanText.length >= 6 && cleanText.length <= 10) ? null : 'La cédula tiene entre 6 y 10 dígitos';
-    }
-    return (cleanText.length >= 5 && cleanText.length <= 15) ? null : 'Entre 5 y 15 dígitos';
+    
+    // ACTUALIZADO: Acepta desde 4 dígitos (para tus pruebas) hasta 13 dígitos.
+    return (cleanText.length >= 4 && cleanText.length <= 13) 
+        ? null 
+        : 'Debe tener entre 4 y 13 dígitos';
   }
 
   static String? telefono(String? value) {
-    final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+    var digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 12 && digits.startsWith('57')) {
+      digits = digits.substring(2);
+    }
     if (digits.isEmpty) return 'Escribe tu teléfono';
     if (digits.length != 10) return 'Debe tener 10 dígitos';
     return null;
@@ -67,7 +79,6 @@ abstract final class ProfileRules {
 
   static String? direccion(String? value) {
     final text = (value ?? '').trim();
-    // La dirección vacía cuenta como dato faltante (para que el perfil diga 80%)
     if (text.isEmpty) return 'Escribe tu dirección de envío'; 
     if (text.length < 6) return 'Escribe la dirección completa';
     return null;
@@ -88,6 +99,8 @@ abstract final class ProfileRules {
       ProfileRules.telefono(cleanPhone(telefono)),
       ProfileRules.direccion(cleanAddress(direccion)),
     ];
+    
+    // Retorna cuántos campos son válidos (null significa que no hay error).
     return results.where((e) => e == null).length;
   }
 }

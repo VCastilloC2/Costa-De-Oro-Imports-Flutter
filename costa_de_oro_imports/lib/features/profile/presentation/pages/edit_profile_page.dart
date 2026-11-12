@@ -2,10 +2,9 @@
 // ============================================================================
 // PANTALLA: EditProfilePage
 // ============================================================================
-// Formulario de edición de perfil. Se ha eliminado la CredentialCard para
-// centrar la pantalla en la edición de datos. Se añade la funcionalidad para
-// seleccionar una nueva foto de perfil desde la galería y restablecerla a la
-// imagen original si el usuario no desea guardar el cambio.
+// Formulario de edición de perfil optimizado. Incluye un avatar con overlay
+// para cambiar la foto, un sistema de scroll inteligente y un botón de guardar
+// con micro-interacciones.
 // ============================================================================
 
 import 'dart:io';
@@ -26,6 +25,9 @@ import '../profile_rules.dart';
 import '../widget/profile_field.dart';
 import '../widget/profile_section_card.dart';
 
+// Enum para manejar las secciones de forma segura
+enum ProfileSection { personal, document, contact }
+
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
 
@@ -35,40 +37,33 @@ class EditProfilePage extends ConsumerStatefulWidget {
 
 class _EditProfilePageState extends ConsumerState<EditProfilePage>
     with SingleTickerProviderStateMixin {
-  // Controladores de texto para cada campo del formulario.
   final _nombresController = TextEditingController();
   final _apellidosController = TextEditingController();
   final _numeroIdController = TextEditingController();
   final _telefonoController = TextEditingController();
   final _direccionController = TextEditingController();
 
-  // Llaves para acceder al estado de cada campo y disparar validaciones.
   final _nombresKey = GlobalKey<ProfileTextFieldState>();
   final _apellidosKey = GlobalKey<ProfileTextFieldState>();
   final _docKey = GlobalKey<ProfileTextFieldState>();
   final _telefonoKey = GlobalKey<ProfileTextFieldState>();
   final _direccionKey = GlobalKey<ProfileTextFieldState>();
 
-  // Listas ordenadas para iterar sobre los controladores y llaves.
   late final List<TextEditingController> _controllers;
   late final List<GlobalKey<ProfileTextFieldState>> _orderedKeys;
 
-  // Mapeo de índice de campo a sección de la tarjeta plegable.
-  static const _sectionOfField = [0, 0, 1, 2, 2];
   static const _fieldNames = ['nombres', 'apellidos', 'documento', 'telefono', 'direccion'];
 
-  // Secciones abiertas por defecto.
-  final Set<int> _open = {};
+  final Set<ProfileSection> _open = {};
 
-  String _tipo = 'CC'; // Tipo de documento seleccionado.
+  String _tipo = 'CC';
   bool _isLoading = false;
-  late final String _initialSnapshot; // Estado inicial para detectar cambios.
-  bool _dirty = false; // Indica si hay cambios sin guardar.
+  late final String _initialSnapshot;
+  bool _dirty = false;
 
-  // --- ESTADO PARA LA FOTO DE PERFIL ---
-  File? _selectedImage; // Archivo de imagen seleccionado desde la galería.
-  String? _originalImageUrl; // URL de la imagen que el usuario tenía al entrar.
-  bool _isUploadingImage = false; // Bandera de carga para la subida de la imagen.
+  File? _selectedImage;
+  String? _originalImageUrl;
+  bool _isUploadingImage = false;
 
   late final AnimationController _entry;
   bool _entryStarted = false;
@@ -122,12 +117,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     super.dispose();
   }
 
-  /// Carga los datos del usuario desde el estado global en los controladores.
   void _loadUserData() {
     final user = ref.read(authControllerProvider).user;
     if (user == null) return;
 
-    // Guardamos la URL de la imagen original para la función de restablecer.
     _originalImageUrl = user.imagen;
 
     final nombres = ProfileRules.cleanName(user.nombres);
@@ -149,15 +142,13 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     if (numero != null) _numeroIdController.text = numero;
   }
 
-  /// Abre las secciones que tengan campos faltantes al entrar.
   void _openInitialSections() {
-    if (_missingPersonal > 0) _open.add(0);
-    if (_missingDocument > 0) _open.add(1);
-    if (_missingContact > 0) _open.add(2);
-    if (_open.isEmpty) _open.addAll([0, 1, 2]);
+    if (_missingPersonal > 0) _open.add(ProfileSection.personal);
+    if (_missingDocument > 0) _open.add(ProfileSection.document);
+    if (_missingContact > 0) _open.add(ProfileSection.contact);
+    if (_open.isEmpty) _open.addAll(ProfileSection.values);
   }
 
-  /// Enfoca un campo específico si se navega con el parámetro ?campo=.
   void _focusRequestedField() {
     String? campo;
     try {
@@ -168,10 +159,18 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     final index = _fieldNames.indexOf(campo ?? '');
     if (index == -1) return;
 
-    _open.add(_sectionOfField[index]);
+    // Mapeamos el índice a la sección correcta usando el Enum
+    final section = switch (index) {
+      0 || 1 => ProfileSection.personal,
+      2 => ProfileSection.document,
+      3 || 4 => ProfileSection.contact,
+      _ => ProfileSection.personal,
+    };
 
-    Future<void>.delayed(const Duration(milliseconds: 450), () {
-      if (!mounted) return;
+    _open.add(section);
+
+    // Usamos addPostFrameCallback para asegurar que el layout ya se dibujó
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       final key = _orderedKeys[index];
       key.currentState?.focus();
       final ctx = key.currentContext;
@@ -186,16 +185,13 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     });
   }
 
-  /// Genera una cadena con el estado actual de los controladores.
   String _snapshot() => [for (final c in _controllers) c.text.trim(), _tipo].join('|');
 
-  /// Compara el estado actual con el inicial para determinar si hay cambios.
   void _syncDirty() {
     final dirty = _snapshot() != _initialSnapshot || _selectedImage != null;
     if (dirty != _dirty && mounted) setState(() => _dirty = dirty);
   }
 
-  /// Diálogo de confirmación si hay cambios sin guardar.
   Future<bool> _confirmDiscard() async {
     final leave = await showDialog<bool>(
       context: context,
@@ -225,7 +221,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     return leave ?? false;
   }
 
-  // --- GETTERS PARA EL CONTEO DE CAMPOS FALTANTES ---
   int _missing(List<String?> results) => results.where((e) => e != null).length;
 
   int get _missingPersonal => _missing([
@@ -240,9 +235,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
         ProfileRules.direccion(_direccionController.text),
       ]);
 
-  int get _doneCount => ProfileRules.totalFields - (_missingPersonal + _missingDocument + _missingContact);
-
-  // --- GETTERS PARA MOSTRAR RESÚMENES EN LAS TARJETAS PLEGABLES ---
   String get _fullName => '${_nombresController.text.trim()} ${_apellidosController.text.trim()}'.trim();
 
   String get _personalSummary => _fullName.isEmpty ? 'Sin completar' : _fullName;
@@ -262,15 +254,13 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     return parts.isEmpty ? 'Sin completar' : parts.join('  ·  ');
   }
 
-  /// Abre o cierra una sección de la tarjeta plegable.
-  void _toggle(int section) {
+  void _toggle(ProfileSection section) {
     FocusScope.of(context).unfocus();
     setState(() {
       if (!_open.remove(section)) _open.add(section);
     });
   }
 
-  /// Define los formateadores de entrada según el tipo de documento.
   List<TextInputFormatter> get _docFormatters => _tipo == 'Pasaporte'
       ? [
           FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
@@ -281,7 +271,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
           LengthLimitingTextInputFormatter(15),
         ];
 
-  /// Abre el selector de tipo de documento y actualiza el estado.
   Future<void> _pickDocumentType() async {
     FocusScope.of(context).unfocus();
     final picked = await showDocumentTypeSheet(context, selected: _tipo);
@@ -302,7 +291,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     _docKey.currentState?.revalidate();
   }
 
-  /// Muestra un SnackBar con un mensaje de éxito o error.
   void _showToast(String message, {bool error = false}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -330,11 +318,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
       );
   }
 
-  // ==========================================================================
-  // LÓGICA DE LA FOTO DE PERFIL
-  // ==========================================================================
-
-  /// Abre la galería del teléfono para seleccionar una imagen.
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -343,34 +326,34 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
       setState(() {
         _selectedImage = File(pickedFile.path);
       });
-      _syncDirty(); // Marcamos que hay cambios para activar el botón de guardar.
+      _syncDirty();
     }
   }
 
-  /// Restablece la imagen a la que el usuario tenía originalmente.
   void _resetImage() {
     setState(() {
-      _selectedImage = null; // Al ser null, se mostrará la imagen original.
+      _selectedImage = null;
     });
     _syncDirty();
   }
 
-  // ==========================================================================
-  // MÉTODO DE GUARDADO
-  // ==========================================================================
-  /// Valida los campos y envía los datos al backend. Si hay una nueva imagen,
-  /// la sube primero.
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
 
-    // 1. Validar todos los campos.
     final results = [for (final k in _orderedKeys) k.currentState?.validate() ?? true];
     final firstBad = results.indexOf(false);
-    if (firstBad != -1 && firstBad != 4) { // Ignoramos el error de dirección (índice 4) si los demás están bien.
+    
+    if (firstBad != -1 && firstBad != 4) { 
       HapticFeedback.lightImpact();
-      setState(() => _open.add(_sectionOfField[firstBad]));
-      Future<void>.delayed(const Duration(milliseconds: 320), () {
-        if (!mounted) return;
+      
+      final section = switch (firstBad) {
+        0 || 1 => ProfileSection.personal,
+        2 => ProfileSection.document,
+        _ => ProfileSection.contact,
+      };
+      setState(() => _open.add(section));
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         final ctx = _orderedKeys[firstBad].currentContext;
         if (ctx != null) {
           Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 350), curve: Curves.easeOutCubic, alignment: 0.25);
@@ -382,14 +365,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     setState(() => _isLoading = true);
 
     try {
-      // 2. Si hay una imagen nueva, la subimos primero.
       if (_selectedImage != null) {
         setState(() => _isUploadingImage = true);
         await ref.read(authControllerProvider.notifier).uploadProfileImage(_selectedImage!);
         setState(() => _isUploadingImage = false);
       }
 
-      // 3. Actualizamos el resto de los datos del perfil.
       await ref.read(authControllerProvider.notifier).updateProfile(
             nombres: _nombresController.text.trim(),
             apellidos: _apellidosController.text.trim(),
@@ -403,7 +384,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
       HapticFeedback.mediumImpact();
       setState(() {
         _dirty = false;
-        _selectedImage = null; // Limpiamos la selección local.
+        _selectedImage = null;
       });
       _showToast('Perfil actualizado con éxito');
       context.pop();
@@ -423,7 +404,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     }
   }
 
-  /// Animación de entrada para los bloques de la interfaz.
   Widget _reveal(double start, double end, Widget child) {
     final t = _entry.drive(CurveTween(curve: Interval(start, end, curve: Curves.easeOutCubic)));
     return FadeTransition(
@@ -439,8 +419,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
   Widget build(BuildContext context) {
     final s = context.s;
     final user = ref.watch(authControllerProvider).user;
-
-    // Determinamos qué imagen mostrar: la seleccionada localmente, la original, o un ícono.
     final hasImage = _selectedImage != null || (_originalImageUrl != null && _originalImageUrl!.startsWith('http'));
 
     return PopScope(
@@ -491,7 +469,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ============================================================
-                  // SECCIÓN DE FOTO DE PERFIL
+                  // SECCIÓN DE FOTO DE PERFIL (MEJORADA)
                   // ============================================================
                   _reveal(
                     0.0,
@@ -501,83 +479,73 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                         children: [
                           GestureDetector(
                             onTap: _pickImage,
-                            child: Container(
-                              width: 100 * s,
-                              height: 100 * s,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppColors.beige,
-                                border: Border.all(color: AppColors.goldLight, width: 2 * s),
-                              ),
-                              child: ClipOval(
-                                child: _selectedImage != null
-                                    ? Image.file(
-                                        _selectedImage!,
-                                        width: 100 * s,
-                                        height: 100 * s,
-                                        fit: BoxFit.cover,
-                                      )
-                                    : (hasImage
-                                        ? Image.network(
-                                            _originalImageUrl!,
-                                            width: 100 * s,
-                                            height: 100 * s,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) => Center(
-                                              child: HugeIcon(
-                                                icon: HugeIcons.strokeRoundedUser,
-                                                color: AppColors.brownDark,
-                                                size: 40 * s,
-                                                strokeWidth: 2.0,
-                                              ),
-                                            ),
-                                          )
-                                        : Center(
-                                            child: HugeIcon(
-                                              icon: HugeIcons.strokeRoundedUser,
-                                              color: AppColors.brownDark,
-                                              size: 40 * s,
-                                              strokeWidth: 2.0,
-                                            ),
-                                          )),
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 8 * s),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              TextButton.icon(
-                                onPressed: _isUploadingImage ? null : _pickImage,
-                                icon: HugeIcon(
-                                  icon: HugeIcons.strokeRoundedImageAdd01,
-                                  size: 16 * s,
-                                  color: AppColors.goldDark,
-                                  strokeWidth: 2.0,
-                                ),
-                                label: Text(
-                                  'Cambiar foto',
-                                  style: AppFonts.style(size: 13 * s, weight: FontWeight.w600, color: AppColors.goldDark),
-                                ),
-                              ),
-                              if (_selectedImage != null) ...[
-                                SizedBox(width: 12 * s),
-                                TextButton.icon(
-                                  onPressed: _isUploadingImage ? null : _resetImage,
-                                  icon: HugeIcon(
-                                    icon: HugeIcons.strokeRoundedRefresh,
-                                    size: 16 * s,
-                                    color: AppColors.muted,
-                                    strokeWidth: 2.0,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  width: 110 * s,
+                                  height: 110 * s,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.beige,
+                                    border: Border.all(color: AppColors.goldLight, width: 3 * s),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.brownDark.withValues(alpha: 0.1),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 10),
+                                      ),
+                                    ],
                                   ),
-                                  label: Text(
-                                    'Restablecer',
-                                    style: AppFonts.style(size: 13 * s, weight: FontWeight.w500, color: AppColors.muted),
+                                  child: ClipOval(
+                                    child: _selectedImage != null
+                                        ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                                        : (hasImage
+                                            ? Image.network(
+                                                _originalImageUrl!,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => _buildInitials(s),
+                                              )
+                                            : _buildInitials(s)),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: EdgeInsets.all(8 * s),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.goldDark,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 2 * s),
+                                    ),
+                                    child: HugeIcon(
+                                      icon: HugeIcons.strokeRoundedCamera01,
+                                      color: Colors.white,
+                                      size: 16 * s,
+                                      strokeWidth: 2.0,
+                                    ),
                                   ),
                                 ),
                               ],
-                            ],
+                            ),
                           ),
+                          if (_selectedImage != null) ...[
+                            SizedBox(height: 8 * s),
+                            TextButton.icon(
+                              onPressed: _isUploadingImage ? null : _resetImage,
+                              icon: HugeIcon(
+                                icon: HugeIcons.strokeRoundedRefresh,
+                                size: 16 * s,
+                                color: AppColors.muted,
+                                strokeWidth: 2.0,
+                              ),
+                              label: Text(
+                                'Restablecer foto original',
+                                style: AppFonts.style(size: 13 * s, weight: FontWeight.w500, color: AppColors.muted),
+                              ),
+                            ),
+                          ],
                           if (_isUploadingImage)
                             Padding(
                               padding: EdgeInsets.only(top: 8 * s),
@@ -590,7 +558,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                   SizedBox(height: 24 * s),
 
                   // ============================================================
-                  // FORMULARIO DE DATOS (SIN CREDENTIAL CARD)
+                  // FORMULARIO DE DATOS
                   // ============================================================
                   _reveal(
                     0.15,
@@ -601,8 +569,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                       listenable: Listenable.merge([_nombresController, _apellidosController]),
                       missingCount: () => _missingPersonal,
                       summary: () => _personalSummary,
-                      expanded: _open.contains(0),
-                      onToggle: () => _toggle(0),
+                      expanded: _open.contains(ProfileSection.personal),
+                      onToggle: () => _toggle(ProfileSection.personal),
                       children: [
                         ProfileTextField(
                           key: _nombresKey,
@@ -640,8 +608,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                       listenable: _numeroIdController,
                       missingCount: () => _missingDocument,
                       summary: () => _documentSummary,
-                      expanded: _open.contains(1),
-                      onToggle: () => _toggle(1),
+                      expanded: _open.contains(ProfileSection.document),
+                      onToggle: () => _toggle(ProfileSection.document),
                       footer: Row(
                         children: [
                           HugeIcon(
@@ -684,8 +652,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                       listenable: Listenable.merge([_telefonoController, _direccionController]),
                       missingCount: () => _missingContact,
                       summary: () => _contactSummary,
-                      expanded: _open.contains(2),
-                      onToggle: () => _toggle(2),
+                      expanded: _open.contains(ProfileSection.contact),
+                      onToggle: () => _toggle(ProfileSection.contact),
                       children: [
                         ProfileTextField(
                           key: _telefonoKey,
@@ -724,7 +692,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
           ),
         ),
 
-        // Botón de guardar en la parte inferior.
         bottomNavigationBar: DecoratedBox(
           decoration: const BoxDecoration(
             color: AppColors.cream,
@@ -745,10 +712,20 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
       ),
     );
   }
+
+  Widget _buildInitials(double s) {
+    final user = ref.read(authControllerProvider).user;
+    return Center(
+      child: Text(
+        user?.initials ?? 'U',
+        style: AppFonts.style(size: 40 * s, weight: FontWeight.w700, color: AppColors.brownDark),
+      ),
+    );
+  }
 }
 
 // ============================================================================
-// WIDGET DE BOTÓN DE GUARDADO
+// WIDGET DE BOTÓN DE GUARDADO (MEJORADO)
 // ============================================================================
 class _SaveButton extends StatelessWidget {
   const _SaveButton({
@@ -777,13 +754,15 @@ class _SaveButton extends StatelessWidget {
               end: Alignment.centerRight,
               colors: [AppColors.brownDark, AppColors.brown, AppColors.goldLight],
             ),
-            boxShadow: [
+            // El botón brilla cuando hay cambios guardables
+            boxShadow: enabled ? [
               BoxShadow(
-                color: AppColors.brown.withValues(alpha: 0.22),
+                color: AppColors.goldDark.withValues(alpha: 0.3),
                 blurRadius: 16,
+                spreadRadius: 2,
                 offset: const Offset(0, 8),
               ),
-            ],
+            ] : [],
           ),
           child: ElevatedButton(
             onPressed: (loading || !enabled) ? null : onPressed,
