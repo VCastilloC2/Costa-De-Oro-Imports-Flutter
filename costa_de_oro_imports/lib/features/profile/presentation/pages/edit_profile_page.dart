@@ -2,12 +2,9 @@
 // ============================================================================
 // PANTALLA: EditProfilePage
 // ============================================================================
-// Formulario de edición de perfil optimizado. Incluye un avatar con overlay
-// para cambiar la foto, un sistema de scroll inteligente y un botón de guardar
-// con micro-interacciones.
-// ============================================================================
 
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,11 +19,11 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
 import '../profile_rules.dart';
+import '../widget/edit_profile_header.dart';
+import '../widget/edit_profile_skeleton.dart';
 import '../widget/profile_field.dart';
 import '../widget/profile_section_card.dart';
-
-// Enum para manejar las secciones de forma segura
-enum ProfileSection { personal, document, contact }
+import '../widget/save_dock.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -52,21 +49,27 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
   late final List<TextEditingController> _controllers;
   late final List<GlobalKey<ProfileTextFieldState>> _orderedKeys;
 
+  static const _sectionOfField = [0, 0, 1, 2, 2];
   static const _fieldNames = ['nombres', 'apellidos', 'documento', 'telefono', 'direccion'];
 
-  final Set<ProfileSection> _open = {};
+  final Set<int> _open = {};
 
   String _tipo = 'CC';
   bool _isLoading = false;
-  late final String _initialSnapshot;
+  bool _saved = false;
+  
+  bool _isInitialLoading = true;
+
+  late final List<String> _initialValues;
+  late final String _initialTipo;
   bool _dirty = false;
+  int _changes = 0;
 
   File? _selectedImage;
   String? _originalImageUrl;
   bool _isUploadingImage = false;
 
   late final AnimationController _entry;
-  bool _entryStarted = false;
 
   @override
   void initState() {
@@ -81,31 +84,32 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     ];
     _orderedKeys = [_nombresKey, _apellidosKey, _docKey, _telefonoKey, _direccionKey];
 
+    // Aumentamos la duracion para que sea una animacion pausada y suave
     _entry = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1400),
     );
 
-    _loadUserData();
-    _initialSnapshot = _snapshot();
-    _openInitialSections();
-
-    for (final c in _controllers) {
-      c.addListener(_syncDirty);
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_entryStarted) return;
-    _entryStarted = true;
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _entry.value = 1;
-    } else {
-      _entry.forward();
-    }
-    _focusRequestedField();
+    Future.microtask(() async {
+      try {
+        await ref.read(authControllerProvider.notifier).refreshProfile();
+      } finally {
+        if (mounted) {
+          setState(() => _isInitialLoading = false);
+          _loadUserData();
+          _initialValues = [for (final c in _controllers) c.text.trim()];
+          _initialTipo = _tipo;
+          _openInitialSections();
+          
+          if (MediaQuery.disableAnimationsOf(context)) {
+            _entry.value = 1;
+          } else {
+            _entry.forward();
+          }
+          _focusRequestedField();
+        }
+      }
+    });
   }
 
   @override
@@ -140,13 +144,17 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
 
     final numero = ProfileRules.cleanText(user.numeroIdentificacion);
     if (numero != null) _numeroIdController.text = numero;
+
+    for (final c in _controllers) {
+      c.addListener(_syncDirty);
+    }
   }
 
   void _openInitialSections() {
-    if (_missingPersonal > 0) _open.add(ProfileSection.personal);
-    if (_missingDocument > 0) _open.add(ProfileSection.document);
-    if (_missingContact > 0) _open.add(ProfileSection.contact);
-    if (_open.isEmpty) _open.addAll(ProfileSection.values);
+    if (_missingPersonal > 0) _open.add(0);
+    if (_missingDocument > 0) _open.add(1);
+    if (_missingContact > 0) _open.add(2);
+    if (_open.isEmpty) _open.addAll([0, 1, 2]);
   }
 
   void _focusRequestedField() {
@@ -156,21 +164,23 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     } catch (_) {
       return;
     }
+
+    if (campo == 'foto') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _pickPhoto();
+      });
+      return;
+    }
+
     final index = _fieldNames.indexOf(campo ?? '');
     if (index == -1) return;
 
-    // Mapeamos el índice a la sección correcta usando el Enum
-    final section = switch (index) {
-      0 || 1 => ProfileSection.personal,
-      2 => ProfileSection.document,
-      3 || 4 => ProfileSection.contact,
-      _ => ProfileSection.personal,
-    };
+    _open
+      ..clear()
+      ..add(_sectionOfField[index]);
 
-    _open.add(section);
-
-    // Usamos addPostFrameCallback para asegurar que el layout ya se dibujó
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    Future<void>.delayed(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
       final key = _orderedKeys[index];
       key.currentState?.focus();
       final ctx = key.currentContext;
@@ -179,17 +189,43 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
           ctx,
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeOutCubic,
-          alignment: 0.25,
+          alignment: 0.3,
         );
       }
     });
   }
 
-  String _snapshot() => [for (final c in _controllers) c.text.trim(), _tipo].join('|');
+  int get _changeCount {
+    var n = 0;
+    for (var i = 0; i < _controllers.length; i++) {
+      if (_controllers[i].text.trim() != _initialValues[i]) n++;
+    }
+    if (_tipo != _initialTipo) n++;
+    if (_selectedImage != null) n++;
+    return n;
+  }
 
   void _syncDirty() {
-    final dirty = _snapshot() != _initialSnapshot || _selectedImage != null;
-    if (dirty != _dirty && mounted) setState(() => _dirty = dirty);
+    final n = _changeCount;
+    final dirty = n > 0;
+    if ((dirty != _dirty || n != _changes) && mounted) {
+      setState(() {
+        _dirty = dirty;
+        _changes = n;
+      });
+    }
+  }
+
+  void _discard() {
+    HapticFeedback.selectionClick();
+    for (final c in _controllers) {
+      c.clear();
+    }
+    _tipo = 'CC';
+    _selectedImage = null;
+    _loadUserData();
+    _syncDirty();
+    setState(() {});
   }
 
   Future<bool> _confirmDiscard() async {
@@ -199,21 +235,32 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Text(
-          '¿Salir sin guardar?',
+          'Salir sin guardar?',
           style: AppFonts.style(size: 18, weight: FontWeight.w700, color: AppColors.brownDark),
         ),
         content: Text(
-          'Tienes cambios sin guardar. Si sales ahora, se perderán.',
-          style: AppFonts.style(size: 14, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.8), height: 1.4),
+          'Tienes cambios sin guardar. Si sales ahora, se perderan.',
+          style: AppFonts.style(
+            size: 14,
+            weight: FontWeight.w500,
+            color: AppColors.brown.withValues(alpha: 0.8),
+            height: 1.4,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Seguir editando', style: AppFonts.style(size: 14, weight: FontWeight.w700, color: AppColors.goldDark)),
+            child: Text(
+              'Seguir editando',
+              style: AppFonts.style(size: 14, weight: FontWeight.w700, color: AppColors.goldDark),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Salir', style: AppFonts.style(size: 14, weight: FontWeight.w600, color: AppColors.brown)),
+            child: Text(
+              'Salir',
+              style: AppFonts.style(size: 14, weight: FontWeight.w600, color: AppColors.brown),
+            ),
           ),
         ],
       ),
@@ -228,14 +275,19 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
         ProfileRules.apellidos(_apellidosController.text),
       ]);
 
-  int get _missingDocument => _missing([ProfileRules.documento(_tipo, _numeroIdController.text)]);
+  int get _missingDocument =>
+      _missing([ProfileRules.documento(_tipo, _numeroIdController.text)]);
 
   int get _missingContact => _missing([
         ProfileRules.telefono(_telefonoController.text),
         ProfileRules.direccion(_direccionController.text),
       ]);
 
-  String get _fullName => '${_nombresController.text.trim()} ${_apellidosController.text.trim()}'.trim();
+  int get _doneCount =>
+      ProfileRules.totalFields - (_missingPersonal + _missingDocument + _missingContact);
+
+  String get _fullName =>
+      '${_nombresController.text.trim()} ${_apellidosController.text.trim()}'.trim();
 
   String get _personalSummary => _fullName.isEmpty ? 'Sin completar' : _fullName;
 
@@ -251,10 +303,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
       if (phone.isNotEmpty) (phone.length == 10 ? formatPhoneCo(phone) : phone),
       if (address.isNotEmpty) address,
     ];
-    return parts.isEmpty ? 'Sin completar' : parts.join('  ·  ');
+    return parts.isEmpty ? 'Sin completar' : parts.join('  -  ');
   }
 
-  void _toggle(ProfileSection section) {
+  void _toggle(int section) {
     FocusScope.of(context).unfocus();
     setState(() {
       if (!_open.remove(section)) _open.add(section);
@@ -303,14 +355,19 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
           content: Row(
             children: [
               HugeIcon(
-                icon: error ? HugeIcons.strokeRoundedAlert02 : HugeIcons.strokeRoundedCheckmarkCircle02,
+                icon: error
+                    ? HugeIcons.strokeRoundedAlert02
+                    : HugeIcons.strokeRoundedCheckmarkCircle02,
                 color: error ? const Color(0xFFFF8A80) : AppColors.goldLight,
                 size: 20,
                 strokeWidth: 2.0,
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(message, style: AppFonts.style(size: 14, weight: FontWeight.w500, color: Colors.white)),
+                child: Text(
+                  message,
+                  style: AppFonts.style(size: 14, weight: FontWeight.w500, color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -318,22 +375,40 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
       );
   }
 
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+  Future<void> _pickPhoto() async {
+    if (_isUploadingImage || _isLoading) return;
+    FocusScope.of(context).unfocus();
+    final source = await showPhotoSourceSheet(context);
+    if (source == null || !mounted) return;
+    await _pickImage(source);
+  }
 
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImage = File(pickedFile.path);
-      });
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final file = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 1080,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+      if (file == null || !mounted) return;
+      HapticFeedback.selectionClick();
+      setState(() => _selectedImage = File(file.path));
       _syncDirty();
+    } on PlatformException {
+      if (!mounted) return;
+      _showToast(
+        source == ImageSource.camera
+            ? 'No pudimos abrir la camara.'
+            : 'No pudimos abrir la galeria.',
+        error: true,
+      );
     }
   }
 
   void _resetImage() {
-    setState(() {
-      _selectedImage = null;
-    });
+    HapticFeedback.selectionClick();
+    setState(() => _selectedImage = null);
     _syncDirty();
   }
 
@@ -342,21 +417,19 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
 
     final results = [for (final k in _orderedKeys) k.currentState?.validate() ?? true];
     final firstBad = results.indexOf(false);
-    
-    if (firstBad != -1 && firstBad != 4) { 
+    if (firstBad != -1) {
       HapticFeedback.lightImpact();
-      
-      final section = switch (firstBad) {
-        0 || 1 => ProfileSection.personal,
-        2 => ProfileSection.document,
-        _ => ProfileSection.contact,
-      };
-      setState(() => _open.add(section));
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() => _open.add(_sectionOfField[firstBad]));
+      Future<void>.delayed(const Duration(milliseconds: 320), () {
+        if (!mounted) return;
         final ctx = _orderedKeys[firstBad].currentContext;
         if (ctx != null) {
-          Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 350), curve: Curves.easeOutCubic, alignment: 0.25);
+          Scrollable.ensureVisible(
+            ctx,
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeOutCubic,
+            alignment: 0.3,
+          );
         }
       });
       return;
@@ -368,14 +441,20 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
       if (_selectedImage != null) {
         setState(() => _isUploadingImage = true);
         await ref.read(authControllerProvider.notifier).uploadProfileImage(_selectedImage!);
-        setState(() => _isUploadingImage = false);
+        if (!mounted) return;
+        setState(() {
+          _isUploadingImage = false;
+          _selectedImage = null;
+          _originalImageUrl =
+              ref.read(authControllerProvider).user?.imagen ?? _originalImageUrl;
+        });
       }
 
       await ref.read(authControllerProvider.notifier).updateProfile(
             nombres: _nombresController.text.trim(),
             apellidos: _apellidosController.text.trim(),
             telefono: _telefonoController.text.trim(),
-            direccion: _direccionController.text.trim(),
+            direccion: _normalizeAddress(_direccionController.text.trim()),
             tipoIdentificacion: _tipo,
             numeroIdentificacion: _numeroIdController.text.trim(),
           );
@@ -384,16 +463,18 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
       HapticFeedback.mediumImpact();
       setState(() {
         _dirty = false;
+        _changes = 0;
         _selectedImage = null;
+        _saved = true;
       });
-      _showToast('Perfil actualizado con éxito');
-      context.pop();
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      if (mounted) context.pop();
     } on ApiException catch (e) {
       if (!mounted) return;
       _showToast(e.message, error: true);
     } catch (_) {
       if (!mounted) return;
-      _showToast('No se pudo guardar. Inténtalo de nuevo.', error: true);
+      _showToast('No se pudo guardar. Intentalo de nuevo.', error: true);
     } finally {
       if (mounted) {
         setState(() {
@@ -404,12 +485,18 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     }
   }
 
+  // NUEVA ANIMACION: Mas suave, con curva easeOutQuart y mayor recorrido
   Widget _reveal(double start, double end, Widget child) {
-    final t = _entry.drive(CurveTween(curve: Interval(start, end, curve: Curves.easeOutCubic)));
+    final curve = Interval(start, end, curve: Curves.easeOutQuart);
+    final animation = CurvedAnimation(parent: _entry, curve: curve);
+    
     return FadeTransition(
-      opacity: t,
+      opacity: animation,
       child: SlideTransition(
-        position: t.drive(Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero)),
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.08), // Recorrido mas notorio
+          end: Offset.zero,
+        ).animate(animation),
         child: child,
       ),
     );
@@ -418,8 +505,14 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
   @override
   Widget build(BuildContext context) {
     final s = context.s;
-    final user = ref.watch(authControllerProvider).user;
-    final hasImage = _selectedImage != null || (_originalImageUrl != null && _originalImageUrl!.startsWith('http'));
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+    if (_isInitialLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF9F6F0),
+        body: EditProfileSkeleton(s: s),
+      );
+    }
 
     return PopScope(
       canPop: !_dirty,
@@ -429,370 +522,215 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
         if (leave && mounted) context.pop();
       },
       child: Scaffold(
-        backgroundColor: AppColors.cream,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          centerTitle: true,
-          leadingWidth: 64 * s,
-          leading: Padding(
-            padding: EdgeInsets.only(left: 16 * s),
-            child: IconButton(
-              tooltip: 'Volver',
-              icon: const HugeIcon(
-                icon: HugeIcons.strokeRoundedArrowLeft01,
-                color: AppColors.brownDark,
-                size: 18,
-                strokeWidth: 2.0,
-              ),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.white,
-                side: const BorderSide(color: AppColors.border),
-                shape: const CircleBorder(),
-              ),
-              onPressed: () => Navigator.of(context).maybePop(),
-            ),
-          ),
-          title: Text(
-            'Editar perfil',
-            style: AppFonts.style(size: 25, weight: FontWeight.w700, color: AppColors.brownDark),
-          ),
-        ),
-        body: ResponsiveLayout(
-          useSafeArea: true,
-          useScrollView: true,
-          child: AutofillGroup(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(20 * s, 8 * s, 20 * s, 28 * s),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ============================================================
-                  // SECCIÓN DE FOTO DE PERFIL (MEJORADA)
-                  // ============================================================
-                  _reveal(
-                    0.0,
-                    0.4,
-                    Center(
-                      child: Column(
-                        children: [
-                          GestureDetector(
-                            onTap: _pickImage,
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Container(
-                                  width: 110 * s,
-                                  height: 110 * s,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: AppColors.beige,
-                                    border: Border.all(color: AppColors.goldLight, width: 3 * s),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.brownDark.withValues(alpha: 0.1),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 10),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ClipOval(
-                                    child: _selectedImage != null
-                                        ? Image.file(_selectedImage!, fit: BoxFit.cover)
-                                        : (hasImage
-                                            ? Image.network(
-                                                _originalImageUrl!,
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) => _buildInitials(s),
-                                              )
-                                            : _buildInitials(s)),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    padding: EdgeInsets.all(8 * s),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.goldDark,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2 * s),
-                                    ),
-                                    child: HugeIcon(
-                                      icon: HugeIcons.strokeRoundedCamera01,
-                                      color: Colors.white,
-                                      size: 16 * s,
-                                      strokeWidth: 2.0,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (_selectedImage != null) ...[
-                            SizedBox(height: 8 * s),
-                            TextButton.icon(
-                              onPressed: _isUploadingImage ? null : _resetImage,
-                              icon: HugeIcon(
-                                icon: HugeIcons.strokeRoundedRefresh,
-                                size: 16 * s,
-                                color: AppColors.muted,
-                                strokeWidth: 2.0,
-                              ),
-                              label: Text(
-                                'Restablecer foto original',
-                                style: AppFonts.style(size: 13 * s, weight: FontWeight.w500, color: AppColors.muted),
-                              ),
-                            ),
-                          ],
-                          if (_isUploadingImage)
-                            Padding(
-                              padding: EdgeInsets.only(top: 8 * s),
-                              child: const CircularProgressIndicator(color: AppColors.goldDark),
-                            ),
-                        ],
+        backgroundColor: const Color(0xFFF9F6F0),
+        body: Stack(
+          children: [
+            // Ya NO hay FadeTransition global aqui. El header aparece de golpe,
+            // pero las tarjetas de abajo fluyen suavemente.
+            CustomScrollView(
+              physics: const ClampingScrollPhysics(),
+              slivers: [
+                EditProfileSliverHeader(
+                  s: s,
+                  listenable: Listenable.merge(_controllers),
+                  progress: () => _doneCount / ProfileRules.totalFields,
+                  selectedImage: _selectedImage,
+                  imageUrl: _originalImageUrl,
+                  uploading: _isUploadingImage,
+                  onBack: () => Navigator.of(context).maybePop(),
+                  onPickPhoto: _pickPhoto,
+                  onResetPhoto: _resetImage,
+                ),
+                SliverToBoxAdapter(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 560),
+                      child: AutofillGroup(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(20 * s, 32 * s, 20 * s, 140 * s + bottomInset),
+                          child: _buildForm(s),
+                        ),
                       ),
                     ),
                   ),
-                  SizedBox(height: 24 * s),
-
-                  // ============================================================
-                  // FORMULARIO DE DATOS
-                  // ============================================================
-                  _reveal(
-                    0.15,
-                    0.55,
-                    ProfileSectionCard(
-                      icon: HugeIcons.strokeRoundedUser,
-                      title: 'Datos personales',
-                      listenable: Listenable.merge([_nombresController, _apellidosController]),
-                      missingCount: () => _missingPersonal,
-                      summary: () => _personalSummary,
-                      expanded: _open.contains(ProfileSection.personal),
-                      onToggle: () => _toggle(ProfileSection.personal),
-                      children: [
-                        ProfileTextField(
-                          key: _nombresKey,
-                          label: 'Nombres',
-                          hint: 'Ej: Juan Camilo',
-                          controller: _nombresController,
-                          icon: HugeIcons.strokeRoundedUser,
-                          validator: ProfileRules.nombres,
-                          textCapitalization: TextCapitalization.words,
-                          autofillHints: const [AutofillHints.givenName],
-                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' .-]"))],
-                        ),
-                        ProfileTextField(
-                          key: _apellidosKey,
-                          label: 'Apellidos',
-                          hint: 'Ej: Pérez Gómez',
-                          controller: _apellidosController,
-                          icon: HugeIcons.strokeRoundedUser,
-                          validator: ProfileRules.apellidos,
-                          textCapitalization: TextCapitalization.words,
-                          autofillHints: const [AutofillHints.familyName],
-                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' .-]"))],
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 16 * s),
-
-                  _reveal(
-                    0.3,
-                    0.7,
-                    ProfileSectionCard(
-                      icon: HugeIcons.strokeRoundedIdentityCard,
-                      title: 'Documento de identidad',
-                      listenable: _numeroIdController,
-                      missingCount: () => _missingDocument,
-                      summary: () => _documentSummary,
-                      expanded: _open.contains(ProfileSection.document),
-                      onToggle: () => _toggle(ProfileSection.document),
-                      footer: Row(
-                        children: [
-                          HugeIcon(
-                            icon: HugeIcons.strokeRoundedSquareLock02,
-                            size: 15,
-                            color: AppColors.brown.withValues(alpha: 0.6),
-                            strokeWidth: 2.0,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Lo usamos solo para tu facturación.',
-                              style: AppFonts.style(size: 12.5, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.68)),
-                            ),
-                          ),
-                        ],
-                      ),
-                      children: [
-                        ProfileTextField(
-                          key: _docKey,
-                          label: 'Número de documento',
-                          hint: '12345678',
-                          controller: _numeroIdController,
-                          leading: DocTypeButton(value: _tipo, onTap: _pickDocumentType),
-                          validator: (v) => ProfileRules.documento(_tipo, v),
-                          keyboardType: _tipo == 'Pasaporte' ? TextInputType.text : TextInputType.number,
-                          inputFormatters: _docFormatters,
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 16 * s),
-
-                  _reveal(
-                    0.45,
-                    0.9,
-                    ProfileSectionCard(
-                      icon: HugeIcons.strokeRoundedDeliveryTruck01,
-                      title: 'Contacto y envío',
-                      listenable: Listenable.merge([_telefonoController, _direccionController]),
-                      missingCount: () => _missingContact,
-                      summary: () => _contactSummary,
-                      expanded: _open.contains(ProfileSection.contact),
-                      onToggle: () => _toggle(ProfileSection.contact),
-                      children: [
-                        ProfileTextField(
-                          key: _telefonoKey,
-                          label: 'Teléfono móvil',
-                          hint: '300 123 4567',
-                          controller: _telefonoController,
-                          icon: HugeIcons.strokeRoundedSmartPhone01,
-                          prefixText: '+57',
-                          validator: ProfileRules.telefono,
-                          keyboardType: TextInputType.phone,
-                          autofillHints: const [AutofillHints.telephoneNumberNational],
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(10),
-                          ],
-                        ),
-                        ProfileTextField(
-                          key: _direccionKey,
-                          label: 'Dirección de envío',
-                          hint: 'Calle 123 #45-67',
-                          helper: 'Incluye barrio, conjunto o apartamento si aplica.',
-                          controller: _direccionController,
-                          icon: HugeIcons.strokeRoundedLocation01,
-                          validator: ProfileRules.direccion,
-                          keyboardType: TextInputType.streetAddress,
-                          textInputAction: TextInputAction.done,
-                          textCapitalization: TextCapitalization.sentences,
-                          autofillHints: const [AutofillHints.fullStreetAddress],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
-        ),
-
-        bottomNavigationBar: DecoratedBox(
-          decoration: const BoxDecoration(
-            color: AppColors.cream,
-            border: Border(top: BorderSide(color: AppColors.border)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(20 * s, 12 * s, 20 * s, 12 * s),
-              child: _SaveButton(
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: SaveDock(
+                s: s,
+                visible: _dirty || _isLoading || _saved,
                 loading: _isLoading,
-                enabled: _dirty,
-                onPressed: _submit,
+                saved: _saved,
+                message: _changes == 1 ? '1 cambio sin guardar' : '$_changes cambios sin guardar',
+                onSave: _submit,
+                onDiscard: _discard,
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildInitials(double s) {
-    final user = ref.read(authControllerProvider).user;
-    return Center(
-      child: Text(
-        user?.initials ?? 'U',
-        style: AppFonts.style(size: 40 * s, weight: FontWeight.w700, color: AppColors.brownDark),
-      ),
+  Widget _buildForm(double s) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Intervalos mas espaciados para efecto "cascada"
+        _reveal(
+          0.0, // Inicia de inmediato
+          0.4,
+          ProfileSectionCard(
+            icon: HugeIcons.strokeRoundedUser,
+            title: 'Datos personales',
+            listenable: Listenable.merge([_nombresController, _apellidosController]),
+            missingCount: () => _missingPersonal,
+            summary: () => _personalSummary,
+            expanded: _open.contains(0),
+            onToggle: () => _toggle(0),
+            children: [
+              ProfileTextField(
+                  key: _nombresKey,
+                  label: 'Nombres',
+                  hint: 'Ej: Juan Camilo',
+                  controller: _nombresController,
+                  icon: HugeIcons.strokeRoundedUser,
+                  validator: ProfileRules.nombres,
+                  textCapitalization: TextCapitalization.words,
+                  autofillHints: const [AutofillHints.givenName],
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' .-]")),
+                  ],
+              ),
+              ProfileTextField(
+                  key: _apellidosKey,
+                  label: 'Apellidos',
+                  hint: 'Ej: Perez Gomez',
+                  controller: _apellidosController,
+                  icon: HugeIcons.strokeRoundedUser,
+                  validator: ProfileRules.apellidos,
+                  textCapitalization: TextCapitalization.words,
+                  autofillHints: const [AutofillHints.familyName],
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' .-]")),
+                  ],
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 16 * s),
+        _reveal(
+          0.15, // Entra un poco despues
+          0.55,
+          ProfileSectionCard(
+            icon: HugeIcons.strokeRoundedIdentityCard,
+            title: 'Documento de identidad',
+            listenable: _numeroIdController,
+            missingCount: () => _missingDocument,
+            summary: () => _documentSummary,
+            expanded: _open.contains(1),
+            onToggle: () => _toggle(1),
+            footer: Row(
+              children: [
+                HugeIcon(
+                  icon: HugeIcons.strokeRoundedSquareLock02,
+                  size: 15,
+                  color: AppColors.brown.withValues(alpha: 0.6),
+                  strokeWidth: 2.0,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Lo usamos solo para tu facturacion.',
+                    style: AppFonts.style(
+                      size: 12.5,
+                      weight: FontWeight.w500,
+                      color: AppColors.brown.withValues(alpha: 0.68),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            children: [
+              ProfileTextField(
+                  key: _docKey,
+                  label: 'Numero de documento',
+                  hint: '12345678',
+                  controller: _numeroIdController,
+                  leading: DocTypeButton(value: _tipo, onTap: _pickDocumentType),
+                  validator: (v) => ProfileRules.documento(_tipo, v),
+                  keyboardType: _tipo == 'Pasaporte' ? TextInputType.text : TextInputType.number,
+                  inputFormatters: _docFormatters,
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 16 * s),
+        _reveal(
+          0.3, // La ultima tarda mas en aparecer
+          0.7,
+          ProfileSectionCard(
+            icon: HugeIcons.strokeRoundedDeliveryTruck01,
+            title: 'Contacto y envio',
+            listenable: Listenable.merge([_telefonoController, _direccionController]),
+            missingCount: () => _missingContact,
+            summary: () => _contactSummary,
+            expanded: _open.contains(2),
+            onToggle: () => _toggle(2),
+            children: [
+              ProfileTextField(
+                  key: _telefonoKey,
+                  label: 'Telefono movil',
+                  hint: '300 123 4567',
+                  controller: _telefonoController,
+                  icon: HugeIcons.strokeRoundedSmartPhone01,
+                  prefixText: '+57',
+                  validator: ProfileRules.telefono,
+                  keyboardType: TextInputType.phone,
+                  autofillHints: const [AutofillHints.telephoneNumberNational],
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+              ),
+              ProfileTextField(
+                  key: _direccionKey,
+                  label: 'Direccion de envio',
+                  hint: 'Calle 123 #45-67',
+                  helper: 'Incluye barrio, conjunto o apartamento si aplica.',
+                  controller: _direccionController,
+                  icon: HugeIcons.strokeRoundedLocation01,
+                  validator: ProfileRules.direccion,
+                  keyboardType: TextInputType.streetAddress,
+                  textInputAction: TextInputAction.done,
+                  textCapitalization: TextCapitalization.words,
+                  autofillHints: const [AutofillHints.fullStreetAddress],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
 
-// ============================================================================
-// WIDGET DE BOTÓN DE GUARDADO (MEJORADO)
-// ============================================================================
-class _SaveButton extends StatelessWidget {
-  const _SaveButton({
-    required this.loading,
-    required this.enabled,
-    required this.onPressed,
-  });
-
-  final bool loading;
-  final bool enabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 200),
-      opacity: (enabled || loading) ? 1 : 0.45,
-      child: SizedBox(
-        width: double.infinity,
-        height: 58,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: const LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [AppColors.brownDark, AppColors.brown, AppColors.goldLight],
-            ),
-            // El botón brilla cuando hay cambios guardables
-            boxShadow: enabled ? [
-              BoxShadow(
-                color: AppColors.goldDark.withValues(alpha: 0.3),
-                blurRadius: 16,
-                spreadRadius: 2,
-                offset: const Offset(0, 8),
-              ),
-            ] : [],
-          ),
-          child: ElevatedButton(
-            onPressed: (loading || !enabled) ? null : onPressed,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              disabledBackgroundColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              elevation: 0,
-              padding: EdgeInsets.zero,
-              minimumSize: Size.zero,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            ),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: loading
-                  ? const SizedBox(
-                      key: ValueKey('loading'),
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
-                    )
-                  : Text(
-                      'Guardar cambios',
-                      key: const ValueKey('label'),
-                      style: AppFonts.style(size: 17, weight: FontWeight.w700, color: AppColors.creamText),
-                    ),
-            ),
-          ),
-        ),
-      ),
-    );
+String _normalizeAddress(String raw) {
+  if (raw.isEmpty) return raw;
+  const small = {'de', 'del', 'la', 'las', 'los', 'el', 'y', 'en'};
+  final allLower = raw == raw.toLowerCase();
+  final words = raw.split(RegExp(r'\s+'));
+  final out = <String>[];
+  for (var i = 0; i < words.length; i++) {
+    final w = words[i];
+    if (w.isEmpty || RegExp(r'\d').hasMatch(w)) {
+      out.add(w);
+    } else if (i > 0 && small.contains(w.toLowerCase())) {
+      out.add(w.toLowerCase());
+    } else {
+      out.add(allLower ? w[0].toUpperCase() + w.substring(1) : w);
+    }
   }
+  return out.join(' ');
 }

@@ -2,13 +2,13 @@
 // ============================================================================
 // WIDGET: ProfileHero
 // ============================================================================
-// Tarjeta de encabezado con avatar de iniciales y anillo de progreso.
-// Utiliza Hugeicons y diseño responsivo.
+// Tarjeta de encabezado con avatar (foto o iniciales) y anillo de progreso.
 // ============================================================================
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
@@ -23,12 +23,14 @@ class ProfileHero extends StatelessWidget {
     required this.remaining,
     required this.firstName,
     required this.initials,
+    this.imageUrl,
   });
 
   final double progress;
   final int remaining;
   final String firstName;
   final String initials;
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +39,7 @@ class ProfileHero extends StatelessWidget {
     final complete = remaining == 0;
     final title = firstName.isEmpty ? 'Tu perfil' : 'Hola, $firstName';
     final subtitle = complete
-        ? '¡Listo! Tu perfil está completo.'
+        ? 'Listo. Tu perfil esta completo.'
         : (remaining == 1
             ? 'Te falta 1 dato para completar tu perfil.'
             : 'Te faltan $remaining datos para completar tu perfil.');
@@ -72,9 +74,18 @@ class ProfileHero extends StatelessWidget {
                       child: CustomPaint(
                         painter: _RingPainter(value),
                         child: Center(
-                          child: initials.isEmpty
-                              ? HugeIcon(icon: HugeIcons.strokeRoundedUser, color: AppColors.creamText, size: 32 * s, strokeWidth: 2.2)
-                              : Text(initials, style: AppFonts.style(size: 24 * s, weight: FontWeight.w800, color: AppColors.creamText)),
+                          child: ClipOval(
+                            child: (imageUrl != null && imageUrl!.startsWith('http'))
+                                ? CachedNetworkImage(
+                                    imageUrl: imageUrl!,
+                                    width: 82 * s,
+                                    height: 82 * s,
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) => const SizedBox(),
+                                    errorWidget: (context, url, error) => _buildInitials(s),
+                                  )
+                                : _buildInitials(s),
+                          ),
                         ),
                       ),
                     );
@@ -112,6 +123,18 @@ class ProfileHero extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildInitials(double s) {
+    return Container(
+      width: 82 * s, 
+      height: 82 * s,
+      color: Colors.white.withValues(alpha: 0.1),
+      alignment: Alignment.center,
+      child: initials.isEmpty
+          ? HugeIcon(icon: HugeIcons.strokeRoundedUser, color: AppColors.creamText, size: 32 * s, strokeWidth: 2.2)
+          : Text(initials, style: AppFonts.style(size: 24 * s, weight: FontWeight.w800, color: AppColors.creamText)),
     );
   }
 }
