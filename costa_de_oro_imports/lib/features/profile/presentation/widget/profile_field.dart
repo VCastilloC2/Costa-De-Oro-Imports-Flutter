@@ -2,9 +2,8 @@
 // ============================================================================
 // WIDGET: ProfileTextField
 // ============================================================================
-// Campo de texto del perfil con validación, check de estado y selector de
-// documento. Utiliza Hugeicons y diseño responsivo. Los iconos están
-// centrados para evitar deformaciones visuales.
+// Campo de texto robusto con validacion en tiempo real, sacudida en caso
+// de error y check elastico al validarse.
 // ============================================================================
 
 import 'package:flutter/material.dart';
@@ -14,6 +13,7 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import 'field_feedback.dart'; // Importa ValidCheck y ShakeOnce
 
 class ProfileTextField extends StatefulWidget {
   const ProfileTextField({
@@ -60,17 +60,25 @@ class ProfileTextFieldState extends State<ProfileTextField> {
   bool _touched = false;
   String? _error;
 
+  // Contador para detonar la sacudida de error.
+  int _shakeTrigger = 0;
+
   @override
   void initState() {
     super.initState();
     _focus.addListener(_onFocusChange);
   }
 
+  // Maneja el cambio de foco.
   void _onFocusChange() {
     final focused = _focus.hasFocus;
     if (!focused && _hasFocus) {
       _touched = true;
-      _error = widget.validator?.call(widget.controller.text);
+      final err = widget.validator?.call(widget.controller.text);
+      if (err != null && _error == null) {
+        _shakeTrigger++; // Sacudir si hay nuevo error al salir.
+      }
+      _error = err;
     }
     if (mounted) setState(() => _hasFocus = focused);
   }
@@ -81,152 +89,177 @@ class ProfileTextFieldState extends State<ProfileTextField> {
     super.dispose();
   }
 
+  // Metodo publico para validar manualmente.
   bool validate() {
     _touched = true;
     final error = widget.validator?.call(widget.controller.text);
+    if (error != null) {
+      _shakeTrigger++; // Sacudir si intentamos guardar con error.
+    }
     setState(() => _error = error);
     return error == null;
   }
 
+  // Revalidar el campo bajo ciertas condiciones.
   void revalidate() {
     if (_touched || _error != null || widget.controller.text.isNotEmpty) {
       setState(() => _error = widget.validator?.call(widget.controller.text));
     }
   }
 
+  // Solicitar el foco.
   void focus() => _focus.requestFocus();
 
   @override
   Widget build(BuildContext context) {
     final s = context.s;
     final hasError = _error != null;
-    final borderColor = hasError ? _errorColor : (_hasFocus ? AppColors.goldDark : AppColors.border);
-    final labelColor = hasError ? _errorColor : (_hasFocus ? AppColors.goldDark : AppColors.brown.withValues(alpha: 0.88));
+    
+    // Definir colores segun estado.
+    final borderColor = hasError 
+        ? _errorColor 
+        : (_hasFocus ? AppColors.goldDark : AppColors.border);
+    final labelColor = hasError 
+        ? _errorColor 
+        : (_hasFocus ? AppColors.goldDark : AppColors.brown.withValues(alpha: 0.88));
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: _focus.requestFocus,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            curve: Curves.easeOut,
-            constraints: BoxConstraints(minHeight: 62 * s),
-            padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 8 * s),
-            decoration: BoxDecoration(
-              color: AppColors.cream,
-              borderRadius: BorderRadius.circular(18 * s),
-              border: Border.all(color: borderColor, width: 1.5),
-              boxShadow: _hasFocus ? [BoxShadow(color: AppColors.goldDark.withValues(alpha: 0.12), blurRadius: 12, offset: const Offset(0, 4))] : const [],
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (widget.leading != null)
-                  widget.leading!
-                else if (widget.icon != null)
-                  _IconBubble(icon: widget.icon!, focused: _hasFocus, error: hasError, s: s),
-                SizedBox(width: 12 * s),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(widget.label, style: AppFonts.style(size: 13 * s, weight: FontWeight.w600, color: labelColor, letterSpacing: 0.2)),
-                      SizedBox(height: 2 * s),
-                      Row(
-                        children: [
-                          if (widget.prefixText != null)
-                            Padding(
-                              padding: EdgeInsets.only(right: 8 * s),
-                              child: Text(widget.prefixText!, style: AppFonts.style(size: 16 * s, weight: FontWeight.w600, color: AppColors.brownDark)),
-                            ),
-                          Expanded(
-                            child: TextField(
-                              controller: widget.controller,
-                              focusNode: _focus,
-                              keyboardType: widget.keyboardType,
-                              textInputAction: widget.textInputAction,
-                              textCapitalization: widget.textCapitalization,
-                              inputFormatters: widget.inputFormatters,
-                              autofillHints: widget.autofillHints,
-                              cursorColor: AppColors.goldDark,
-                              style: AppFonts.style(size: 16 * s, weight: FontWeight.w500, color: AppColors.brownDark),
-                              onChanged: (_) {
-                                if (_touched || _error != null) {
-                                  setState(() => _error = widget.validator?.call(widget.controller.text));
-                                }
-                              },
-                              decoration: InputDecoration(
-                                isCollapsed: true, filled: false,
-                                border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, errorBorder: InputBorder.none, focusedErrorBorder: InputBorder.none,
-                                contentPadding: EdgeInsets.zero,
-                                hintText: widget.hint,
-                                hintStyle: AppFonts.style(size: 16 * s, weight: FontWeight.w400, color: AppColors.muted),
+    // Envolver todo el campo en ShakeOnce.
+    return ShakeOnce(
+      trigger: _shakeTrigger,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _focus.requestFocus,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOut,
+              constraints: BoxConstraints(minHeight: 62 * s),
+              padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 8 * s),
+              decoration: BoxDecoration(
+                color: AppColors.cream,
+                borderRadius: BorderRadius.circular(18 * s),
+                border: Border.all(color: borderColor, width: 1.5),
+                // Halo dorado de enfoque.
+                boxShadow: _hasFocus ? [
+                  BoxShadow(
+                    color: AppColors.goldDark.withValues(alpha: 0.12), 
+                    blurRadius: 12, 
+                    offset: const Offset(0, 4),
+                  )
+                ] : const [],
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (widget.leading != null)
+                    widget.leading!
+                  else if (widget.icon != null)
+                    _IconBubble(icon: widget.icon!, focused: _hasFocus, error: hasError, s: s),
+                  SizedBox(width: 12 * s),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.label, 
+                          style: AppFonts.style(size: 13 * s, weight: FontWeight.w600, color: labelColor, letterSpacing: 0.2),
+                        ),
+                        SizedBox(height: 2 * s),
+                        Row(
+                          children: [
+                            if (widget.prefixText != null)
+                              Padding(
+                                padding: EdgeInsets.only(right: 8 * s),
+                                child: Text(
+                                  widget.prefixText!, 
+                                  style: AppFonts.style(size: 16 * s, weight: FontWeight.w600, color: AppColors.brownDark),
+                                ),
+                              ),
+                            Expanded(
+                              child: TextField(
+                                controller: widget.controller,
+                                focusNode: _focus,
+                                keyboardType: widget.keyboardType,
+                                textInputAction: widget.textInputAction,
+                                textCapitalization: widget.textCapitalization,
+                                inputFormatters: widget.inputFormatters,
+                                autofillHints: widget.autofillHints,
+                                cursorColor: AppColors.goldDark,
+                                style: AppFonts.style(size: 16 * s, weight: FontWeight.w500, color: AppColors.brownDark),
+                                onChanged: (_) {
+                                  if (_touched || _error != null) {
+                                    setState(() => _error = widget.validator?.call(widget.controller.text));
+                                  }
+                                },
+                                decoration: InputDecoration(
+                                  isCollapsed: true, filled: false,
+                                  border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, errorBorder: InputBorder.none, focusedErrorBorder: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                  hintText: widget.hint,
+                                  hintStyle: AppFonts.style(size: 16 * s, weight: FontWeight.w400, color: AppColors.muted),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: 8 * s),
-                ListenableBuilder(
-                  listenable: widget.controller,
-                  builder: (context, _) {
-                    final text = widget.controller.text;
-                    final ok = text.trim().isNotEmpty && !hasError && widget.validator?.call(text) == null;
-                    return SizedBox(
-                      width: 22 * s,
-                      child: AnimatedScale(
-                        scale: ok ? 1 : 0,
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOutBack,
-                        child: const Center(
-                          child: HugeIcon(
-                            icon: HugeIcons.strokeRoundedCheckmarkCircle02, 
-                            size: 20, 
-                            color: _okColor, 
-                            strokeWidth: 2.0
-                          ),
+                          ],
                         ),
-                      ),
-                    );
-                  },
-                ),
-              ],
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 8 * s),
+                  
+                  // Check de validacion animado.
+                  ListenableBuilder(
+                    listenable: widget.controller,
+                    builder: (context, _) {
+                      final text = widget.controller.text;
+                      final ok = text.trim().isNotEmpty && !hasError && widget.validator?.call(text) == null;
+                      return SizedBox(
+                        width: 22 * s,
+                        child: ValidCheck(
+                          valid: ok,
+                          size: 20 * s,
+                          visibleFor: const Duration(milliseconds: 1500),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 180),
-          alignment: Alignment.topLeft,
-          child: hasError
-              ? Padding(
-                  padding: EdgeInsets.only(top: 6 * s, left: 6 * s),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      HugeIcon(icon: HugeIcons.strokeRoundedAlertCircle, size: 15 * s, color: _errorColor, strokeWidth: 2.0),
-                      SizedBox(width: 5 * s),
-                      Expanded(child: Text(_error!, style: AppFonts.style(size: 12.5 * s, weight: FontWeight.w500, color: _errorColor))),
-                    ],
-                  ),
-                )
-              : widget.helper != null
-                  ? Padding(
-                      padding: EdgeInsets.only(top: 6 * s, left: 6 * s),
-                      child: Text(widget.helper!, style: AppFonts.style(size: 12.5 * s, weight: FontWeight.w400, color: AppColors.brown.withValues(alpha: 0.68))),
-                    )
-                  : const SizedBox(width: double.infinity),
-        ),
-      ],
+          // Mensaje de error o texto de ayuda.
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            alignment: Alignment.topLeft,
+            child: hasError
+                ? Padding(
+                    padding: EdgeInsets.only(top: 6 * s, left: 6 * s),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        HugeIcon(icon: HugeIcons.strokeRoundedAlertCircle, size: 15 * s, color: _errorColor, strokeWidth: 2.0),
+                        SizedBox(width: 5 * s),
+                        Expanded(child: Text(_error!, style: AppFonts.style(size: 12.5 * s, weight: FontWeight.w500, color: _errorColor))),
+                      ],
+                    ),
+                  )
+                : widget.helper != null
+                    ? Padding(
+                        padding: EdgeInsets.only(top: 6 * s, left: 6 * s),
+                        child: Text(widget.helper!, style: AppFonts.style(size: 12.5 * s, weight: FontWeight.w400, color: AppColors.brown.withValues(alpha: 0.68))),
+                      )
+                    : const SizedBox(width: double.infinity),
+          ),
+        ],
+      ),
     );
   }
 }
 
+// Widget auxiliar para el icono del campo.
 class _IconBubble extends StatelessWidget {
   const _IconBubble({required this.icon, required this.focused, required this.error, required this.s});
 
@@ -244,12 +277,16 @@ class _IconBubble extends StatelessWidget {
       duration: const Duration(milliseconds: 160),
       width: 34 * s, 
       height: 34 * s, 
-      alignment: Alignment.center, // <-- Centra el icono perfectamente
+      alignment: Alignment.center, 
       decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
       child: HugeIcon(icon: icon, size: 18 * s, color: color, strokeWidth: 2.0),
     );
   }
 }
+
+// ============================================================================
+// LOGICA DEL TIPO DE DOCUMENTO
+// ============================================================================
 
 class DocumentType {
   const DocumentType(this.code, this.name);
@@ -258,9 +295,9 @@ class DocumentType {
 }
 
 const kDocumentTypes = [
-  DocumentType('CC', 'Cédula de ciudadanía'),
-  DocumentType('CE', 'Cédula de extranjería'),
-  DocumentType('NIT', 'Número de identificación tributaria'),
+  DocumentType('CC', 'Cedula de ciudadania'),
+  DocumentType('CE', 'Cedula de extranjeria'),
+  DocumentType('NIT', 'Numero de identificacion tributaria'),
   DocumentType('Pasaporte', 'Pasaporte'),
 ];
 
