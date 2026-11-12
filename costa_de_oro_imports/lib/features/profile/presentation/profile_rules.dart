@@ -2,25 +2,11 @@
 // ============================================================================
 // REGLAS DE PERFIL
 // ============================================================================
-// Una sola fuente de verdad para saber qué datos del perfil son reales, si
-// son válidos y cuántos faltan. La usan "Detalles de la cuenta" (progreso y
-// aviso) y "Editar perfil" (validación), así ambas pantallas siempre coinciden.
-//
-// El registro rápido guarda valores genéricos ("Pendiente", "0000000000",
-// "Por definir"). Aquí se tratan como "sin dato".
-// ============================================================================
 
 abstract final class ProfileRules {
-  /// Valores genéricos que el backend guarda tras el registro rápido.
   static const String placeholderName = 'Pendiente';
   static const String emptyAddress = 'Por definir';
-
-  /// Cantidad de datos que cuentan para el progreso del perfil.
   static const int totalFields = 5;
-
-  // --------------------------------------------------------------------------
-  // LIMPIEZA: devuelve null cuando el valor es vacío o genérico
-  // --------------------------------------------------------------------------
 
   static String? cleanName(String? value) {
     final text = value?.trim();
@@ -28,7 +14,6 @@ abstract final class ProfileRules {
     return text;
   }
 
-  /// Devuelve solo los dígitos, o null si no hay un teléfono real.
   static String? cleanPhone(String? value) {
     final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
     if (digits.isEmpty || digits.replaceAll('0', '').isEmpty) return null;
@@ -46,10 +31,6 @@ abstract final class ProfileRules {
     return (text == null || text.isEmpty) ? null : text;
   }
 
-  // --------------------------------------------------------------------------
-  // VALIDACIÓN: devuelve el mensaje de error o null si el dato es válido
-  // --------------------------------------------------------------------------
-
   static String? _name(String? value, String message) {
     final text = (value ?? '').trim();
     if (text.isEmpty) return message;
@@ -59,28 +40,22 @@ abstract final class ProfileRules {
   }
 
   static String? nombres(String? value) => _name(value, 'Escribe tus nombres');
-
-  static String? apellidos(String? value) =>
-      _name(value, 'Escribe tus apellidos');
+  static String? apellidos(String? value) => _name(value, 'Escribe tus apellidos');
 
   static String? documento(String tipo, String? value) {
     final text = (value ?? '').trim();
     if (text.isEmpty) return 'Escribe tu número de documento';
 
+    final cleanText = text.replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
+
     if (tipo == 'Pasaporte') {
-      return RegExp(r'^[A-Za-z0-9]{5,15}$').hasMatch(text)
-          ? null
-          : 'Entre 5 y 15 letras o números';
+      return RegExp(r'^[A-Za-z0-9]{5,15}$').hasMatch(cleanText) ? null : 'Entre 5 y 15 letras o números';
     }
-    if (!RegExp(r'^\d+$').hasMatch(text)) return 'Usa solo números';
+    if (!RegExp(r'^\d+$').hasMatch(cleanText)) return 'Usa solo números';
     if (tipo == 'CC') {
-      return (text.length >= 6 && text.length <= 10)
-          ? null
-          : 'La cédula tiene entre 6 y 10 dígitos';
+      return (cleanText.length >= 6 && cleanText.length <= 10) ? null : 'La cédula tiene entre 6 y 10 dígitos';
     }
-    return (text.length >= 5 && text.length <= 15)
-        ? null
-        : 'Entre 5 y 15 dígitos';
+    return (cleanText.length >= 5 && cleanText.length <= 15) ? null : 'Entre 5 y 15 dígitos';
   }
 
   static String? telefono(String? value) {
@@ -92,16 +67,12 @@ abstract final class ProfileRules {
 
   static String? direccion(String? value) {
     final text = (value ?? '').trim();
-    if (text.isEmpty) return 'Escribe tu dirección de envío';
+    // La dirección vacía cuenta como dato faltante (para que el perfil diga 80%)
+    if (text.isEmpty) return 'Escribe tu dirección de envío'; 
     if (text.length < 6) return 'Escribe la dirección completa';
     return null;
   }
 
-  // --------------------------------------------------------------------------
-  // PROGRESO
-  // --------------------------------------------------------------------------
-
-  /// Cuántos de los [totalFields] datos del usuario son reales y válidos.
   static int doneCount({
     String? nombres,
     String? apellidos,

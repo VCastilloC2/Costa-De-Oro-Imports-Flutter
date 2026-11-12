@@ -2,9 +2,10 @@
 // ============================================================================
 // PANTALLA: AccountDetailsPage
 // ============================================================================
-// Vista de solo lectura de la cuenta del usuario. Se han optimizado los
-// espacios verticales para evitar scroll innecesario y mejorar la densidad
-// de la información en pantalla.
+// Vista de solo lectura de la cuenta del usuario. Se ha implementado como
+// un ConsumerStatefulWidget para forzar la actualización del perfil desde el
+// backend al entrar a la pantalla. Esto garantiza que la credencial muestre
+// el documento y la foto de perfil reales.
 // ============================================================================
 
 import 'dart:math' as math;
@@ -23,17 +24,51 @@ import '../profile_rules.dart';
 import '../widget/credential_card.dart';
 import '../widget/profile_hero.dart' show kProfileAvatarHeroTag;
 
+/// Función auxiliar para navegar a la pantalla de edición con el foco
+/// puesto en un campo específico.
 void _editField(BuildContext context, String field) =>
     context.push('/edit-profile?campo=$field');
 
-class AccountDetailsPage extends ConsumerWidget {
+// ============================================================================
+// CLASE PRINCIPAL
+// ============================================================================
+// Hereda de ConsumerStatefulWidget para poder ejecutar lógica en el initState.
+class AccountDetailsPage extends ConsumerStatefulWidget {
   const AccountDetailsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AccountDetailsPage> createState() => _AccountDetailsPageState();
+}
+
+class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
+  
+  /// ==========================================================================
+  /// MÉTODO: initState
+  /// ==========================================================================
+  /// Se ejecuta una sola vez cuando la pantalla se monta.
+  /// Lanza una petición en segundo plano para obtener los datos frescos del
+  /// backend. Así aseguramos que si el documento o la foto se actualizaron
+  /// en otra sesión, se reflejen aquí inmediatamente.
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(authControllerProvider.notifier).refreshProfile();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Factor de escala para responsividad.
     final s = context.s;
+    
+    // Escuchamos el estado global. Cuando refreshProfile termine,
+    // el widget se reconstruye automáticamente con los nuevos datos.
     final user = ref.watch(authControllerProvider).user;
 
+    // 1. LIMPIEZA DE DATOS
+    // Usamos ProfileRules para convertir valores como "Pendiente" o nulos
+    // en verdaderos nulos, y así evitar errores visuales.
     final nombres = ProfileRules.cleanName(user?.nombres);
     final apellidos = ProfileRules.cleanName(user?.apellidos);
     final displayName = [nombres, apellidos].whereType<String>().join(' ');
@@ -41,9 +76,13 @@ class AccountDetailsPage extends ConsumerWidget {
     final phoneDigits = ProfileRules.cleanPhone(user?.telefono);
     final phone = phoneDigits == null ? null : formatPhoneCo(phoneDigits);
     final address = ProfileRules.cleanAddress(user?.direccion);
+    
+    // Extraemos el documento (si existe, se le pasa a la tarjeta).
     final documentType = ProfileRules.cleanText(user?.tipoIdentificacion);
     final documentNumber = ProfileRules.cleanText(user?.numeroIdentificacion);
 
+    // 2. CÁLCULO DE PROGRESO
+    // Evaluamos cuántos de los 5 campos están llenos.
     final done = ProfileRules.doneCount(
       nombres: user?.nombres,
       apellidos: user?.apellidos,
@@ -106,6 +145,7 @@ class AccountDetailsPage extends ConsumerWidget {
       ),
       body: Container(
         decoration: BoxDecoration(
+          // Degradado radial dorado en la parte superior.
           gradient: RadialGradient(
             center: const Alignment(0, -1),
             radius: 1.0,
@@ -119,16 +159,16 @@ class AccountDetailsPage extends ConsumerWidget {
           useSafeArea: true,
           useScrollView: true,
           child: Padding(
-            // REDUJIMOS EL MARGEN SUPERIOR PARA QUE EL CONTENIDO SUBA
             padding: EdgeInsets.fromLTRB(20 * s, kToolbarHeight + 8 * s, 20 * s, 20 * s),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 1. Cabecera con Avatar, Nombre y Anillo de Progreso.
                 _Reveal(
                   order: 0,
                   child: _ProfileHeader(
                     s: s,
-                    imageUrl: user?.imagen,
+                    imageUrl: user?.imagen, // Pasamos la URL de la imagen
                     initials: user?.initials ?? 'U',
                     fullName: displayName.isEmpty ? 'Cliente' : displayName,
                     email: user?.correo ?? 'correo@ejemplo.com',
@@ -137,9 +177,9 @@ class AccountDetailsPage extends ConsumerWidget {
                     onTapProgress: () => context.push('/edit-profile'),
                   ),
                 ),
-                // REDUJIMOS EL ESPACIO DE 24 A 16
                 SizedBox(height: 16 * s),
 
+                // 2. Credencial Digital (Muestra el documento si existe).
                 _Reveal(
                   order: 1,
                   child: CredentialCard(
@@ -148,13 +188,13 @@ class AccountDetailsPage extends ConsumerWidget {
                     progress: progress,
                     documentType: documentType,
                     documentNumber: documentNumber,
-                    maskNumber: true,
+                    maskNumber: true, // Enmascara el número (ej. •••• 6789)
                     onTap: () => _editField(context, 'documento'),
                   ),
                 ),
-                // REDUJIMOS EL ESPACIO DE 20 A 16
                 SizedBox(height: 16 * s),
 
+                // 3. Banner de alerta (solo si faltan datos).
                 if (remaining > 0) ...[
                   _Reveal(
                     order: 2,
@@ -164,10 +204,10 @@ class AccountDetailsPage extends ConsumerWidget {
                       onTap: () => context.push('/edit-profile'),
                     ),
                   ),
-                  // REDUJIMOS EL ESPACIO DE 24 A 20
                   SizedBox(height: 20 * s),
                 ],
 
+                // 4. Sección de Contacto y Envío.
                 _Reveal(
                   order: 3,
                   child: _Section(
@@ -202,9 +242,10 @@ class AccountDetailsPage extends ConsumerWidget {
 }
 
 // ============================================================================
-// COMPONENTES PRIVADOS (El resto del archivo queda exactamente igual)
+// COMPONENTES PRIVADOS (Diseño visual)
 // ============================================================================
 
+/// Widget que aplica una animación de entrada (Fade + Slide) a sus hijos.
 class _Reveal extends StatelessWidget {
   const _Reveal({required this.order, required this.child});
   final int order;
@@ -229,6 +270,11 @@ class _Reveal extends StatelessWidget {
   }
 }
 
+/// ============================================================================
+/// WIDGET: _ProfileHeader
+/// ============================================================================
+/// Cabecera con el avatar. Si hay una URL de imagen válida, carga la imagen
+/// de red. Si no hay URL o falla la carga, muestra las iniciales.
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
     required this.s,
@@ -252,9 +298,13 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avatarSize = 100 * s; // Ligeramente reducido para ganar espacio
+    final avatarSize = 100 * s;
     final arcSize = avatarSize + 20 * s;
-    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
+    
+    // Validamos que la URL exista y tenga un formato válido.
+    final hasImage = imageUrl != null && 
+                     imageUrl!.isNotEmpty && 
+                     imageUrl!.startsWith('http');
 
     final initialsText = Text(
       initials,
@@ -306,6 +356,7 @@ class _ProfileHeader extends StatelessWidget {
                           border: Border.all(color: Colors.white, width: 2.5 * s),
                         ),
                         alignment: Alignment.center,
+                        // Renderizado de la imagen de red con fallback.
                         child: hasImage
                             ? ClipOval(
                                 child: Image.network(
@@ -313,6 +364,12 @@ class _ProfileHeader extends StatelessWidget {
                                   width: avatarSize,
                                   height: avatarSize,
                                   fit: BoxFit.cover,
+                                  // Mientras carga, mostramos las iniciales de fondo.
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Center(child: initialsText);
+                                  },
+                                  // Si falla la conexión (404, etc), mostramos iniciales.
                                   errorBuilder: (context, error, stackTrace) => initialsText,
                                 ),
                               )
@@ -354,7 +411,7 @@ class _ProfileHeader extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(height: 8 * s), // Espacio reducido
+          SizedBox(height: 8 * s),
           Text(
             fullName,
             textAlign: TextAlign.center,
@@ -370,7 +427,7 @@ class _ProfileHeader extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: AppFonts.style(size: 13 * s, weight: FontWeight.w500, color: AppColors.muted),
           ),
-          SizedBox(height: 10 * s), // Espacio reducido
+          SizedBox(height: 10 * s),
           _ProgressPill(
             s: s,
             progress: progress,
@@ -383,6 +440,7 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
+/// Píldora que muestra el porcentaje de perfil o "Completo".
 class _ProgressPill extends StatelessWidget {
   const _ProgressPill({
     required this.s,
@@ -434,6 +492,7 @@ class _ProgressPill extends StatelessWidget {
   }
 }
 
+/// Pintor personalizado para dibujar el anillo de progreso.
 class _ArcPainter extends CustomPainter {
   _ArcPainter({required this.progress, required this.stroke});
 
@@ -475,6 +534,7 @@ class _ArcPainter extends CustomPainter {
       old.progress != progress || old.stroke != stroke;
 }
 
+/// Contenedor visual para agrupar las filas de contacto.
 class _Section extends StatelessWidget {
   const _Section({required this.s, required this.title, required this.rows});
 
@@ -515,7 +575,7 @@ class _Section extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(height: 8 * s), // Espacio reducido
+        SizedBox(height: 8 * s),
         DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20 * s),
@@ -539,6 +599,7 @@ class _Section extends StatelessWidget {
   }
 }
 
+/// Banner de alerta inferior.
 class _CompletionBanner extends StatelessWidget {
   const _CompletionBanner({
     required this.s,
@@ -625,6 +686,7 @@ class _CompletionBanner extends StatelessWidget {
   }
 }
 
+/// Fila individual de información (Teléfono, Dirección).
 class _InfoRow extends StatelessWidget {
   const _InfoRow({
     required this.s,
