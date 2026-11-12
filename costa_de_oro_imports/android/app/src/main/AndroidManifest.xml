@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="costa_de_oro_imports"
+        android:label="Costa de Oro Imports"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         android:usesCleartextTraffic="true"> 
