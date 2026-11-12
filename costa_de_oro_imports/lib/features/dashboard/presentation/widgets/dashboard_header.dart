@@ -2,35 +2,31 @@
 // ============================================================================
 // WIDGET: DashboardHeader
 // ============================================================================
-// Barra superior del Dashboard. Muestra el botón de menú, el título de la
-// pantalla, la campana de notificaciones (con un indicador de alerta) y el
-// avatar del usuario que redirige a la pantalla de Perfil. El avatar genera
-// sus iniciales dinámicamente a partir del nombre real del usuario.
+// Barra superior del Dashboard. Campana y avatar en círculos perfectos.
 // ============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
-import '../../../../core/utils/formatters.dart'; // Importamos el formateador para obtener las iniciales.
+import '../../../../core/utils/formatters.dart';
 
 class DashboardHeader extends StatelessWidget {
-  /// Factor de escala para responsividad (calculado en el padre).
   final double s;
-  
-  /// Nombre completo del usuario para extraer las iniciales del avatar.
   final String userName;
+  final String? imageUrl;
 
   const DashboardHeader({
     super.key, 
     required this.s, 
     required this.userName,
+    this.imageUrl,
   });
 
-  /// Contenedor cuadrado reutilizable para los botones de acción del header.
-  /// Proporciona un fondo blanco, bordes redondeados y una sombra sutil.
+  // Botón cuadrado exclusivo para el menú (mantiene su estilo)
   Widget _squareButton(Widget child) {
     return Container(
       width: 42 * s,
@@ -45,11 +41,26 @@ class DashboardHeader extends StatelessWidget {
     );
   }
 
+  // Botón circular para la campana (idéntico al avatar)
+  Widget _circleButton(Widget child) {
+    return Container(
+      width: 42 * s,
+      height: 42 * s,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle, // <-- Círculo perfecto
+        border: Border.all(color: AppColors.border),
+      ),
+      alignment: Alignment.center,
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // 1. Botón de menú (hamburguesa).
+        // 1. Botón de menú (cuadrado)
         _squareButton(
           HugeIcon(
             icon: HugeIcons.strokeRoundedMenu01, 
@@ -60,7 +71,7 @@ class DashboardHeader extends StatelessWidget {
         ),
         SizedBox(width: 12 * s),
         
-        // 2. Título de la pantalla.
+        // 2. Título
         Text(
           'Panel de control',
           style: AppFonts.style(
@@ -71,11 +82,11 @@ class DashboardHeader extends StatelessWidget {
         ),
         const Spacer(),
         
-        // 3. Campana de notificaciones con insignia roja.
+        // 3. Campana (Círculo perfecto)
         Stack(
           clipBehavior: Clip.none,
           children: [
-            _squareButton(
+            _circleButton(
               HugeIcon(
                 icon: HugeIcons.strokeRoundedNotification01, 
                 color: AppColors.brownDark, 
@@ -83,10 +94,9 @@ class DashboardHeader extends StatelessWidget {
                 strokeWidth: 2.0,
               ),
             ),
-            // Insignia roja de notificaciones no leídas.
             Positioned(
-              right: -4 * s,
-              top: -4 * s,
+              right: -2 * s,
+              top: -2 * s,
               child: Container(
                 width: 18 * s,
                 height: 18 * s,
@@ -109,7 +119,7 @@ class DashboardHeader extends StatelessWidget {
         ),
         SizedBox(width: 12 * s),
         
-        // 4. Avatar del usuario con navegación a la pantalla de perfil.
+        // 4. Avatar (Círculo perfecto con foto)
         GestureDetector(
           onTap: () => context.push('/profile'),
           child: Container(
@@ -117,18 +127,42 @@ class DashboardHeader extends StatelessWidget {
             height: 42 * s,
             decoration: BoxDecoration(
               color: AppColors.beige,
-              shape: BoxShape.circle,
+              shape: BoxShape.circle, // <-- Mismo círculo perfecto
               border: Border.all(color: AppColors.goldLight, width: 1.5),
             ),
-            alignment: Alignment.center,
-            // Usamos Formatters.initials para obtener "JA" si el usuario es "Jose Andres".
-            child: Text(
-              Formatters.initials(userName), 
-              style: AppFonts.style(
-                size: 14 * s, 
-                weight: FontWeight.w700, 
-                color: AppColors.brownDark,
-              ),
+            child: ClipOval(
+              child: (imageUrl != null && imageUrl!.startsWith('http'))
+                  ? CachedNetworkImage(
+                      imageUrl: imageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const Center(
+                        child: SizedBox(
+                          width: 16, 
+                          height: 16, 
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Center(
+                        child: Text(
+                          Formatters.initials(userName),
+                          style: AppFonts.style(
+                            size: 14 * s, 
+                            weight: FontWeight.w700, 
+                            color: AppColors.brownDark,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        Formatters.initials(userName),
+                        style: AppFonts.style(
+                          size: 14 * s, 
+                          weight: FontWeight.w700, 
+                          color: AppColors.brownDark,
+                        ),
+                      ),
+                    ),
             ),
           ),
         ),

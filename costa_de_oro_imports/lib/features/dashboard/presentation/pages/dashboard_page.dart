@@ -2,12 +2,9 @@
 // ============================================================================
 // PANTALLA: DashboardPage
 // ============================================================================
-// Orquestador del panel. Utiliza Riverpod para inyectar los datos reales
-// en los widgets modulares manteniendo las animaciones originales.
-// ============================================================================
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // <-- IMPORTANTE
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -15,13 +12,16 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../../../core/utils/responsive_utils.dart';
-import '../../../../core/utils/formatters.dart'; // <-- Para el formato de números
+import '../../../../core/utils/formatters.dart';
 
-import '../../domain/dashboard_models.dart'; // <-- Modelos
-import '../providers/dashboard_provider.dart'; // <-- Provider
+// IMPORTAMOS EL PROVIDER DE AUTENTICACIÓN
+import '../../../auth/presentation/providers/auth_controller.dart';
+
+import '../../domain/dashboard_models.dart';
+import '../providers/dashboard_provider.dart';
 
 // Widgets modulares
-import '../widgets/dashboard_header.dart';
+import '../widgets/dashboard_header.dart'; 
 import '../widgets/dashboard_search_bar.dart';
 import '../widgets/welcome_banner.dart';
 import '../widgets/earnings_card.dart';
@@ -29,7 +29,6 @@ import '../widgets/stat_card.dart';
 import '../widgets/income_chart_card.dart';
 import '../widgets/total_sales_card.dart';
 
-// CAMBIO 1: Ahora es ConsumerStatefulWidget
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
 
@@ -56,8 +55,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage> with TickerProvid
     );
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // CAMBIO 2: Cargamos los datos de la API al iniciar
+      // 1. Cargamos los datos de las gráficas
       ref.read(dashboardProvider.notifier).load();
+      
+      // 2. OBLIGAMOS A ACTUALIZAR EL PERFIL DEL USUARIO (¡NUEVO!)
+      // Esto asegura que la foto esté disponible en el authControllerProvider
+      ref.read(authControllerProvider.notifier).refreshProfile();
+      
       _entryController.forward();
     });
   }
@@ -86,9 +90,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> with TickerProvid
   Widget build(BuildContext context) {
     final s = context.s;
     
-    // CAMBIO 3: Escuchamos el estado del Provider
     final state = ref.watch(dashboardProvider);
     final data = state.data ?? DashboardData.skeleton;
+
+    // Escuchamos al usuario. Cuando refreshProfile() termine, este widget se reconstruirá 
+    // automáticamente y la foto aparecerá.
+    final authUser = ref.watch(authControllerProvider).user;
 
     return Scaffold(
       backgroundColor: AppColors.cream,
@@ -100,17 +107,22 @@ class _DashboardPageState extends ConsumerState<DashboardPage> with TickerProvid
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // CAMBIO 4: Le pasamos el nombre real al Header
-              _reveal(0.0, 0.3, DashboardHeader(s: s, userName: data.profile.name)),
+              _reveal(
+                0.0, 
+                0.3, 
+                DashboardHeader(
+                  s: s, 
+                  userName: data.profile.name,
+                  imageUrl: authUser?.imagen, // <-- Aquí ya llegará la URL real
+                ),
+              ),
               SizedBox(height: 16 * s),
               _reveal(0.1, 0.4, DashboardSearchBar(s: s)),
               SizedBox(height: 16 * s),
               
-              // CAMBIO 5: Le pasamos el nombre al Banner
               _reveal(0.2, 0.5, WelcomeBanner(s: s, firstName: data.profile.name.split(' ').first)),
               SizedBox(height: 16 * s),
               
-              // CAMBIO 6: Inyectamos Ganancias y Balance reales
               _reveal(0.3, 0.6, EarningsCard(
                 s: s, 
                 amount: data.stats.ingresosTotales, 
@@ -118,7 +130,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> with TickerProvid
               )),
               SizedBox(height: 16 * s),
               
-              // CAMBIO 7: Inyectamos Compras y Clientes reales
               _reveal(
                 0.4, 0.7,
                 Row(
@@ -151,7 +162,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> with TickerProvid
               ),
               SizedBox(height: 16 * s),
               
-              // CAMBIO 8: Inyectamos los meses e ingresos/gastos reales a la gráfica
               _reveal(
                 0.5, 0.85,
                 VisibilityDetector(
@@ -172,7 +182,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> with TickerProvid
               ),
               SizedBox(height: 16 * s),
               
-              // CAMBIO 9: Inyectamos los datos reales a la Dona
               _reveal(
                 0.6, 1.0,
                 VisibilityDetector(
