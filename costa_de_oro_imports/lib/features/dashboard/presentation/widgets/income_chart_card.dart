@@ -6,7 +6,6 @@
 // dibujar la gráfica de izquierda a derecha cuando el widget se hace visible.
 // ============================================================================
 
-import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../../../app/theme/app_colors.dart';
