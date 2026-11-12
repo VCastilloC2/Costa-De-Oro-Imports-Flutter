@@ -3,7 +3,7 @@
 // PANTALLA: AccountDetailsPage
 // ============================================================================
 // Orquestador de la vista de cuenta. Maneja el scroll, el estado de carga y 
-// la transición (degradado) entre el hero oscuro y la hoja clara.
+// la transición entre el hero oscuro y la hoja clara.
 // ============================================================================
 
 import 'dart:math' as math;
@@ -66,8 +66,10 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
   Widget build(BuildContext context) {
     final s = context.s;
 
+    // IMPORTANTE: El fondo ahora es _kSheet para que el hueco inferior
+    // de la superposición sea invisible.
     return Scaffold(
-      backgroundColor: _kDarkA, 
+      backgroundColor: _kSheet, 
       body: _isInitialLoading
           ? AccountDetailsSkeleton(s: s)
           : _buildContent(s),
@@ -107,7 +109,6 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
 
     final top = MediaQuery.paddingOf(context).top;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    final screenH = MediaQuery.sizeOf(context).height;
     final heroH = _heroHeight(s, top);
     final overlap = 40 * s;
 
@@ -136,26 +137,19 @@ class _AccountDetailsPageState extends ConsumerState<AccountDetailsPage> {
           child: Transform.translate(
             offset: Offset(0, -overlap),
             child: Container(
-              constraints: BoxConstraints(minHeight: screenH - heroH + overlap),
+              // ELIMINAMOS EL constraints QUE CAUSABA EL SCROLL EXTRA
               decoration: BoxDecoration(
+                color: _kSheet,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(44 * s)),
-                // EL DEGRADADO CORREGIDO:
-                // Usamos el mismo color oscuro del Hero y lo fundimos a crema.
-                // El stop en 0.05 hace que la transición sea rápida y no 
-                // ensucie el texto de abajo.
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    _kDarkB, 
-                    _kSheet,
-                  ],
-                  stops: const [0.0, 0.05], 
-                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: _kDarkA.withValues(alpha: 0.15),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
               ),
-              // AUMENTAMOS EL PADDING A 72: Empujamos el texto para que quede 
-              // completamente sobre el fondo crema y no en la zona del degradado.
-              padding: EdgeInsets.fromLTRB(20 * s, 72 * s, 20 * s, 28 * s + bottomInset),
+              padding: EdgeInsets.fromLTRB(20 * s, 56 * s, 20 * s, 28 * s + bottomInset),
               child: Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
