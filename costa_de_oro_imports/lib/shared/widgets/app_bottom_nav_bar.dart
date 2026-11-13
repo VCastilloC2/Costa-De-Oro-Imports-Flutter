@@ -2,10 +2,9 @@
 // ============================================================================
 // WIDGET: AppBottomNavBar
 // ============================================================================
-// Barra de navegación inferior estilo "píldora expandible".
-// Opciones principales: Inicio, Buscar, Análisis y Perfil.
-// El botón "Más" abre un BottomSheet con los módulos de administración
-// (Productos, Compras, Clientes) y opciones de configuración.
+// Barra de navegacion inferior estilo "pildora expandible".
+// Detecta automaticamente la ruta actual para iluminar el boton correcto
+// y maneja la navegacion internamente usando GoRouter.
 // ============================================================================
 
 import 'package:flutter/material.dart';
@@ -17,16 +16,10 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_fonts.dart';
 
 class AppBottomNavBar extends StatelessWidget {
-  final int currentIndex;
-  final ValueChanged<int> onTap;
+  // Ya no recibe parametros, la barra es autonoma.
+  const AppBottomNavBar({super.key});
 
-  const AppBottomNavBar({
-    super.key,
-    required this.currentIndex,
-    required this.onTap,
-  });
-
-  // Los 4 módulos principales visibles en la barra
+  // Definicion de los modulos principales
   static final List<_NavItem> _items = [
     const _NavItem(
       label: 'Inicio',
@@ -39,9 +32,9 @@ class AppBottomNavBar extends StatelessWidget {
       activeIcon: HugeIcons.strokeRoundedSearch01,
     ),
     const _NavItem(
-      label: 'Análisis',
-      icon: HugeIcons.strokeRoundedAnalytics01,
-      activeIcon: HugeIcons.strokeRoundedAnalytics02,
+      label: 'Productos',
+      icon: HugeIcons.strokeRoundedShoppingBag01,
+      activeIcon: HugeIcons.strokeRoundedShoppingBag02,
     ),
     const _NavItem(
       label: 'Perfil',
@@ -49,15 +42,35 @@ class AppBottomNavBar extends StatelessWidget {
       activeIcon: HugeIcons.strokeRoundedUserCircle,
     ),
     const _NavItem(
-      label: 'Más',
+      label: 'Mas',
       icon: HugeIcons.strokeRoundedMenu01,
       activeIcon: HugeIcons.strokeRoundedMenu01,
     ),
   ];
 
+  // ==========================================================================
+  // LOGICA DE DETECCION DE RUTA
+  // ==========================================================================
+  // Lee la URL actual y retorna el indice del boton que debe iluminarse.
+  int _getCurrentIndex(BuildContext context) {
+    // Obtenemos la ruta actual desde GoRouter
+    final path = GoRouterState.of(context).uri.path;
+    
+    // Evaluamos la ruta y retornamos el indice correspondiente
+    if (path.startsWith('/dashboard')) return 0;
+    if (path.startsWith('/search')) return 1;
+    if (path.startsWith('/products') || path.startsWith('/orders')) return 2;
+    if (path.startsWith('/profile') || path.startsWith('/edit-profile') || path.startsWith('/account-details')) return 3;
+    
+    // Por defecto, si no coincide con ninguna, iluminamos Inicio
+    return 0; 
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = MediaQuery.sizeOf(context).width / 390;
+    // Obtenemos el indice activo basado en la URL
+    final activeIndex = _getCurrentIndex(context);
 
     return Container(
       decoration: BoxDecoration(
@@ -78,7 +91,7 @@ class AppBottomNavBar extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: List.generate(_items.length, (index) {
-              final isSelected = currentIndex == index;
+              final isSelected = activeIndex == index;
               final isMore = index == 4;
 
               return _NavBarItem(
@@ -90,7 +103,11 @@ class AppBottomNavBar extends StatelessWidget {
                   if (isMore) {
                     _showMoreMenu(context, s);
                   } else {
-                    onTap(index);
+                    // NAVEGACION DIRECTA
+                    if (index == 0) context.go('/dashboard');
+                    if (index == 1) { /* TODO: context.go('/search') */ }
+                    if (index == 2) context.go('/products');
+                    if (index == 3) context.go('/profile');
                   }
                 },
               );
@@ -102,7 +119,7 @@ class AppBottomNavBar extends StatelessWidget {
   }
 
   // ==========================================================================
-  // MENÚ DESPLEGABLE (MÓDULOS DE ADMINISTRACIÓN)
+  // MENU DESPLEGABLE (MODULOS DE ADMINISTRACION)
   // ==========================================================================
   void _showMoreMenu(BuildContext context, double s) {
     showModalBottomSheet(
@@ -120,7 +137,6 @@ class AppBottomNavBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Handle superior
               Center(
                 child: Container(
                   width: 40 * s,
@@ -134,18 +150,17 @@ class AppBottomNavBar extends StatelessWidget {
               SizedBox(height: 24 * s),
               
               Text(
-                'Módulos de Administración',
+                'Modulos de Administracion',
                 style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark),
               ),
               SizedBox(height: 16 * s),
               
-              // Opciones del menú
               _buildMenuItem(
                 context: bottomSheetContext,
                 icon: HugeIcons.strokeRoundedShoppingBag01,
                 title: 'Productos',
                 subtitle: 'Gestiona el inventario de licores',
-                route: '/products', // Ruta asumida
+                route: '/products',
                 s: s,
               ),
               SizedBox(height: 8 * s),
@@ -154,7 +169,7 @@ class AppBottomNavBar extends StatelessWidget {
                 icon: HugeIcons.strokeRoundedInvoice01,
                 title: 'Compras',
                 subtitle: 'Revisa el historial de pedidos',
-                route: '/orders', // Ruta asumida
+                route: '/orders',
                 s: s,
               ),
               SizedBox(height: 8 * s),
@@ -163,7 +178,7 @@ class AppBottomNavBar extends StatelessWidget {
                 icon: HugeIcons.strokeRoundedUserGroup,
                 title: 'Clientes',
                 subtitle: 'Directorio de usuarios registrados',
-                route: '/clients', // Ruta asumida
+                route: '/clients',
                 s: s,
               ),
               
@@ -171,13 +186,12 @@ class AppBottomNavBar extends StatelessWidget {
               Divider(color: Colors.grey.shade300),
               SizedBox(height: 16 * s),
               
-              // Opción de configuración (secundaria)
               _buildMenuItem(
                 context: bottomSheetContext,
                 icon: HugeIcons.strokeRoundedSettings01,
-                title: 'Configuración',
+                title: 'Configuracion',
                 subtitle: 'Preferencias de la app',
-                route: '/settings', // Ruta asumida
+                route: '/settings',
                 s: s,
               ),
               SizedBox(height: 24 * s),
@@ -199,8 +213,7 @@ class AppBottomNavBar extends StatelessWidget {
     return InkWell(
       onTap: () {
         Navigator.pop(context); // Cierra el BottomSheet
-        // Aquí navegas a la ruta correspondiente (ajusta según tu GoRouter)
-        // context.push(route); 
+        context.push(route); // Navega a la ruta seleccionada
       },
       borderRadius: BorderRadius.circular(16 * s),
       child: Container(
@@ -233,7 +246,7 @@ class AppBottomNavBar extends StatelessWidget {
 }
 
 // ============================================================================
-// MODELO DE DATOS PARA LOS ÍTEMS
+// MODELO DE DATOS PARA LOS ITEMS
 // ============================================================================
 class _NavItem {
   final String label;
@@ -248,7 +261,7 @@ class _NavItem {
 }
 
 // ============================================================================
-// WIDGET INDIVIDUAL (PÍLDORA EXPANDIBLE)
+// WIDGET INDIVIDUAL (PILDORA EXPANDIBLE)
 // ============================================================================
 class _NavBarItem extends StatelessWidget {
   final _NavItem item;

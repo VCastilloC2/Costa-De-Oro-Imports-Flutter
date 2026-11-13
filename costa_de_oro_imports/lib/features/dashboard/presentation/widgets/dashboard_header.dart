@@ -2,7 +2,9 @@
 // ============================================================================
 // WIDGET: DashboardHeader
 // ============================================================================
-// Barra superior del Dashboard. Campana y avatar en círculos perfectos.
+// Barra superior reutilizable. Muestra el boton de menu, el titulo de la
+// pantalla, la campana de notificaciones y el avatar del usuario.
+// Se utiliza tanto en el Dashboard principal como en la pantalla de Estadisticas.
 // ============================================================================
 
 import 'package:flutter/material.dart';
@@ -15,18 +17,24 @@ import '../../../../app/theme/app_fonts.dart';
 import '../../../../core/utils/formatters.dart';
 
 class DashboardHeader extends StatelessWidget {
+  // Factor de escala para responsividad
   final double s;
+  // Nombre del usuario para calcular las iniciales
   final String userName;
+  // URL de la foto de perfil (opcional)
   final String? imageUrl;
+  // NUEVO PARAMETRO: Permite personalizar el titulo de la pantalla
+  final String title;
 
   const DashboardHeader({
     super.key, 
     required this.s, 
     required this.userName,
     this.imageUrl,
+    this.title = 'Panel de control', // Valor por defecto para el Dashboard
   });
 
-  // Botón cuadrado exclusivo para el menú (mantiene su estilo)
+  // Contenedor cuadrado exclusivo para el boton de menu
   Widget _squareButton(Widget child) {
     return Container(
       width: 42 * s,
@@ -41,14 +49,14 @@ class DashboardHeader extends StatelessWidget {
     );
   }
 
-  // Botón circular para la campana (idéntico al avatar)
+  // Contenedor circular para la campana de notificaciones
   Widget _circleButton(Widget child) {
     return Container(
       width: 42 * s,
       height: 42 * s,
       decoration: BoxDecoration(
         color: Colors.white,
-        shape: BoxShape.circle, // <-- Círculo perfecto
+        shape: BoxShape.circle,
         border: Border.all(color: AppColors.border),
       ),
       alignment: Alignment.center,
@@ -60,7 +68,7 @@ class DashboardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // 1. Botón de menú (cuadrado)
+        // 1. Boton de menu (cuadrado)
         _squareButton(
           HugeIcon(
             icon: HugeIcons.strokeRoundedMenu01, 
@@ -71,9 +79,9 @@ class DashboardHeader extends StatelessWidget {
         ),
         SizedBox(width: 12 * s),
         
-        // 2. Título
+        // 2. Titulo dinamico de la pantalla
         Text(
-          'Panel de control',
+          title, // Usa el parametro en lugar del texto fijo
           style: AppFonts.style(
             size: 18 * s, 
             weight: FontWeight.w700, 
@@ -82,7 +90,7 @@ class DashboardHeader extends StatelessWidget {
         ),
         const Spacer(),
         
-        // 3. Campana (Círculo perfecto)
+        // 3. Campana de notificaciones (Circulo perfecto)
         Stack(
           clipBehavior: Clip.none,
           children: [
@@ -94,6 +102,7 @@ class DashboardHeader extends StatelessWidget {
                 strokeWidth: 2.0,
               ),
             ),
+            // Insignia roja de notificaciones
             Positioned(
               right: -2 * s,
               top: -2 * s,
@@ -119,7 +128,7 @@ class DashboardHeader extends StatelessWidget {
         ),
         SizedBox(width: 12 * s),
         
-        // 4. Avatar (Círculo perfecto con foto)
+        // 4. Avatar del usuario (Circulo perfecto con foto o iniciales)
         GestureDetector(
           onTap: () => context.push('/profile'),
           child: Container(
@@ -127,10 +136,11 @@ class DashboardHeader extends StatelessWidget {
             height: 42 * s,
             decoration: BoxDecoration(
               color: AppColors.beige,
-              shape: BoxShape.circle, // <-- Mismo círculo perfecto
+              shape: BoxShape.circle,
               border: Border.all(color: AppColors.goldLight, width: 1.5),
             ),
             child: ClipOval(
+              // Si hay URL de imagen, la carga. Si no, muestra las iniciales.
               child: (imageUrl != null && imageUrl!.startsWith('http'))
                   ? CachedNetworkImage(
                       imageUrl: imageUrl!,

@@ -2,8 +2,8 @@
 // ============================================================================
 // WIDGET: TotalSalesCard
 // ============================================================================
-// Dona interactiva de ventas totales. Mantiene el diseno visual original.
-// Se agrega el boton de exportacion (UI) y el Data Storytelling (Cobrado).
+// Dona interactiva de ventas totales. Adaptada para usar el modelo DonutItem
+// y mostrar el numero de pedidos en la leyenda.
 // ============================================================================
 
 import 'dart:math' as math;
@@ -15,20 +15,19 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../domain/dashboard_models.dart'; // Importamos DonutItem
 
 class TotalSalesCard extends StatefulWidget {
   final double s;
   final bool isVisible;
-  final List<double> series;
-  final List<String> labels;
+  final List<DonutItem> items; // Ahora recibe los items
   final double totalSales;
 
   const TotalSalesCard({
     super.key,
     required this.s,
     required this.isVisible,
-    required this.series,
-    required this.labels,
+    required this.items,
     required this.totalSales,
   });
 
@@ -38,7 +37,6 @@ class TotalSalesCard extends StatefulWidget {
 
 class _TotalSalesCardState extends State<TotalSalesCard>
     with TickerProviderStateMixin {
-  // MANTENEMOS LOS COLORES ORIGINALES DE LA IMAGEN
   static const _colors = [
     Color(0xFF2E9E4F), // Verde
     Color(0xFFF5B800), // Amarillo
@@ -87,10 +85,12 @@ class _TotalSalesCardState extends State<TotalSalesCard>
   double get _pop => 6 * widget.s;
   double get _radius => _size / 2 - _stroke / 2 - _pop;
 
-  double get _total => widget.series.fold(0.0, (a, b) => a + b);
+  // Extraemos la lista de montos para el painter
+  List<double> get _series => widget.items.map((e) => e.monto).toList();
+  double get _total => _series.fold(0.0, (a, b) => a + b);
 
   void _syncLength() {
-    final n = widget.series.length;
+    final n = _series.length;
     if (_to.length != n) {
       _from = List<double>.filled(n, 0);
       _to = List<double>.filled(n, 0);
@@ -109,7 +109,7 @@ class _TotalSalesCardState extends State<TotalSalesCard>
   void _select(int? index) {
     if (index == _selected) return;
     _from = _currentEmphasis();
-    _to = [for (var i = 0; i < widget.series.length; i++) i == index ? 1.0 : 0.0];
+    _to = [for (var i = 0; i < _series.length; i++) i == index ? 1.0 : 0.0];
     setState(() => _selected = index);
     _focus.forward(from: 0);
     HapticFeedback.selectionClick();
@@ -122,11 +122,11 @@ class _TotalSalesCardState extends State<TotalSalesCard>
     var a = (math.atan2(d.dy, d.dx) - _startAngle) % (2 * math.pi);
     if (a < 0) a += 2 * math.pi;
     var cum = 0.0;
-    for (var i = 0; i < widget.series.length; i++) {
-      cum += widget.series[i] / total * 2 * math.pi;
+    for (var i = 0; i < _series.length; i++) {
+      cum += _series[i] / total * 2 * math.pi;
       if (a <= cum) return i;
     }
-    return widget.series.length - 1;
+    return _series.length - 1;
   }
 
   void _onTap(Offset p) {
@@ -150,25 +150,10 @@ class _TotalSalesCardState extends State<TotalSalesCard>
     if (i != null) _select(i);
   }
 
-  // Nombres de la leyenda para contar la historia real
-  String _nameOf(int i) {
-    if (i == 0) return 'Cobradas';
-    if (i == 1) return 'No cobradas';
-    if (i == 2) return 'Pendientes';
-
-    if (i < widget.labels.length) {
-      final l = widget.labels[i];
-      final idx = l.indexOf(r'$');
-      final base = (idx > 0 ? l.substring(0, idx) : l).trim();
-      if (base.isNotEmpty) return base;
-    }
-    return 'Serie ${i + 1}';
-  }
-
   String _pctOf(int i) {
     final total = _total;
     if (total <= 0) return '0%';
-    final share = widget.series[i] / total;
+    final share = _series[i] / total;
     if (share > 0 && share < 0.005) return '<1%';
     return '${(share * 100).round()}%';
   }
@@ -180,7 +165,6 @@ class _TotalSalesCardState extends State<TotalSalesCard>
     return '\$${v.round()}';
   }
 
-  // Simulacion de exportacion
   void _showExportOptions(BuildContext context) {
     HapticFeedback.lightImpact();
     showModalBottomSheet(
@@ -219,15 +203,15 @@ class _TotalSalesCardState extends State<TotalSalesCard>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.series.isEmpty) return const SizedBox.shrink();
+    if (widget.items.isEmpty) return const SizedBox.shrink();
     _syncLength();
 
     final s = widget.s;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
-    // Calculamos la alerta
-    final cancelPct = (widget.series.length > 1 && widget.totalSales > 0)
-        ? (widget.series[1] / widget.totalSales * 100)
+    // Calculamos la alerta basados en el monto de "No cobradas" (indice 1)
+    final cancelPct = (widget.items.length > 1 && widget.totalSales > 0)
+        ? (widget.items[1].monto / widget.totalSales * 100)
         : 0.0;
     final showAlert = cancelPct > 30;
 
@@ -255,7 +239,6 @@ class _TotalSalesCardState extends State<TotalSalesCard>
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Cabecera: Titulo y Boton de Exportar
               Row(
                 children: [
                   Text(
@@ -286,7 +269,6 @@ class _TotalSalesCardState extends State<TotalSalesCard>
               ),
               SizedBox(height: 22 * s),
               
-              // Dona
               Center(
                 child: Semantics(
                   label: 'Grafica de ventas totales. Toca un segmento para ver su detalle.',
@@ -304,7 +286,7 @@ class _TotalSalesCardState extends State<TotalSalesCard>
                           CustomPaint(
                             size: Size(_size, _size),
                             painter: _DonutPainter(
-                              values: widget.series,
+                              values: _series,
                               colors: _colors,
                               progress: ringT,
                               emphasis: emphasis,
@@ -323,7 +305,6 @@ class _TotalSalesCardState extends State<TotalSalesCard>
               ),
               SizedBox(height: 22 * s),
 
-              // Alerta (se mantiene igual)
               if (showAlert) ...[
                 Container(
                   padding: EdgeInsets.all(12 * s),
@@ -356,8 +337,7 @@ class _TotalSalesCardState extends State<TotalSalesCard>
                 SizedBox(height: 16 * s),
               ],
 
-              // Leyenda
-              for (var i = 0; i < widget.series.length; i++)
+              for (var i = 0; i < widget.items.length; i++)
                 _buildLegendRow(i, entryT),
             ],
           );
@@ -366,7 +346,6 @@ class _TotalSalesCardState extends State<TotalSalesCard>
     );
   }
 
-  // Texto central: Total (con leyenda de cobrado)
   Widget _buildCenter(double entryT) {
     final s = widget.s;
     final sel = _selected;
@@ -376,13 +355,12 @@ class _TotalSalesCardState extends State<TotalSalesCard>
     final String caption;
     
     if (sel == null) {
-      // Mantenemos el total grande, pero cambiamos el texto inferior
       value = _compact(widget.totalSales * Curves.easeOutCubic.transform(entryT));
-      final collected = widget.series.isNotEmpty ? widget.series[0] : 0.0;
+      final collected = widget.items.isNotEmpty ? widget.items[0].monto : 0.0;
       caption = 'Cobrado: ${_compact(collected)}';
     } else {
-      value = _compact(widget.series[sel]);
-      caption = '${_nameOf(sel)}  ${_pctOf(sel)}';
+      value = _compact(widget.items[sel].monto);
+      caption = '${widget.items[sel].nombre}  ${_pctOf(sel)}';
     }
 
     return SizedBox(
@@ -433,6 +411,7 @@ class _TotalSalesCardState extends State<TotalSalesCard>
   Widget _buildLegendRow(int i, double entryT) {
     final s = widget.s;
     final color = _colors[i % _colors.length];
+    final item = widget.items[i];
     final selected = _selected == i;
     final dim = _selected != null && !selected;
 
@@ -466,14 +445,23 @@ class _TotalSalesCardState extends State<TotalSalesCard>
                     ),
                   ),
                   SizedBox(width: 8 * s),
+                  // AQUI AGREGAMOS LA CANTIDAD DE PEDIDOS
                   Expanded(
                     child: Text(
-                      '${_nameOf(i)} \$${Formatters.number(widget.series[i])} (${_pctOf(i)})',
+                      '${item.nombre} (${item.pedidos} pedidos)',
                       style: AppFonts.style(
-                        size: 15 * s,
+                        size: 14 * s,
                         weight: selected ? FontWeight.w800 : FontWeight.w600,
                         color: AppColors.brownDark,
                       ),
+                    ),
+                  ),
+                  Text(
+                    '\$${Formatters.number(item.monto)} (${_pctOf(i)})',
+                    style: AppFonts.style(
+                      size: 13 * s,
+                      weight: FontWeight.w500,
+                      color: AppColors.muted,
                     ),
                   ),
                 ],
@@ -486,6 +474,7 @@ class _TotalSalesCardState extends State<TotalSalesCard>
   }
 }
 
+// ... (El _DonutPainter se mantiene exactamente igual, no necesitas cambiarlo)
 class _DonutPainter extends CustomPainter {
   _DonutPainter({
     required this.values,

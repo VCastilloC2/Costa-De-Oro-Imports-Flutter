@@ -2,14 +2,13 @@
 // ============================================================================
 // PANTALLA: DashboardPage
 // ============================================================================
-// Orquestador del panel. Integra el selector de periodo, la franja de titular
-// y conecta los datos con las graficas correspondientes.
+// Orquestador principal. Incluye los calculos matematicos para mostrar las
+// tendencias reales (flechitas verdes/rojas) en las tres tarjetas.
 // ============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visibility_detector/visibility_detector.dart';
-import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
@@ -19,7 +18,6 @@ import '../../../../core/utils/responsive_utils.dart';
 import '../../../../core/utils/formatters.dart';
 
 import '../../../auth/presentation/providers/auth_controller.dart';
-
 import '../../domain/dashboard_models.dart';
 import '../providers/dashboard_provider.dart';
 import '../../presentation/widgets/dashboard_period_provider.dart';
@@ -44,7 +42,6 @@ class DashboardPage extends ConsumerStatefulWidget {
 
 class _DashboardPageState extends ConsumerState<DashboardPage>
     with TickerProviderStateMixin {
-  int _currentIndex = 0;
   late AnimationController _entryController;
 
   bool _incomeChartVisible = false;
@@ -96,10 +93,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
     final state = ref.watch(dashboardProvider);
     final authUser = ref.watch(authControllerProvider).user;
-    
-    // Escuchamos el periodo seleccionado por el usuario.
     final selectedMonths = ref.watch(dashboardPeriodProvider);
 
+    // 1. ESTADO DE CARGA
     if (state.isLoading && state.data == null) {
       return Scaffold(
         backgroundColor: AppColors.cream,
@@ -108,15 +104,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
           useScrollView: true,
           child: DashboardSkeleton(s: s),
         ),
-        bottomNavigationBar: AppBottomNavBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() => _currentIndex = index);
-            if (index == 1) context.push('/products');
-            if (index == 2) context.push('/orders');
-            if (index == 3) context.push('/profile');
-          },
-        ),
+        bottomNavigationBar: const AppBottomNavBar(),
       );
     }
 
@@ -127,6 +115,46 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
     final data = state.data ?? DashboardData.skeleton;
 
+    // =========================================================================
+    // CALCULO DE TENDENCIAS REALES (Data Storytelling)
+    // =========================================================================
+    
+    // A. Tendencia de Ingresos (Compara el ultimo mes con el penultimo)
+    String? realIncomeTrend;
+    bool isIncomePositive = true;
+
+    if (data.chartIncomes.length >= 2) {
+      final lastIncome = data.chartIncomes.last;
+      final prevIncome = data.chartIncomes[data.chartIncomes.length - 2];
+      
+      if (prevIncome > 0) {
+        final diff = ((lastIncome - prevIncome) / prevIncome) * 100;
+        isIncomePositive = diff >= 0;
+        realIncomeTrend = '${isIncomePositive ? "+" : ""}${diff.round()}%';
+      }
+    }
+
+    // B. Tendencia de Compras (Compara el anio actual con el anio anterior)
+    String? comprasTrend;
+    bool isComprasPositive = true;
+
+    if (data.stats.comprasAnioAnterior > 0) {
+      final diff = ((data.stats.comprasAnuales - data.stats.comprasAnioAnterior) / data.stats.comprasAnioAnterior) * 100;
+      isComprasPositive = diff >= 0;
+      comprasTrend = '${isComprasPositive ? "+" : ""}${diff.round()}%';
+    }
+
+    // C. Tendencia de Clientes (Compara el anio actual con el anio anterior)
+    String? clientesTrend;
+    bool isClientesPositive = true;
+
+    if (data.stats.clientesAnioAnterior > 0) {
+      final diff = ((data.stats.totalClientes - data.stats.clientesAnioAnterior) / data.stats.clientesAnioAnterior) * 100;
+      isClientesPositive = diff >= 0;
+      clientesTrend = '${isClientesPositive ? "+" : ""}${diff.round()}%';
+    }
+
+    // 2. CONTENIDO PRINCIPAL
     return Scaffold(
       backgroundColor: AppColors.cream,
       body: ResponsiveLayout(
@@ -137,7 +165,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Header Principal
               _reveal(
                 0.0,
                 0.3,
@@ -149,28 +176,25 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
               ),
               SizedBox(height: 16 * s),
               
-              // 2. Barra de busqueda
               _reveal(0.1, 0.4, DashboardSearchBar(s: s)),
               SizedBox(height: 16 * s),
 
-              // 3. Banner de Bienvenida
               _reveal(0.2, 0.5,
                   WelcomeBanner(s: s, firstName: data.profile.name.split(' ').first)),
               SizedBox(height: 16 * s),
 
-              // 4. Franja de Titular (Data Storytelling)
               _reveal(
                 0.25,
                 0.55,
                 DashboardHeadline(
                   s: s,
                   incomes: data.chartIncomes,
-                  donutSeries: data.donutSeries,
+                  donutItems: data.donutItems,
                 ),
               ),
               SizedBox(height: 16 * s),
 
-              // 5. Tarjeta de Ganancias
+              // TARJETA DE GANANCIAS (Con tendencia real)
               _reveal(
                 0.3,
                 0.6,
@@ -178,14 +202,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                   s: s,
                   amount: data.stats.ingresosTotales,
                   balance: data.stats.beneficioTotal,
-                  onTap: () {
-                    // TODO: Navegar al detalle de ganancias
-                  },
+                  trend: realIncomeTrend,
+                  isPositive: isIncomePositive,
+                  onTap: () {},
                 ),
               ),
               SizedBox(height: 16 * s),
 
-              // 6. Tarjetas de estadisticas (Actualizadas)
+              // TARJETAS DE COMPRAS Y CLIENTES (Con tendencias reales)
               _reveal(
                 0.4,
                 0.7,
@@ -196,14 +220,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                         s: s,
                         title: 'Compras',
                         value: Formatters.number(data.stats.comprasAnuales),
-                        // Simulamos la tendencia hasta que el backend la envie
-                        trend: '+15%', 
-                        isPositive: true,
+                        trend: comprasTrend, // Pasamos el calculo real
+                        isPositive: isComprasPositive,
                         icon: HugeIcons.strokeRoundedShoppingCart01,
                         iconBg: const Color(0xFFFFF0B3),
-                        onTap: () {
-                          // TODO: Navegar a la lista de compras
-                        },
+                        onTap: () {},
                       ),
                     ),
                     SizedBox(width: 12 * s),
@@ -212,14 +233,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                         s: s,
                         title: 'Clientes',
                         value: Formatters.number(data.stats.totalClientes),
-                        // Simulamos la tendencia hasta que el backend la envie
-                        trend: '+42', 
-                        isPositive: true,
+                        trend: clientesTrend, // Pasamos el calculo real
+                        isPositive: isClientesPositive,
                         icon: HugeIcons.strokeRoundedUserGroup,
                         iconBg: const Color(0xFFD6E8FB),
-                        onTap: () {
-                          // TODO: Navegar a la lista de clientes
-                        },
+                        onTap: () {},
                       ),
                     ),
                   ],
@@ -227,7 +245,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
               ),
               SizedBox(height: 24 * s),
 
-              // 7. Titulo de Analitica y Selector de Periodo
               _reveal(
                 0.45,
                 0.75,
@@ -242,14 +259,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                         color: AppColors.brownDark,
                       ),
                     ),
-                    // Selector de Periodo
                     DashboardPeriodSelector(s: s),
                   ],
                 ),
               ),
               SizedBox(height: 12 * s),
 
-              // 8. Grafica de Ingresos
               _reveal(
                 0.5,
                 0.85,
@@ -272,7 +287,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
               ),
               SizedBox(height: 16 * s),
 
-              // 9. Dona de Ventas Totales
               _reveal(
                 0.6,
                 1.0,
@@ -286,8 +300,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                   child: TotalSalesCard(
                     s: s,
                     isVisible: _totalSalesChartVisible,
-                    series: data.donutSeries,
-                    labels: data.donutLabels,
+                    items: data.donutItems,
                     totalSales: data.totalVentasDona,
                   ),
                 ),
@@ -297,15 +310,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
           ),
         ),
       ),
-      bottomNavigationBar: AppBottomNavBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() => _currentIndex = index);
-          if (index == 1) context.push('/products');
-          if (index == 2) context.push('/orders');
-          if (index == 3) context.push('/profile');
-        },
-      ),
+      bottomNavigationBar: const AppBottomNavBar(),
     );
   }
 }

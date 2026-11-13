@@ -3,7 +3,7 @@
 // WIDGET: IncomeChartCard
 // ============================================================================
 // Grafica de ingresos mensuales. Se ha actualizado para aceptar un parametro
-// de cuantos meses mostrar (3, 6 o 12) proveniente del selector global.
+// de cuantos meses mostrar y animar el redibujado al cambiar de filtro.
 // ============================================================================
 
 import 'dart:math' as math;
@@ -23,7 +23,7 @@ class IncomeChartCard extends StatefulWidget {
   final List<double> incomes;
   final List<double> expenses;
   
-  // NUEVO PARAMETRO: Controla cuantos meses mostrar en la grafica.
+  // Parametro para controlar cuantos meses mostrar
   final int monthsToShow;
 
   const IncomeChartCard({
@@ -33,14 +33,16 @@ class IncomeChartCard extends StatefulWidget {
     required this.categories,
     required this.incomes,
     required this.expenses,
-    this.monthsToShow = 6, // Por defecto mostrara 6.
+    this.monthsToShow = 6,
   });
 
   @override
   State<IncomeChartCard> createState() => _IncomeChartCardState();
 }
 
-class _IncomeChartCardState extends State<IncomeChartCard> {
+// AGREGAMOS EL MIXIN PARA EL CONTROLADOR DE ANIMACION
+class _IncomeChartCardState extends State<IncomeChartCard>
+    with SingleTickerProviderStateMixin {
   static const _green = Color(0xFF2E9E4F);
   static const _yellow = Color(0xFFF5B800);
   static const _terracotta = Color(0xFFC0573E);
@@ -52,7 +54,43 @@ class _IncomeChartCardState extends State<IncomeChartCard> {
 
   int? _touched;
 
-  // UTILIDADES Y LOGICA INTERNA (Se mantienen intactas)
+  // CONTROLADOR PARA LA ANIMACION DE BARRIDO
+  late AnimationController _sweepController;
+
+  @override
+  void initState() {
+    super.initState();
+    _sweepController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+
+    if (widget.isVisible) {
+      _sweepController.forward();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant IncomeChartCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // 1. Si la tarjeta se vuelve visible, animamos
+    if (widget.isVisible && !oldWidget.isVisible) {
+      _sweepController.forward(from: 0);
+    }
+
+    // 2. Si el usuario cambia los meses (3M, 6M, 12M), reiniciamos la animacion
+    if (widget.monthsToShow != oldWidget.monthsToShow) {
+      _touched = null; // Limpiamos el toque para evitar errores de indices
+      _sweepController.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _sweepController.dispose();
+    super.dispose();
+  }
 
   bool _isCurrentMonth(String label) {
     final parts = label.trim().split(' ');
@@ -151,7 +189,6 @@ class _IncomeChartCardState extends State<IncomeChartCard> {
     final len = math.min(widget.categories.length, widget.incomes.length);
     if (len == 0) return const SizedBox.shrink();
 
-    // CAMBIO PRINCIPAL: Usamos widget.monthsToShow en lugar del 6 fijo.
     final start = len > widget.monthsToShow ? len - widget.monthsToShow : 0;
     
     final labels = widget.categories.sublist(start, len);
@@ -280,14 +317,16 @@ class _IncomeChartCardState extends State<IncomeChartCard> {
 
           SizedBox(
             height: 180 * s,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0, end: widget.isVisible ? 1 : 0),
-              duration: const Duration(milliseconds: 2200),
-              curve: Curves.easeInOutCubic,
-              builder: (context, progress, child) => ClipRect(
-                clipper: _SweepClipper(progress),
-                child: child,
-              ),
+            // REEMPLAZAMOS EL TWEENANIMATIONBUILDER POR UN ANIMATEDBUILDER
+            // CONECTADO A NUESTRO CONTROLADOR
+            child: AnimatedBuilder(
+              animation: _sweepController,
+              builder: (context, child) {
+                return ClipRect(
+                  clipper: _SweepClipper(_sweepController.value),
+                  child: child,
+                );
+              },
               child: LineChart(
                 LineChartData(
                   minY: 0,
