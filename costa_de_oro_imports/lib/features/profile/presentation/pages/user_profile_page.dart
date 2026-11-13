@@ -27,7 +27,6 @@ class UserProfilePage extends ConsumerStatefulWidget {
 }
 
 class _UserProfilePageState extends ConsumerState<UserProfilePage> {
-  // Variable para controlar el estado de carga inicial
   bool _isLoading = true;
 
   @override
@@ -35,10 +34,8 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
     super.initState();
     Future.microtask(() async {
       try {
-        // Pedimos los datos frescos al backend al abrir la pantalla
         await ref.read(authControllerProvider.notifier).refreshProfile();
       } finally {
-        // Apagamos el esqueleto sin importar si hubo exito o error
         if (mounted) setState(() => _isLoading = false);
       }
     });
@@ -47,11 +44,8 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   @override
   Widget build(BuildContext context) {
     final s = context.s;
-    
-    // Observamos el estado global para obtener los datos reales del usuario
     final user = ref.watch(authControllerProvider).user;
 
-    // Calculamos cuantos campos estan llenos
     final done = ProfileRules.doneCount(
       nombres: user?.nombres,
       apellidos: user?.apellidos,
@@ -64,13 +58,8 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F6F0), 
-      bottomNavigationBar: AppBottomNavBar(
-        currentIndex: 4, 
-        onTap: (index) {
-          if (index == 0) context.go('/dashboard');
-          if (index == 4) return; 
-        },
-      ),
+      // La barra se encarga de su propia navegacion
+      bottomNavigationBar: const AppBottomNavBar(),
       body: _isLoading 
           ? _UserProfileSkeleton(s: s)
           : ResponsiveLayout(
@@ -144,11 +133,9 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                             decoration: BoxDecoration(
                               color: AppColors.beige, 
                               shape: BoxShape.circle,
-                              // Borde sutil para resaltar la foto
                               border: Border.all(color: AppColors.goldLight, width: 1.5),
                             ),
                             alignment: Alignment.center,
-                            // ClipOval asegura que la imagen no se salga del circulo
                             child: ClipOval(
                               child: (user?.imagen != null && user!.imagen!.startsWith('http'))
                                   ? CachedNetworkImage(
@@ -156,11 +143,9 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                                       width: 56 * s,
                                       height: 56 * s,
                                       fit: BoxFit.cover,
-                                      // Mientras carga, mostramos un fondo solido
                                       placeholder: (context, url) => Container(
                                         color: AppColors.beige,
                                       ),
-                                      // Si falla, mostramos las iniciales
                                       errorWidget: (context, url, error) => Center(
                                         child: Text(
                                           user.initials ?? 'U', 
@@ -172,7 +157,6 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                                         ),
                                       ),
                                     )
-                                  // Si no hay url, mostramos las iniciales
                                   : Center(
                                       child: Text(
                                         user?.initials ?? 'U', 
