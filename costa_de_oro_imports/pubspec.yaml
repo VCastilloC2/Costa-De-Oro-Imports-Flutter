@@ -46,6 +46,7 @@ dependencies:
   hugeicons: ^4.4.0
   image_picker: ^1.1.2
   cached_network_image: ^3.4.1
+  syncfusion_flutter_maps: ^28.1.33
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +74,7 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/maps/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
