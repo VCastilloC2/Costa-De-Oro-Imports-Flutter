@@ -1,3 +1,4 @@
+// RAMA: feature/Auth
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_fonts.dart';
@@ -26,7 +27,11 @@ class AuthHeaderCard extends StatelessWidget {
           offset: Offset(0, floatAnimation.value),
           child: Container(
             width: double.infinity,
-            height: height ?? 190 * s, // Altura cómoda
+            // Altura MINIMA: la tarjeta crece si el texto del sistema es mas
+            // grande, en lugar de desbordarse. Con `height` explicito se respeta.
+            constraints: height != null
+                ? BoxConstraints.tightFor(height: height)
+                : BoxConstraints(minHeight: 190 * s),
             margin: EdgeInsets.only(
               top: 16 * s,
               left: 16 * s,
@@ -55,6 +60,7 @@ class AuthHeaderCard extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: Stack(
+              alignment: Alignment.centerLeft,
               children: [
                 // 1. EL VELO OSCURO (Difuminado detrás del logo)
                 Positioned(

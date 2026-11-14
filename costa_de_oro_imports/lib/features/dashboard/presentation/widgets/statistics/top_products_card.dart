@@ -75,26 +75,42 @@ class TopProductsCard extends ConsumerWidget {
               0,
               (m, p) => p.participacion > m ? p.participacion : m,
             );
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12 * s,
-                mainAxisSpacing: 12 * s,
-                childAspectRatio: 0.64,
-              ),
-              itemCount: products.length,
-              itemBuilder: (context, index) => _Entrance(
-                index: index,
-                child: _ProductTile(
-                  product: products[index],
-                  rank: index + 1,
-                  maxShare: maxShare,
-                  s: s,
-                  onTap: onProductTap == null ? null : () => onProductTap!(products[index]),
-                ),
-              ),
+            return LayoutBuilder(
+              builder: (context, box) {
+                // Altura de tarjeta: conserva la proporcion de diseno (0.64) pero
+                // crece si el texto del sistema o un ancho pequeno lo exigen.
+                final tileW = (box.maxWidth - 12 * s) / 2;
+                final scaler = MediaQuery.textScalerOf(context);
+                final bodyNeeded = 22 * s +
+                    scaler.scale(12.5) * 1.25 * 2 +
+                    scaler.scale(17) * 1.3 +
+                    scaler.scale(10) * 1.3 +
+                    9 * s +
+                    16 * s;
+                final extent = math.max(tileW / 0.64, bodyNeeded * 2);
+
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12 * s,
+                    mainAxisSpacing: 12 * s,
+                    mainAxisExtent: extent,
+                  ),
+                  itemCount: products.length,
+                  itemBuilder: (context, index) => _Entrance(
+                    index: index,
+                    child: _ProductTile(
+                      product: products[index],
+                      rank: index + 1,
+                      maxShare: maxShare,
+                      s: s,
+                      onTap: onProductTap == null ? null : () => onProductTap!(products[index]),
+                    ),
+                  ),
+                );
+              },
             );
           },
         ),

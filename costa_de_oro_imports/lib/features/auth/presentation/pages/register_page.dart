@@ -287,10 +287,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                             position: _titleSlide,
                             child: Column(
                               children: [
-                                Text(
+                                FittedBox(
+  fit: BoxFit.scaleDown,
+  child: Text(
                                   'Create Account', 
                                   style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark),
                                 ),
+),
                                 SizedBox(height: 8 * s),
                                 Text(
                                   'Solo necesitamos unos segundos para empezar.', 
