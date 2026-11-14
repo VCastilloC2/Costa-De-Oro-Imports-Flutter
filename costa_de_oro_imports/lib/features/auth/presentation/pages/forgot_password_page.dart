@@ -148,10 +148,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
                           position: _titleSlide,
                           child: Column(
                             children: [
-                              FittedBox(
-  fit: BoxFit.scaleDown,
-  child: Text('Forgot Password', textAlign: TextAlign.center, style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark)),
-),
+                              Text('Forgot Password', textAlign: TextAlign.center, style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark)),
                               SizedBox(height: 8 * s),
                               Text('Reset your password to access Costa de Oro.', textAlign: TextAlign.center, style: AppFonts.style(size: 17, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.7))),
                             ],

@@ -270,10 +270,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             position: _titleSlide,
                             child: Column(
                               children: [
-                                FittedBox(
-  fit: BoxFit.scaleDown,
-  child: Text('Welcome Back!', style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark)),
-),
+                                Text('Welcome Back!', style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark)),
                                 SizedBox(height: 8 * s),
                                 Text('Ingresa para disfrutar de tu licor favorito.', textAlign: TextAlign.center, style: AppFonts.style(size: 18, weight: FontWeight.w600, color: AppColors.brown.withValues(alpha: 0.7))),
                               ],

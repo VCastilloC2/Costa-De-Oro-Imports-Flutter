@@ -1,4 +1,3 @@
-// RAMA: chore/Core
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,15 +5,13 @@ import '../features/auth/presentation/providers/auth_controller.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
-/// Widget raiz de la aplicacion.
+/// Widget raíz de la aplicación.
 ///
 /// Responsabilidades:
-///  - Restaurar la sesion del usuario al arrancar (si hay token guardado,
+///  - Restaurar la sesión del usuario al arrancar (si hay token guardado,
 ///    entra directo al Dashboard sin pedir credenciales).
 ///  - Proveer el `GoRouter` reactivo que se actualiza cuando cambia el
-///    estado de autenticacion (login, logout, token vencido, etc.).
-///  - Limitar el tamano de texto del sistema para que el diseno no se rompa
-///    en telefonos con la fuente ampliada.
+///    estado de autenticación (login, logout, token vencido, etc.).
 class App extends ConsumerStatefulWidget {
   const App({super.key});
 
@@ -27,7 +24,9 @@ class _AppState extends ConsumerState<App> {
   void initState() {
     super.initState();
 
-    // Restaurar sesion UNA sola vez al abrir la app.
+    // Restaurar sesión UNA sola vez al abrir la app.
+    // El router reaccionará automáticamente al cambio de estado
+    // (redirige a /login si no hay token, o a /dashboard si lo hay).
     Future.microtask(() {
       ref.read(authControllerProvider.notifier).restoreSession();
     });
@@ -35,6 +34,8 @@ class _AppState extends ConsumerState<App> {
 
   @override
   Widget build(BuildContext context) {
+    // `watch` (no `read`) para que si el router se reconstruye,
+    // MaterialApp.router reciba la nueva instancia.
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
@@ -42,12 +43,6 @@ class _AppState extends ConsumerState<App> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: router,
-      // Respeta la accesibilidad pero con tope: evita desbordes por fuente enorme.
-      builder: (context, child) => MediaQuery.withClampedTextScaling(
-        minScaleFactor: 0.9,
-        maxScaleFactor: 1.15,
-        child: child!,
-      ),
     );
   }
 }
