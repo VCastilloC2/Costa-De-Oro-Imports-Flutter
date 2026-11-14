@@ -12,7 +12,7 @@ class AnimatedBrandLockup extends StatefulWidget {
     this.startFormed = false,
     this.textScale = 1.0,
     this.showText = true,
-    this.showHalo = true, // <-- NUEVO
+    this.showHalo = true, 
     this.duration = const Duration(milliseconds: 3000),
     this.onFinished,
   });
@@ -25,7 +25,7 @@ class AnimatedBrandLockup extends StatefulWidget {
 
   /// false: no dibuja el halo dorado detrás del sol (útil sobre fondos
   /// dorados, donde el halo le quita contraste al sol y a la palmera).
-  final bool showHalo; // <-- NUEVO
+  final bool showHalo; 
 
   final Duration duration;
   final VoidCallback? onFinished;
