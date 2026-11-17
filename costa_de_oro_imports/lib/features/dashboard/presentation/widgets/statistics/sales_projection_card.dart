@@ -2,7 +2,9 @@
 // ============================================================================
 // WIDGET: SalesProjectionCard
 // ============================================================================
-// Gráfica que se dibuja de izquierda a derecha SOLO cuando es visible.
+// Gráfica de proyección de ventas conectada a la API real.
+// Corrige el cálculo del Eje X para mostrar los años correctamente.
+// Aplica el factor responsivo `* s` a todos los textos y márgenes de la UI.
 // ============================================================================
 
 import 'package:fl_chart/fl_chart.dart';
@@ -15,7 +17,7 @@ import '../../../domain/sales_projection_model.dart';
 import '../../providers/sales_projection_provider.dart';
 
 class SalesProjectionCard extends ConsumerStatefulWidget {
-  final bool isVisible; // <-- PARÁMETRO NUEVO
+  final bool isVisible;
 
   const SalesProjectionCard({super.key, required this.isVisible});
 
@@ -35,7 +37,6 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
       duration: const Duration(milliseconds: 1500),
     );
 
-    // Si ya es visible al cargar, animamos de inmediato
     if (widget.isVisible) {
       _sweepController.forward();
     }
@@ -44,7 +45,6 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
   @override
   void didUpdateWidget(covariant SalesProjectionCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Si cambia a visible, disparamos la animación
     if (widget.isVisible && !oldWidget.isVisible) {
       _sweepController.forward(from: 0);
     }
@@ -71,7 +71,7 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Proyeccion de ventas',
+            'Proyección de ventas',
             style: AppFonts.style(
               size: 16 * s,
               weight: FontWeight.w700,
@@ -80,7 +80,7 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
           ),
           SizedBox(height: 4 * s),
           Text(
-            'Historico de ventas pagadas por año',
+            'Histórico de ventas pagadas por año',
             style: AppFonts.style(size: 12 * s, color: Colors.black54),
           ),
           SizedBox(height: 24 * s),
@@ -91,7 +91,7 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Center(
                 child: Text(
-                  'Error al cargar la proyeccion',
+                  'Error al cargar la proyección',
                   style: TextStyle(color: Colors.red.shade400),
                 ),
               ),
@@ -105,7 +105,7 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
 
   Widget _buildChart(SalesProjectionData data, double s) {
     if (data.series.isEmpty || data.categorias.isEmpty) {
-      return const Center(child: Text('Sin datos historicos'));
+      return const Center(child: Text('Sin datos históricos'));
     }
 
     final List<FlSpot> spots = [];
@@ -113,16 +113,20 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
       if (i < data.categorias.length) {
         spots.add(
           FlSpot(
-            data.categorias[i] / 1000,
+            // CORRECCIÓN: Usamos el año directamente (ej: 2020.0) en lugar de dividirlo.
+            data.categorias[i], 
             data.series[i],
           ),
         );
       }
     }
 
-    final xMin = spots.first.x;
-    final xMax = spots.last.x;
-    final yMin = data.minVenta * 0.9;
+    // Calculamos los límites del Eje X basándonos en los años reales
+    final xMin = data.categorias.first - 0.5;
+    final xMax = data.categorias.last + 0.5;
+    
+    // Límites del Eje Y con un pequeño margen de respiro
+    final yMin = data.minVenta * 0.8;
     final yMax = data.maxVenta * 1.1;
     final yInterval = (yMax - yMin) == 0 ? 1.0 : (yMax - yMin) / 4;
 
@@ -135,7 +139,7 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
         );
       },
       child: LineChart(
-        duration: Duration.zero, // Apagamos la animación por defecto
+        duration: Duration.zero,
         LineChartData(
           minX: xMin,
           maxX: xMax,
@@ -172,7 +176,8 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
               getTooltipItems: (List<LineBarSpot> touchedSpots) {
                 return touchedSpots.map((spot) {
                   final millones = (spot.y / 1000000).toStringAsFixed(1);
-                  final anio = spot.x.toInt();
+                  // Como el eje X ahora tiene el año real, lo leemos directamente
+                  final anio = spot.x.toInt(); 
                   return LineTooltipItem(
                     'Año $anio\n',
                     AppFonts.style(size: 12 * s, color: Colors.white70),
@@ -195,9 +200,10 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                interval: 1,
+                interval: 1, // Mostrar un año a la vez
                 reservedSize: 30 * s,
                 getTitlesWidget: (value, meta) {
+                  // Como los valores ahora son 2020, 2021, etc., solo mostramos enteros
                   if (value % 1 == 0) {
                     return Padding(
                       padding: EdgeInsets.only(top: 8 * s),

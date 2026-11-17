@@ -1,10 +1,10 @@
 // RAMA: feature/Profile
 // ============================================================================
-// WIDGET: EditProfileSliverHeader
+// WIDGET: EditProfileHeader
 // ============================================================================
-// Encabezado de edicion de perfil. Ahora incluye el mismo diseno premium
-// (aros concentricos y brillo) que la pantalla de Account Details para
-// mantener la coherencia visual en toda la app.
+// Encabezado de edición. Ya NO usa SliverAppBar (para evitar el efecto
+// sticky/pegajoso). Ahora es un widget normal que se desplaza hacia arriba
+// junto con el resto de la pantalla al hacer scroll.
 // ============================================================================
 
 import 'dart:io';
@@ -12,7 +12,6 @@ import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:image_picker/image_picker.dart' show ImageSource;
 
@@ -20,12 +19,11 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
 import 'profile_hero.dart' show kProfileAvatarHeroTag;
 
-// Colores base del fondo oscuro
 const Color _kDarkA = Color(0xFF1E130C);
 const Color _kDarkB = Color(0xFF3A2414);
 
-class EditProfileSliverHeader extends StatelessWidget {
-  const EditProfileSliverHeader({
+class EditProfileHeader extends StatelessWidget {
+  const EditProfileHeader({
     super.key,
     required this.s,
     required this.listenable,
@@ -48,118 +46,110 @@ class EditProfileSliverHeader extends StatelessWidget {
   final VoidCallback onPickPhoto;
   final VoidCallback onResetPhoto;
 
-  // Calcula la altura expandida del header
-  static double expandedHeight(double s) => kToolbarHeight + 212 * s;
-
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
-
-    return SliverAppBar(
-      pinned: true,
-      automaticallyImplyLeading: false,
-      backgroundColor: _kDarkA,
-      surfaceTintColor: Colors.transparent,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      systemOverlayStyle: SystemUiOverlayStyle.light,
-      toolbarHeight: kToolbarHeight,
-      expandedHeight: expandedHeight(s),
-      centerTitle: true,
-      leadingWidth: 64 * s,
-      // BOTON ATRAS CORREGIDO (Mas pequeno y ajustado)
-      leading: Center(
-        child: Container(
-          margin: EdgeInsets.only(left: 16 * s),
-          width: 40 * s,
-          height: 40 * s,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.14),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-          ),
-          child: IconButton(
-            tooltip: 'Volver',
-            padding: EdgeInsets.zero, // Quita el padding interno
-            constraints: const BoxConstraints(), // Quita el tamano minimo por defecto
-            icon: HugeIcon(
-              icon: HugeIcons.strokeRoundedArrowLeft01,
-              color: AppColors.creamText,
-              size: 18 * s, // Icono un poco mas pequeno
-              strokeWidth: 2.0,
-            ),
-            onPressed: onBack,
-          ),
-        ),
-      ),
-      title: Text(
-        'Editar perfil',
-        style: AppFonts.style(
-          size: 18 * s,
-          weight: FontWeight.w700,
-          color: AppColors.creamText,
-        ),
-      ),
-      flexibleSpace: FlexibleSpaceBar(
-        collapseMode: CollapseMode.pin,
-        background: _background(top),
-      ),
-    );
-  }
-
-  Widget _background(double top) {
     final contentTop = top + kToolbarHeight + 4 * s;
     final arc = 116 * s;
     final centerY = contentTop + arc / 2;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // 1. Fondo con gradiente oscuro
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [_kDarkA, _kDarkB],
+    return SizedBox(
+      height: top + kToolbarHeight + 212 * s,
+      width: double.infinity,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 1. Fondo con gradiente oscuro
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [_kDarkA, _kDarkB],
+              ),
             ),
           ),
-        ),
-        
-        // 2. El Brillo Dorado (Glow) detras del avatar
-        Positioned(
-          left: 0,
-          right: 0,
-          top: centerY - 160 * s,
-          height: 320 * s,
-          child: Center(child: _Glow(size: 320 * s)),
-        ),
-        
-        // 3. Los Aros Concetricos de fondo
-        Positioned.fill(
-          child: IgnorePointer(
-            child: CustomPaint(
-              painter: _RingsPainter(centerY: centerY, s: s),
+          
+          // 2. El Brillo Dorado (Glow) detrás del avatar
+          Positioned(
+            left: 0,
+            right: 0,
+            top: centerY - 160 * s,
+            height: 320 * s,
+            child: Center(child: _Glow(size: 320 * s)),
+          ),
+          
+          // 3. Los Aros Concéntricos de fondo
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _RingsPainter(centerY: centerY, s: s),
+              ),
             ),
           ),
-        ),
 
-        // 4. El Avatar y los chips
-        Align(
-          alignment: Alignment.topCenter,
-          child: Padding(
-            padding: EdgeInsets.only(top: contentTop),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _avatar(arc),
-                SizedBox(height: 12 * s),
-                _chips(),
-              ],
+          // 4. Título y Botón de Volver (ahora son parte del scroll)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: top + kToolbarHeight,
+              padding: EdgeInsets.only(top: top),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Text(
+                    'Editar perfil',
+                    style: AppFonts.style(
+                      size: 18 * s,
+                      weight: FontWeight.w700,
+                      color: AppColors.creamText,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 16 * s),
+                      child: IconButton(
+                        tooltip: 'Volver',
+                        icon: HugeIcon(
+                          icon: HugeIcons.strokeRoundedArrowLeft01,
+                          color: AppColors.creamText,
+                          size: 20 * s,
+                          strokeWidth: 2.0,
+                        ),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: 0.14),
+                          side: BorderSide(color: Colors.white.withValues(alpha: 0.22)),
+                          shape: const CircleBorder(),
+                        ),
+                        onPressed: onBack,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+
+          // 5. El Avatar y los chips
+          Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: EdgeInsets.only(top: contentTop),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _avatar(arc),
+                  SizedBox(height: 12 * s),
+                  _chips(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -199,7 +189,6 @@ class EditProfileSliverHeader extends StatelessWidget {
         alignment: Alignment.center,
         clipBehavior: Clip.none,
         children: [
-          // Arco de progreso
           Positioned.fill(
             child: AnimatedBuilder(
               animation: listenable,
@@ -216,7 +205,6 @@ class EditProfileSliverHeader extends StatelessWidget {
               ),
             ),
           ),
-          // Avatar
           Hero(
             tag: kProfileAvatarHeroTag,
             child: Material(
@@ -272,7 +260,6 @@ class EditProfileSliverHeader extends StatelessWidget {
               ),
             ),
           ),
-          // Boton de camara
           Positioned(
             right: 4 * s,
             bottom: 4 * s,
@@ -332,7 +319,7 @@ class EditProfileSliverHeader extends StatelessWidget {
 }
 
 // ============================================================================
-// CLASES PARA COHERENCIA VISUAL
+// CLASES VISUALES (Pintores)
 // ============================================================================
 
 class _ArcPainter extends CustomPainter {
@@ -343,7 +330,6 @@ class _ArcPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = (Offset.zero & size).deflate(stroke / 2);
-
     canvas.drawArc(
       rect,
       0,
@@ -530,6 +516,9 @@ class _Chip extends StatelessWidget {
   }
 }
 
+// ============================================================================
+// MODAL PARA ELEGIR FOTO
+// ============================================================================
 Future<ImageSource?> showPhotoSourceSheet(BuildContext context) {
   return showModalBottomSheet<ImageSource>(
     context: context,

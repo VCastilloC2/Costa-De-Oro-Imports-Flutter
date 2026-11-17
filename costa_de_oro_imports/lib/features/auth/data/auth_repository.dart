@@ -3,9 +3,13 @@
 // REPOSITORIO: AuthRepository
 // ============================================================================
 // Capa de datos encargada de comunicarse con los endpoints de autenticación.
-// Se ha actualizado fetchProfile para garantizar que la URL de la imagen de
-// perfil siempre sea absoluta (comenzando con http), construyendo la ruta de
-// Cloudinary si el backend solo envía la ruta relativa.
+//
+// ACTUALIZACIÓN IMPORTANTE:
+// El método `updateProfile` ha sido refactorizado para enviar los datos
+// utilizando `multipart/form-data`, tal como lo exige el backend (verificado
+// en Swagger). Además, ahora incluye el campo `correo` y permite adjuntar
+// la imagen de perfil en la misma petición, eliminando la necesidad de un
+// endpoint separado para la subida de la foto.
 // ============================================================================
 
 import 'dart:io';
@@ -24,8 +28,9 @@ class AuthRepository {
   final Dio _dio;
   final SessionStorage _storage;
 
-  // ... (Métodos login y register se mantienen igual) ...
-
+  // ==========================================================================
+  // LOGIN Y REGISTRO
+  // ==========================================================================
   Future<UserModel> login({required String correo, required String password}) async {
     final String token;
     try {
@@ -79,53 +84,68 @@ class AuthRepository {
     return login(correo: correo, password: password);
   }
 
+  // ==========================================================================
+  // ACTUALIZACIÓN DE PERFIL (MULTIPART)
+  // ==========================================================================
   Future<UserModel> updateProfile({
     required String nombres,
     required String apellidos,
+    required String correo,
     required String telefono,
     required String direccion,
     required String tipoIdentificacion,
     required String numeroIdentificacion,
+    File? imagen,
   }) async {
     try {
-      final response = await _dio.patch<dynamic>(
-        '/perfil',
-        data: {
-          'nombres': nombres.trim(),
-          'apellidos': apellidos.trim(),
-          'telefono': telefono.trim(),
-          'direccion': direccion.trim(),
-          'tipoIdentificacion': tipoIdentificacion,
-          'numeroIdentificacion': numeroIdentificacion.trim(),
-        },
-      );
-      print('RESPUESTA DEL BACKEND AL ACTUALIZAR: ${response.data}');
-      return await fetchProfile();
-    } on DioException catch (e) {
-      throw ApiException.fromDio(e);
-    }
-  }
+      // 1. Construimos el mapa con los datos requeridos por el backend
+      final Map<String, dynamic> map = {
+        'nombres': nombres.trim(),
+        'apellidos': apellidos.trim(),
+        'correo': correo.trim(),
+        'telefono': telefono.trim(),
+        'direccion': direccion.trim(),
+        'tipo_identificacion': tipoIdentificacion,
+        'numero_identificacion': numeroIdentificacion.trim(),
+      };
 
-  Future<UserModel> uploadProfileImage(File imageFile) async {
-    try {
-      final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(imageFile.path, filename: 'profile.jpg'),
-      });
+      // 2. Si el usuario seleccionó una nueva imagen, la adjuntamos
+      if (imagen != null) {
+        map['imagen'] = await MultipartFile.fromFile(
+          imagen.path, 
+          filename: 'profile.jpg',
+        );
+      }
+
+      // 3. Convertimos el mapa a FormData
+      final formData = FormData.fromMap(map);
+
+      print('=== [DEBUG] ENVIANDO AL BACKEND (PATCH /perfil) ===');
+      print('Campos: ${map.keys.toList()}');
+
+      // 4. Enviamos la petición con el content-type correcto
       final response = await _dio.patch<dynamic>(
-        '/perfil/imagen',
+        '/perfil', 
         data: formData,
         options: Options(contentType: 'multipart/form-data'),
       );
-      print('RESPUESTA DEL BACKEND AL SUBIR IMAGEN: ${response.data}');
+      
+      print('=== [DEBUG] RESPUESTA DEL BACKEND (Status: ${response.statusCode}) ===');
+      print(response.data);
+      
+      // Refrescamos el perfil para obtener los datos actualizados
       return await fetchProfile();
     } on DioException catch (e) {
+      print('=== [DEBUG] ERROR AL ACTUALIZAR PERFIL ===');
+      print('Status: ${e.response?.statusCode}');
+      print('Mensaje del servidor: ${e.response?.data}');
       throw ApiException.fromDio(e);
     }
   }
 
-  /// ==========================================================================
-  /// MÉTODO: fetchProfile
-  /// ==========================================================================
+  // ==========================================================================
+  // OBTENER PERFIL
+  // ==========================================================================
   Future<UserModel> fetchProfile() async {
     try {
       final res = await _dio.get<dynamic>('/api/graficas/dashboard');
@@ -138,14 +158,13 @@ class AuthRepository {
       if (data['usuario'] is Map<String, dynamic>) {
         final userJson = Map<String, dynamic>.from(data['usuario']);
         
-        // LOGICA MEJORADA DE LA IMAGEN
+        // Lógica para garantizar que la URL de la imagen sea absoluta
         final String? fullUrl = data['urlImagenUsuario'];
         final String? relativePath = userJson['imagen'];
 
         if (fullUrl != null && fullUrl.isNotEmpty) {
           userJson['imagen'] = fullUrl;
         } else if (relativePath != null && relativePath.isNotEmpty && !relativePath.startsWith('http')) {
-          // Si el backend no envía la URL completa, la construimos.
           userJson['imagen'] = 'https://res.cloudinary.com/dp2nofw2b/image/upload/$relativePath';
         }
 
@@ -158,7 +177,9 @@ class AuthRepository {
     }
   }
 
-  // ... (restoreSession, logout, _extractToken se mantienen igual) ...
+  // ==========================================================================
+  // SESIÓN
+  // ==========================================================================
   Future<UserModel?> restoreSession() async {
     final token = await _storage.readToken();
     if (token == null || token.isEmpty) return null;
@@ -180,6 +201,9 @@ class AuthRepository {
     await _storage.clear();
   }
 
+  // ==========================================================================
+  // UTILIDADES
+  // ==========================================================================
   static const _tokenKeys = ['access_token', 'accessToken', 'token', 'jwt', 'id_token'];
 
   String _extractToken(dynamic data) {

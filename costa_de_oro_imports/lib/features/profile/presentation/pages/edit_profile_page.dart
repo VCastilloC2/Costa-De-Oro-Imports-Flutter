@@ -19,11 +19,13 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
 import '../profile_rules.dart';
-import '../widget/edit_profile_header.dart';
 import '../widget/edit_profile_skeleton.dart';
 import '../widget/profile_field.dart';
 import '../widget/profile_section_card.dart';
 import '../widget/save_dock.dart';
+import '../widget/edit_profile_header.dart'; // AQUI IMPORTAMOS EL HEADER
+
+const Color _kSheet = Color(0xFFF9F6F0);
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -34,6 +36,8 @@ class EditProfilePage extends ConsumerStatefulWidget {
 
 class _EditProfilePageState extends ConsumerState<EditProfilePage>
     with SingleTickerProviderStateMixin {
+  final _scroll = ScrollController();
+  
   final _nombresController = TextEditingController();
   final _apellidosController = TextEditingController();
   final _numeroIdController = TextEditingController();
@@ -52,7 +56,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
   static const _sectionOfField = [0, 0, 1, 2, 2];
   static const _fieldNames = ['nombres', 'apellidos', 'documento', 'telefono', 'direccion'];
 
-  final Set<int> _open = {};
+  final Set<int> _open = {}; // Inicia vacío (listas cerradas)
 
   String _tipo = 'CC';
   bool _isLoading = false;
@@ -84,7 +88,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     ];
     _orderedKeys = [_nombresKey, _apellidosKey, _docKey, _telefonoKey, _direccionKey];
 
-    // Aumentamos la duracion para que sea una animacion pausada y suave
     _entry = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -114,6 +117,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
 
   @override
   void dispose() {
+    _scroll.dispose();
     for (final c in _controllers) {
       c.dispose();
     }
@@ -151,10 +155,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
   }
 
   void _openInitialSections() {
+    // Solo abrimos si falta algún dato. Si está completo, se quedan cerradas.
     if (_missingPersonal > 0) _open.add(0);
     if (_missingDocument > 0) _open.add(1);
     if (_missingContact > 0) _open.add(2);
-    if (_open.isEmpty) _open.addAll([0, 1, 2]);
   }
 
   void _focusRequestedField() {
@@ -438,25 +442,15 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     setState(() => _isLoading = true);
 
     try {
-      if (_selectedImage != null) {
-        setState(() => _isUploadingImage = true);
-        await ref.read(authControllerProvider.notifier).uploadProfileImage(_selectedImage!);
-        if (!mounted) return;
-        setState(() {
-          _isUploadingImage = false;
-          _selectedImage = null;
-          _originalImageUrl =
-              ref.read(authControllerProvider).user?.imagen ?? _originalImageUrl;
-        });
-      }
-
       await ref.read(authControllerProvider.notifier).updateProfile(
             nombres: _nombresController.text.trim(),
             apellidos: _apellidosController.text.trim(),
+            correo: ref.read(authControllerProvider).user?.correo ?? '',
             telefono: _telefonoController.text.trim(),
             direccion: _normalizeAddress(_direccionController.text.trim()),
             tipoIdentificacion: _tipo,
             numeroIdentificacion: _numeroIdController.text.trim(),
+            imagen: _selectedImage,
           );
 
       if (!mounted) return;
@@ -485,7 +479,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     }
   }
 
-  // NUEVA ANIMACION: Mas suave, con curva easeOutQuart y mayor recorrido
   Widget _reveal(double start, double end, Widget child) {
     final curve = Interval(start, end, curve: Curves.easeOutQuart);
     final animation = CurvedAnimation(parent: _entry, curve: curve);
@@ -494,7 +487,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
       opacity: animation,
       child: SlideTransition(
         position: Tween<Offset>(
-          begin: const Offset(0, 0.08), // Recorrido mas notorio
+          begin: const Offset(0, 0.08),
           end: Offset.zero,
         ).animate(animation),
         child: child,
@@ -509,7 +502,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
 
     if (_isInitialLoading) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF9F6F0),
+        backgroundColor: _kSheet,
         body: EditProfileSkeleton(s: s),
       );
     }
@@ -522,24 +515,26 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
         if (leave && mounted) context.pop();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF9F6F0),
+        backgroundColor: _kSheet,
         body: Stack(
           children: [
-            // Ya NO hay FadeTransition global aqui. El header aparece de golpe,
-            // pero las tarjetas de abajo fluyen suavemente.
             CustomScrollView(
+              controller: _scroll,
               physics: const ClampingScrollPhysics(),
               slivers: [
-                EditProfileSliverHeader(
-                  s: s,
-                  listenable: Listenable.merge(_controllers),
-                  progress: () => _doneCount / ProfileRules.totalFields,
-                  selectedImage: _selectedImage,
-                  imageUrl: _originalImageUrl,
-                  uploading: _isUploadingImage,
-                  onBack: () => Navigator.of(context).maybePop(),
-                  onPickPhoto: _pickPhoto,
-                  onResetPhoto: _resetImage,
+                // AQUI USAMOS EL HEADER IMPORTADO
+                SliverToBoxAdapter(
+                  child: EditProfileHeader(
+                    s: s,
+                    listenable: Listenable.merge(_controllers),
+                    progress: () => _doneCount / ProfileRules.totalFields,
+                    selectedImage: _selectedImage,
+                    imageUrl: _originalImageUrl,
+                    uploading: _isUploadingImage,
+                    onBack: () => Navigator.of(context).maybePop(),
+                    onPickPhoto: _pickPhoto,
+                    onResetPhoto: _resetImage,
+                  ),
                 ),
                 SliverToBoxAdapter(
                   child: Center(
@@ -578,9 +573,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Intervalos mas espaciados para efecto "cascada"
         _reveal(
-          0.0, // Inicia de inmediato
+          0.0,
           0.4,
           ProfileSectionCard(
             icon: HugeIcons.strokeRoundedUser,
@@ -622,7 +616,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
         ),
         SizedBox(height: 16 * s),
         _reveal(
-          0.15, // Entra un poco despues
+          0.15,
           0.55,
           ProfileSectionCard(
             icon: HugeIcons.strokeRoundedIdentityCard,
@@ -669,7 +663,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
         ),
         SizedBox(height: 16 * s),
         _reveal(
-          0.3, // La ultima tarda mas en aparecer
+          0.3,
           0.7,
           ProfileSectionCard(
             icon: HugeIcons.strokeRoundedDeliveryTruck01,

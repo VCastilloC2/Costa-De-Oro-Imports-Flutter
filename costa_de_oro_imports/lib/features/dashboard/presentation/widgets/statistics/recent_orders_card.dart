@@ -1,21 +1,9 @@
 // RAMA: feature/Products
 // ============================================================================
-// WIDGET: RecentOrdersCard
+// WIDGET: RecentOrdersCard (Conectado a la API y con "Ver más")
 // ============================================================================
-// Lista de pedidos recientes pensada para ESCANEAR, no para leer:
-//
-//   [ icono de estado ]  Producto (hasta 2 lineas)           $ 24.00
-//   [   tono suave    ]  #FC0004  ·  24 mar 2023             [Pendiente]
-//
-//   - Borde izquierdo = estado (icono + tono): se escanea sin leer.
-//   - Borde derecho   = monto + estado en texto, alineados verticalmente
-//                       (cifras tabulares) para comparar de un vistazo.
-//   - Cancelados "retroceden": monto tachado y atenuado.
-//   - Si el pedido trae imageUrl, la miniatura reemplaza al icono y el
-//     estado pasa a una insignia en su esquina.
-//   - Toque: escala + tinte dorado (+ haptico). Mantener presionado copia el
-//     numero de pedido ("Copiado").
-//   - Entrada escalonada; respeta "reducir animaciones".
+// Muestra los primeros 5 pedidos. Si hay más, muestra un botón para
+// expandir la lista completa.
 // ============================================================================
 
 import 'dart:async';
@@ -32,47 +20,124 @@ import '../../../../../core/utils/responsive_utils.dart';
 import '../../../domain/recent_order_model.dart';
 import '../../providers/recent_orders_provider.dart';
 
-class RecentOrdersCard extends ConsumerWidget {
+class RecentOrdersCard extends ConsumerStatefulWidget {
   const RecentOrdersCard({super.key, this.onOrderTap});
 
-  /// Si es null las tarjetas son informativas (sin feedback de toque).
   final void Function(RecentOrder order)? onOrderTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RecentOrdersCard> createState() => _RecentOrdersCardState();
+}
+
+class _RecentOrdersCardState extends ConsumerState<RecentOrdersCard> {
+  // Estado local para saber si el usuario quiere ver todos los pedidos
+  bool _showAll = false;
+
+  @override
+  Widget build(BuildContext context) {
     final s = context.s;
-    final orders = ref.watch(recentOrdersProvider);
-    final pending = orders.where((o) => o.status == OrderStatus.pending).length;
+    final ordersAsync = ref.watch(recentOrdersProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Header(s: s, total: orders.length, pending: pending),
+        ordersAsync.when(
+          data: (orders) {
+            final pending = orders.where((o) => o.status == OrderStatus.pending).length;
+            return _Header(s: s, total: orders.length, pending: pending);
+          },
+          loading: () => _Header(s: s, total: 0, pending: 0),
+          error: (_, __) => _Header(s: s, total: 0, pending: 0),
+        ),
         SizedBox(height: 14 * s),
-        if (orders.isEmpty)
-          _EmptyState(s: s)
-        else
-          for (var i = 0; i < orders.length; i++)
-            _Reveal(
-              index: i,
-              child: Padding(
-                padding: EdgeInsets.only(bottom: 10 * s),
-                child: _OrderTile(
-                  s: s,
-                  order: orders[i],
-                  onTap: onOrderTap == null ? null : () => onOrderTap!(orders[i]),
-                ),
-              ),
+        
+        ordersAsync.when(
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: CircularProgressIndicator(),
             ),
+          ),
+          error: (err, stack) => Center(
+            child: Text(
+              'Error al cargar pedidos',
+              style: TextStyle(color: Colors.red.shade400),
+            ),
+          ),
+          data: (orders) {
+            if (orders.isEmpty) return _EmptyState(s: s);
+
+            // Lógica de visualización: 5 o todos
+            final displayOrders = _showAll ? orders : orders.take(5).toList();
+            final hasMore = orders.length > 5;
+
+            return Column(
+              children: [
+                // Renderizamos la lista filtrada
+                for (var i = 0; i < displayOrders.length; i++)
+                  _Reveal(
+                    index: i,
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: 10 * s),
+                      child: _OrderTile(
+                        s: s,
+                        order: displayOrders[i],
+                        onTap: widget.onOrderTap == null ? null : () => widget.onOrderTap!(displayOrders[i]),
+                      ),
+                    ),
+                  ),
+                  
+                // Botón "Ver más / Mostrar menos"
+                if (hasMore)
+                  Padding(
+                    padding: EdgeInsets.only(top: 6 * s, bottom: 4 * s),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => setState(() => _showAll = !_showAll),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.goldDark,
+                          padding: EdgeInsets.symmetric(vertical: 12 * s),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12 * s),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _showAll 
+                                  ? 'Mostrar menos' 
+                                  : 'Ver los ${orders.length} pedidos',
+                              style: AppFonts.style(
+                                size: 13.5 * s,
+                                weight: FontWeight.w700,
+                                color: AppColors.goldDark,
+                              ),
+                            ),
+                            SizedBox(width: 6 * s),
+                            Icon(
+                              _showAll 
+                                  ? Icons.keyboard_arrow_up_rounded 
+                                  : Icons.keyboard_arrow_down_rounded,
+                              size: 20 * s,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
       ],
     );
   }
 }
 
 // ============================================================================
-// ESTILO POR ESTADO (presentacion). Paleta calida y apagada, coherente con
-// crema / cafe / dorado. Cada estado ademas lleva icono y texto: el color
-// nunca es la unica señal.
+// ESTILO POR ESTADO
 // ============================================================================
 extension OrderStatusStyle on OrderStatus {
   String get label => switch (this) {
@@ -80,24 +145,25 @@ extension OrderStatusStyle on OrderStatus {
         OrderStatus.processed => 'Procesado',
         OrderStatus.completed => 'Completado',
         OrderStatus.cancelled => 'Cancelado',
+        OrderStatus.rejected => 'Rechazado',
         OrderStatus.unknown => 'Sin estado',
       };
 
-  /// Color de texto / icono.
   Color get fg => switch (this) {
-        OrderStatus.pending => const Color(0xFF9A6A12), // ambar tostado
-        OrderStatus.processed => const Color(0xFF4F6578), // azul pizarra
-        OrderStatus.completed => const Color(0xFF4F7A5A), // verde salvia
-        OrderStatus.cancelled => const Color(0xFFA8503F), // terracota
-        OrderStatus.unknown => const Color(0xFF8A7F74), // piedra
+        OrderStatus.pending => const Color(0xFF9A6A12),
+        OrderStatus.processed => const Color(0xFF4F6578),
+        OrderStatus.completed => const Color(0xFF4F7A5A),
+        OrderStatus.cancelled => const Color(0xFFA8503F),
+        OrderStatus.rejected => const Color(0xFF8C2A1C),
+        OrderStatus.unknown => const Color(0xFF8A7F74),
       };
 
-  /// Fondo suave de la insignia / tile.
   Color get bg => switch (this) {
         OrderStatus.pending => const Color(0xFFF6E8C8),
         OrderStatus.processed => const Color(0xFFE6ECF0),
         OrderStatus.completed => const Color(0xFFE2EBE0),
         OrderStatus.cancelled => const Color(0xFFF4E0DA),
+        OrderStatus.rejected => const Color(0xFFF9DEDC),
         OrderStatus.unknown => const Color(0xFFEDE8E1),
       };
 
@@ -106,13 +172,15 @@ extension OrderStatusStyle on OrderStatus {
         OrderStatus.processed => HugeIcons.strokeRoundedDeliveryTruck01,
         OrderStatus.completed => HugeIcons.strokeRoundedCheckmarkCircle02,
         OrderStatus.cancelled => HugeIcons.strokeRoundedAlertCircle,
+        OrderStatus.rejected => HugeIcons.strokeRoundedCancelCircle,
         OrderStatus.unknown => HugeIcons.strokeRoundedTimer01,
       };
 }
 
 // ============================================================================
-// ENCABEZADO
+// RESTO DE WIDGETS (Header, Tile, Pill, Leading, EmptyState, Reveal)
 // ============================================================================
+
 class _Header extends StatelessWidget {
   const _Header({required this.s, required this.total, required this.pending});
   final double s;
@@ -163,9 +231,6 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// TARJETA DE PEDIDO
-// ============================================================================
 class _OrderTile extends StatefulWidget {
   const _OrderTile({required this.s, required this.order, required this.onTap});
   final double s;
@@ -210,7 +275,7 @@ class _OrderTileState extends State<_OrderTile> {
     final s = widget.s;
     final order = widget.order;
     final status = order.status;
-    final cancelled = status == OrderStatus.cancelled;
+    final isDimmed = status == OrderStatus.cancelled || status == OrderStatus.rejected;
     final price = _formatPrice(order.price);
     final date = _formatDate(order.date);
 
@@ -270,7 +335,7 @@ class _OrderTileState extends State<_OrderTile> {
                           style: AppFonts.style(
                             size: 14.5 * s,
                             weight: FontWeight.w700,
-                            color: cancelled ? AppColors.muted : AppColors.brownDark,
+                            color: isDimmed ? AppColors.muted : AppColors.brownDark,
                             height: 1.25,
                           ),
                         ),
@@ -326,10 +391,10 @@ class _OrderTileState extends State<_OrderTile> {
                         style: AppFonts.style(
                           size: 16 * s,
                           weight: FontWeight.w800,
-                          color: cancelled ? AppColors.muted : AppColors.brownDark,
+                          color: isDimmed ? AppColors.muted : AppColors.brownDark,
                         ).copyWith(
                           fontFeatures: tabular,
-                          decoration: cancelled ? TextDecoration.lineThrough : null,
+                          decoration: isDimmed ? TextDecoration.lineThrough : null,
                           decorationColor: AppColors.muted,
                         ),
                       ),
@@ -373,7 +438,6 @@ class _StatusPill extends StatelessWidget {
   }
 }
 
-/// Icono de estado (sin imagen) o miniatura del producto con insignia de estado.
 class _Leading extends StatelessWidget {
   const _Leading({required this.s, required this.order});
   final double s;
@@ -492,9 +556,6 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// ENTRADA ESCALONADA
-// ============================================================================
 class _Reveal extends StatelessWidget {
   const _Reveal({required this.index, required this.child});
   final int index;
@@ -518,15 +579,19 @@ class _Reveal extends StatelessWidget {
 }
 
 // ============================================================================
-// FORMATO
+// FORMATO DE MONEDA Y FECHA
 // ============================================================================
-/// Mantiene el formato actual ($18.00). Cuando se defina la moneda real
-/// (COP, enteros, separador de miles) se cambia solo aqui.
-String _formatPrice(double v) => '\$${v.toStringAsFixed(2)}';
+String _formatPrice(double v) {
+  final digits = v.round().toString();
+  final grouped = digits.replaceAllMapped(
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (m) => '${m[1]}.',
+  );
+  return '\$$grouped';
+}
 
 const _months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-/// "Hoy", "Ayer", "24 mar" (mismo año) o "24 mar 2023".
 String _formatDate(DateTime? d) {
   if (d == null) return '—';
   final now = DateTime.now();
