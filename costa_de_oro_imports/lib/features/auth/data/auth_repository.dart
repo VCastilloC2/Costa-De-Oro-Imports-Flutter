@@ -205,6 +205,15 @@ class AuthRepository {
         'El dominio del RP no está asociado a esta app. Revisa assetlinks.json. ${error.message ?? ''}',
       );
     }
+    if (error is UnhandledAuthenticatorException &&
+        error.code.contains('CREATE_PUBLIC_KEY_CREDENTIAL_DOM_EXCEPTION')) {
+      return const ApiException(
+        'Android no pudo crear la Passkey. El registro de este dispositivo '
+        'también requiere que https://<RP_ID>/.well-known/assetlinks.json '
+        'sea accesible y asocie el package name y certificado SHA-256 de la app. '
+        'Revisa además que el certificado HTTPS del RP sea confiable.',
+      );
+    }
     if (error is ExcludeCredentialsCanNotBeRegisteredException) {
       return const ApiException(
         'Esta Passkey ya está registrada en el dispositivo.',

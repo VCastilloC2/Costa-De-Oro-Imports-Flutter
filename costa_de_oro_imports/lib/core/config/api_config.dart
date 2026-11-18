@@ -10,7 +10,7 @@ class ApiConfig {
   // en el dispositivo y cubrir el hostname/IP usado aquí.
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://192.168.1.9:8000',
+    defaultValue: 'https://192.168.1.9',
   );
   static const String passkeyRpId = String.fromEnvironment(
     'PASSKEY_RP_ID',

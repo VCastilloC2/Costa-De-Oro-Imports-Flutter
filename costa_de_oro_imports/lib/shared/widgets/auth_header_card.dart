@@ -26,7 +26,7 @@ class AuthHeaderCard extends StatelessWidget {
           offset: Offset(0, floatAnimation.value),
           child: Container(
             width: double.infinity,
-            height: height ?? 190 * s, // Altura cómoda
+            height: height ?? 250 * s,
             margin: EdgeInsets.only(
               top: 16 * s,
               left: 16 * s,
@@ -81,12 +81,12 @@ class AuthHeaderCard extends StatelessWidget {
 
                 // 2. EL LOGO (Centrado Verticalmente como en tu 2da imagen)
                 Positioned(
-                  right: 10 * s,
+                  right: 8 * s,
                   top: 0,    // <-- Vuelve al centro vertical
                   bottom: 0, // <-- Vuelve al centro vertical
                   child: Center(
                     child: AnimatedBrandLockup(
-                      logoWidth: 155 * s, // Tamaño ideal
+                      logoWidth: 128 * s,
                       startFormed: true,
                       play: play,
                       showText: false,
@@ -98,10 +98,10 @@ class AuthHeaderCard extends StatelessWidget {
                 // 3. CONTENIDO (Textos a la izquierda)
                 Padding(
                   padding: EdgeInsets.only(
-                    left: 28 * s,
-                    top: 24 * s,
-                    bottom: 24 * s,
-                    right: 160 * s, // Margen de seguridad para que no choque con el logo
+                    left: 24 * s,
+                    top: 16 * s,
+                    bottom: 16 * s,
+                    right: 140 * s,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,7 +127,7 @@ class AuthHeaderCard extends StatelessWidget {
                         ),
                       ),
                       
-                      SizedBox(height: 10 * s),
+                      SizedBox(height: 8 * s),
                       
                       // LÍNEA DORADA
                       Container(
@@ -146,7 +146,7 @@ class AuthHeaderCard extends StatelessWidget {
                         ),
                       ),
                       
-                      SizedBox(height: 14 * s), 
+                      SizedBox(height: 10 * s),
                       
                       // SUBTÍTULO
                       Text(
@@ -159,13 +159,13 @@ class AuthHeaderCard extends StatelessWidget {
                         ),
                       ),
                       
-                      SizedBox(height: 22 * s), 
+                      SizedBox(height: 12 * s),
                       
                       // BADGE (Etiqueta refinada)
                       Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: 12 * s, 
-                          vertical: 6 * s,
+                          horizontal: 8 * s,
+                          vertical: 5 * s,
                         ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.08),
@@ -183,14 +183,18 @@ class AuthHeaderCard extends StatelessWidget {
                               size: 14 * s, 
                               color: AppColors.goldLight,
                             ),
-                            SizedBox(width: 6 * s),
-                            Text(
-                              'Envío en 24h • Premium',
-                              style: AppFonts.style(
-                                size: 11 * s, 
-                                weight: FontWeight.w600,
-                                color: Colors.white,
-                                letterSpacing: 0.2,
+                            SizedBox(width: 4 * s),
+                            Flexible(
+                              child: Text(
+                                'Envío 24h • Premium',
+                                style: AppFonts.style(
+                                  size: 10 * s,
+                                  weight: FontWeight.w600,
+                                  color: Colors.white,
+                                  letterSpacing: 0.2,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
