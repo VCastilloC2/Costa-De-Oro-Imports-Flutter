@@ -15,23 +15,230 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:passkeys/authenticator.dart';
+import 'package:passkeys/exceptions.dart';
+import 'package:passkeys/types.dart';
 
 import 'package:costa_de_oro_imports/core/network/api_client.dart';
 import 'package:costa_de_oro_imports/core/network/api_exception.dart';
+import 'package:costa_de_oro_imports/core/config/api_config.dart';
 import 'package:costa_de_oro_imports/core/storage/session_storage.dart';
 import 'package:costa_de_oro_imports/features/auth/data/models/user_model.dart';
+
+class PasskeyCredential {
+  const PasskeyCredential({
+    required this.passkeyId,
+    required this.deviceType,
+    required this.backedUp,
+    this.deviceName,
+    this.createdAt,
+    this.lastUsedAt,
+  });
+
+  final int passkeyId;
+  final String? deviceName;
+  final String? deviceType;
+  final bool backedUp;
+  final String? createdAt;
+  final String? lastUsedAt;
+
+  factory PasskeyCredential.fromJson(Map<String, dynamic> json) =>
+      PasskeyCredential(
+        passkeyId: (json['passkey_id'] as num).toInt(),
+        deviceName: json['device_name'] as String?,
+        deviceType: json['device_type'] as String?,
+        backedUp: json['backed_up'] == true,
+        createdAt: json['created_at'] as String?,
+        lastUsedAt: json['last_used_at'] as String?,
+      );
+}
 
 class AuthRepository {
   AuthRepository(this._dio, this._storage);
 
   final Dio _dio;
   final SessionStorage _storage;
+  final PasskeyAuthenticator _passkeyAuthenticator = PasskeyAuthenticator(
+    debugMode: kDebugMode,
+  );
+
+  /// Completa options -> Credential Manager/biometría -> verify contra FastAPI.
+  Future<void> registerPasskey({String? deviceName}) async {
+    try {
+      final optionsResponse = await _dio.post<Map<String, dynamic>>(
+        '/auth/passkey/register/options',
+        data: {'device_name': deviceName ?? _deviceName},
+      );
+      final options = Map<String, dynamic>.from(
+        optionsResponse.data!['options'] as Map,
+      );
+      _validateRpId(
+        options['rp'] is Map ? (options['rp'] as Map)['id'] as String? : null,
+      );
+      final challengeId = optionsResponse.data!['challenge_id'] as String;
+      final credential = await _passkeyAuthenticator.register(
+        RegisterRequestType.fromJson(options),
+      );
+      await _dio.post<dynamic>(
+        '/auth/passkey/register/verify',
+        data: {
+          'challenge_id': challengeId,
+          'device_name': deviceName ?? _deviceName,
+          'credential': credential.toJson(),
+        },
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    } catch (e) {
+      throw _passkeyError(e);
+    }
+  }
+
+  /// Login descubrible: el sistema presenta las passkeys disponibles sin pedir correo.
+  Future<UserModel> loginWithPasskey() async {
+    try {
+      final optionsResponse = await _dio.post<Map<String, dynamic>>(
+        '/auth/passkey/login/options',
+        data: <String, dynamic>{},
+      );
+      final options = Map<String, dynamic>.from(
+        optionsResponse.data!['options'] as Map,
+      );
+      _validateRpId(options['rpId'] as String?);
+      final challengeId = optionsResponse.data!['challenge_id'] as String;
+      final assertion = await _passkeyAuthenticator.authenticate(
+        AuthenticateRequestType.fromJson(
+          options,
+          preferImmediatelyAvailableCredentials: false,
+          canBeSecurityKey: false,
+        ),
+      );
+      final finishResponse = await _dio.post<Map<String, dynamic>>(
+        '/auth/passkey/login/verify',
+        data: {'challenge_id': challengeId, 'credential': assertion.toJson()},
+      );
+      final data = finishResponse.data!;
+      final token = _extractToken(data);
+      await _storage.saveToken(token);
+      final userJson = Map<String, dynamic>.from(data['usuario'] as Map);
+      _normalizeUserImage(userJson, data);
+      return UserModel.fromJson(userJson);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    } catch (e) {
+      throw _passkeyError(e);
+    }
+  }
+
+  Future<List<PasskeyCredential>> listPasskeys() async {
+    try {
+      final response = await _dio.get<List<dynamic>>(
+        '/api/v1/auth/passkey/credentials',
+      );
+      return (response.data ?? const <dynamic>[])
+          .whereType<Map>()
+          .map(
+            (json) =>
+                PasskeyCredential.fromJson(Map<String, dynamic>.from(json)),
+          )
+          .toList(growable: false);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<void> revokePasskey(int passkeyId) async {
+    try {
+      await _dio.delete<dynamic>('/api/v1/auth/passkey/credentials/$passkeyId');
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<bool> validateSession() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/api/v1/auth/session/validate',
+      );
+      return response.data?['valid'] == true;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  String get _deviceName => Platform.isAndroid
+      ? 'Android'
+      : Platform.isIOS
+      ? 'iOS'
+      : Platform.operatingSystem;
+
+  void _validateRpId(String? serverRpId) {
+    if (serverRpId == null ||
+        serverRpId.toLowerCase() != ApiConfig.passkeyRpId.toLowerCase()) {
+      throw ApiException(
+        'El RP ID del servidor (${serverRpId ?? 'vacío'}) no coincide con '
+        'PASSKEY_RP_ID de Flutter (${ApiConfig.passkeyRpId}).',
+      );
+    }
+  }
+
+  ApiException _passkeyError(Object error) {
+    if (error is ApiException) return error;
+    if (error is PasskeyAuthCancelledException) {
+      return const ApiException('Operación de Passkey cancelada.');
+    }
+    if (error is NoCredentialsAvailableException) {
+      return const ApiException(
+        'No hay una Passkey disponible en este dispositivo.',
+      );
+    }
+    if (error is MissingGoogleSignInException ||
+        error is SyncAccountNotAvailableException) {
+      return const ApiException(
+        'Inicia sesión en una cuenta de Google y configura el bloqueo de pantalla para usar Passkeys en Android.',
+      );
+    }
+    if (error is DomainNotAssociatedException) {
+      return ApiException(
+        'El dominio del RP no está asociado a esta app. Revisa assetlinks.json. ${error.message ?? ''}',
+      );
+    }
+    if (error is ExcludeCredentialsCanNotBeRegisteredException) {
+      return const ApiException(
+        'Esta Passkey ya está registrada en el dispositivo.',
+      );
+    }
+    final message = error.toString();
+    if (message.toLowerCase().contains('cancel')) {
+      return const ApiException('Operación de Passkey cancelada.');
+    }
+    return ApiException(
+      'No se pudo completar la operación de Passkey: $message',
+    );
+  }
+
+  void _normalizeUserImage(
+    Map<String, dynamic> userJson,
+    Map<String, dynamic> response,
+  ) {
+    if (response['urlImagenUsuario'] != null) {
+      userJson['imagen'] = response['urlImagenUsuario'];
+    } else if (userJson['imagen'] != null &&
+        !userJson['imagen'].toString().startsWith('http')) {
+      userJson['imagen'] =
+          'https://res.cloudinary.com/dp2nofw2b/image/upload/${userJson['imagen']}';
+    }
+  }
 
   // ==========================================================================
   // LOGIN Y REGISTRO
   // ==========================================================================
-  Future<UserModel> login({required String correo, required String password}) async {
+  Future<UserModel> login({
+    required String correo,
+    required String password,
+  }) async {
     final String token;
     try {
       final res = await _dio.post<dynamic>(
@@ -45,8 +252,10 @@ class AuthRepository {
         final userJson = Map<String, dynamic>.from(data['usuario']);
         if (data['urlImagenUsuario'] != null) {
           userJson['imagen'] = data['urlImagenUsuario'];
-        } else if (userJson['imagen'] != null && !userJson['imagen'].toString().startsWith('http')) {
-          userJson['imagen'] = 'https://res.cloudinary.com/dp2nofw2b/image/upload/${userJson['imagen']}';
+        } else if (userJson['imagen'] != null &&
+            !userJson['imagen'].toString().startsWith('http')) {
+          userJson['imagen'] =
+              'https://res.cloudinary.com/dp2nofw2b/image/upload/${userJson['imagen']}';
         }
         return UserModel.fromJson(userJson);
       }
@@ -57,9 +266,12 @@ class AuthRepository {
     return await fetchProfile();
   }
 
-  Future<UserModel> register({required String correo, required String password}) async {
+  Future<UserModel> register({
+    required String correo,
+    required String password,
+  }) async {
     final now = DateTime.now().millisecondsSinceEpoch.toString();
-    final randomId = now.substring(now.length - 10); 
+    final randomId = now.substring(now.length - 10);
     final nombreProvisional = correo.split('@').first;
 
     try {
@@ -69,12 +281,12 @@ class AuthRepository {
           'correo': correo.trim(),
           'password': password,
           'tipoIdentificacion': 'CC',
-          'numeroIdentificacion': randomId, 
+          'numeroIdentificacion': randomId,
           'nombres': nombreProvisional,
           'apellidos': 'Pendiente',
           'telefono': randomId,
           'direccion': 'Por definir $randomId',
-          'rol': 'PERSONA_NATURAL', 
+          'rol': 'ADMIN',
         },
       );
     } on DioException catch (e) {
@@ -112,7 +324,7 @@ class AuthRepository {
       // 2. Si el usuario seleccionó una nueva imagen, la adjuntamos
       if (imagen != null) {
         map['imagen'] = await MultipartFile.fromFile(
-          imagen.path, 
+          imagen.path,
           filename: 'profile.jpg',
         );
       }
@@ -125,14 +337,16 @@ class AuthRepository {
 
       // 4. Enviamos la petición con el content-type correcto
       final response = await _dio.patch<dynamic>(
-        '/perfil', 
+        '/perfil',
         data: formData,
         options: Options(contentType: 'multipart/form-data'),
       );
-      
-      print('=== [DEBUG] RESPUESTA DEL BACKEND (Status: ${response.statusCode}) ===');
+
+      print(
+        '=== [DEBUG] RESPUESTA DEL BACKEND (Status: ${response.statusCode}) ===',
+      );
       print(response.data);
-      
+
       // Refrescamos el perfil para obtener los datos actualizados
       return await fetchProfile();
     } on DioException catch (e) {
@@ -150,22 +364,25 @@ class AuthRepository {
     try {
       final res = await _dio.get<dynamic>('/api/graficas/dashboard');
       final data = res.data;
-      
+
       if (data is! Map<String, dynamic>) {
         throw const ApiException('Respuesta de perfil inesperada.');
       }
 
       if (data['usuario'] is Map<String, dynamic>) {
         final userJson = Map<String, dynamic>.from(data['usuario']);
-        
+
         // Lógica para garantizar que la URL de la imagen sea absoluta
         final String? fullUrl = data['urlImagenUsuario'];
         final String? relativePath = userJson['imagen'];
 
         if (fullUrl != null && fullUrl.isNotEmpty) {
           userJson['imagen'] = fullUrl;
-        } else if (relativePath != null && relativePath.isNotEmpty && !relativePath.startsWith('http')) {
-          userJson['imagen'] = 'https://res.cloudinary.com/dp2nofw2b/image/upload/$relativePath';
+        } else if (relativePath != null &&
+            relativePath.isNotEmpty &&
+            !relativePath.startsWith('http')) {
+          userJson['imagen'] =
+              'https://res.cloudinary.com/dp2nofw2b/image/upload/$relativePath';
         }
 
         return UserModel.fromJson(userJson);
@@ -204,7 +421,13 @@ class AuthRepository {
   // ==========================================================================
   // UTILIDADES
   // ==========================================================================
-  static const _tokenKeys = ['access_token', 'accessToken', 'token', 'jwt', 'id_token'];
+  static const _tokenKeys = [
+    'access_token',
+    'accessToken',
+    'token',
+    'jwt',
+    'id_token',
+  ];
 
   String _extractToken(dynamic data) {
     if (data is String && data.isNotEmpty) return data.replaceAll('"', '');
@@ -216,6 +439,7 @@ class AuthRepository {
         }
         return null;
       }
+
       final direct = find(data);
       if (direct != null) return direct;
       final inner = data['data'];
@@ -224,10 +448,15 @@ class AuthRepository {
         if (nested != null) return nested;
       }
     }
-    throw const ApiException('Token no encontrado en la respuesta del servidor.');
+    throw const ApiException(
+      'Token no encontrado en la respuesta del servidor.',
+    );
   }
 }
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository(ref.watch(dioProvider), ref.watch(sessionStorageProvider));
+  return AuthRepository(
+    ref.watch(dioProvider),
+    ref.watch(sessionStorageProvider),
+  );
 });

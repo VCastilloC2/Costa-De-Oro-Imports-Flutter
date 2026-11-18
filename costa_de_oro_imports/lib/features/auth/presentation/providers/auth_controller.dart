@@ -2,8 +2,8 @@
 // ============================================================================
 // CONTROLADOR: AuthController
 // ============================================================================
-// Maneja el estado global de la sesión (login, logout, actualización y 
-// refresco del perfil). Utiliza Riverpod para notificar a la UI de 
+// Maneja el estado global de la sesión (login, logout, actualización y
+// refresco del perfil). Utiliza Riverpod para notificar a la UI de
 // cualquier cambio de forma reactiva.
 // ============================================================================
 
@@ -19,10 +19,10 @@ import 'package:costa_de_oro_imports/features/auth/data/models/user_model.dart';
 enum AuthStatus {
   /// La app está arrancando y comprobando si hay un token guardado.
   unknown,
-  
+
   /// El usuario tiene una sesión activa y válida.
   authenticated,
-  
+
   /// No hay sesión (o el token expiró).
   unauthenticated,
 }
@@ -32,20 +32,14 @@ enum AuthStatus {
 /// ============================================================================
 class AuthState {
   const AuthState({this.status = AuthStatus.unknown, this.user});
-  
+
   final AuthStatus status;
   final UserModel? user;
-  
+
   bool get isAuthenticated => status == AuthStatus.authenticated;
 
-  AuthState copyWith({
-    AuthStatus? status,
-    UserModel? user,
-  }) {
-    return AuthState(
-      status: status ?? this.status,
-      user: user ?? this.user,
-    );
+  AuthState copyWith({AuthStatus? status, UserModel? user}) {
+    return AuthState(status: status ?? this.status, user: user ?? this.user);
   }
 }
 
@@ -53,7 +47,6 @@ class AuthState {
 /// CONTROLADOR: AuthController
 /// ============================================================================
 class AuthController extends Notifier<AuthState> {
-  
   @override
   AuthState build() => const AuthState();
 
@@ -81,10 +74,26 @@ class AuthController extends Notifier<AuthState> {
     state = AuthState(status: AuthStatus.authenticated, user: user);
   }
 
+  Future<void> loginWithPasskey() async {
+    final user = await _repo.loginWithPasskey();
+    state = AuthState(status: AuthStatus.authenticated, user: user);
+  }
+
+  Future<void> registerPasskey() => _repo.registerPasskey();
+
+  Future<List<PasskeyCredential>> listPasskeys() => _repo.listPasskeys();
+
+  Future<void> revokePasskey(int passkeyId) => _repo.revokePasskey(passkeyId);
+
+  Future<bool> validatePasskeySession() => _repo.validateSession();
+
   /// ==========================================================================
   /// MÉTODO: register
   /// ==========================================================================
-  Future<void> register({required String correo, required String password}) async {
+  Future<void> register({
+    required String correo,
+    required String password,
+  }) async {
     final user = await _repo.register(correo: correo, password: password);
     state = AuthState(status: AuthStatus.authenticated, user: user);
   }
@@ -141,4 +150,6 @@ class AuthController extends Notifier<AuthState> {
 }
 
 /// Provider global del estado de autenticación.
-final authControllerProvider = NotifierProvider<AuthController, AuthState>(AuthController.new);
+final authControllerProvider = NotifierProvider<AuthController, AuthState>(
+  AuthController.new,
+);

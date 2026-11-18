@@ -70,6 +70,9 @@ class ApiException implements Exception {
       );
     }
     if (status != null && status >= 500) {
+      if (status == 503 && detail != null) {
+        return ApiException(detail, statusCode: status);
+      }
       return ApiException(
         'El servidor tuvo un problema. Inténtalo más tarde.',
         statusCode: status,
@@ -94,7 +97,9 @@ class ApiException implements Exception {
       if (first is Map && first['msg'] is String) {
         final loc = first['loc'];
         final field = (loc is List && loc.isNotEmpty) ? '${loc.last}' : null;
-        return field == null ? first['msg'] as String : '$field: ${first['msg']}';
+        return field == null
+            ? first['msg'] as String
+            : '$field: ${first['msg']}';
       }
     }
     return null;

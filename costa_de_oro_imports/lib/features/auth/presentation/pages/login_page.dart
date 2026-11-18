@@ -2,7 +2,7 @@
 // ============================================================================
 // PANTALLA: LoginPage
 // ============================================================================
-// Gestiona la autenticación del usuario. Incluye validaciones, animaciones 
+// Gestiona la autenticación del usuario. Incluye validaciones, animaciones
 // de entrada, manejo del teclado y un diseño responsivo adaptado a tablets
 // y teléfonos de diferentes tamaños.
 // Utiliza iconos de línea fina (Hugeicons) para una estética moderna.
@@ -129,7 +129,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
   }
 
   String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return 'El correo es obligatorio';
+    if (value == null || value.trim().isEmpty)
+      return 'El correo es obligatorio';
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value.trim())) return 'Correo inválido';
     return null;
@@ -143,13 +144,13 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   Future<void> _submit() async {
     if (_leaving) return;
-    
+
     FocusScope.of(context).unfocus();
     SystemChannels.textInput.invokeMethod('TextInput.hide');
 
     final isEmailValid = _emailKey.currentState?.validate() ?? false;
     final isPasswordValid = _passwordKey.currentState?.validate() ?? false;
-    
+
     if (!(isEmailValid && isPasswordValid && _acceptTerms)) return;
 
     setState(() => _leaving = true);
@@ -159,32 +160,63 @@ class _LoginPageState extends ConsumerState<LoginPage>
         context,
         loadingText: 'Iniciando sesión',
         successText: '¡Bienvenido!',
-        task: () => ref.read(authControllerProvider.notifier).login(
+        task: () => ref
+            .read(authControllerProvider.notifier)
+            .login(
               correo: _emailController.text,
               password: _passwordController.text,
             ),
       );
-      
+
       // La animación terminó y el diálogo se cerró. Ahora activamos el escudo.
       if (mounted) setState(() => _showShield = true);
-      
     } on ApiException catch (e) {
-      if (mounted) setState(() { _leaving = false; _showShield = false; });
+      if (mounted)
+        setState(() {
+          _leaving = false;
+          _showShield = false;
+        });
       _showLoginError(e.message);
       return;
     } catch (_) {
-      if (mounted) setState(() { _leaving = false; _showShield = false; });
+      if (mounted)
+        setState(() {
+          _leaving = false;
+          _showShield = false;
+        });
       _showLoginError('Ocurrió un error inesperado. Inténtalo de nuevo.');
       return;
     }
 
     if (!mounted) return;
     SystemChannels.textInput.invokeMethod('TextInput.hide');
-    
+
     await Future.delayed(const Duration(milliseconds: 300));
-    
+
     if (mounted) {
       context.go('/dashboard');
+    }
+  }
+
+  Future<void> _loginWithPasskey() async {
+    if (_leaving) return;
+    FocusScope.of(context).unfocus();
+    setState(() => _leaving = true);
+    try {
+      await showAuthLoading<void>(
+        context,
+        loadingText: 'Verificando Passkey',
+        successText: '¡Bienvenido!',
+        task: () =>
+            ref.read(authControllerProvider.notifier).loginWithPasskey(),
+      );
+      if (!mounted) return;
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (mounted) context.go('/dashboard');
+    } on ApiException catch (e) {
+      _showLoginError(e.message);
+    } catch (e) {
+      _showLoginError('No se pudo iniciar con Passkey: $e');
     }
   }
 
@@ -217,33 +249,42 @@ class _LoginPageState extends ConsumerState<LoginPage>
           clipBehavior: Clip.none,
           children: [
             Positioned(
-              top: -70 * s, right: -70 * s,
+              top: -70 * s,
+              right: -70 * s,
               child: DecorCircle(
                 diameter: 280 * s,
-                gradient: RadialGradient(colors: [
-                  AppColors.gold.withValues(alpha: 0.25), 
-                  AppColors.gold.withValues(alpha: 0.0)
-                ]),
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.gold.withValues(alpha: 0.25),
+                    AppColors.gold.withValues(alpha: 0.0),
+                  ],
+                ),
               ),
             ),
             Positioned(
-              top: 180 * s, left: -60 * s,
+              top: 180 * s,
+              left: -60 * s,
               child: DecorCircle(
                 diameter: 160 * s,
-                gradient: RadialGradient(colors: [
-                  AppColors.beige.withValues(alpha: 0.6), 
-                  AppColors.beige.withValues(alpha: 0.0)
-                ]),
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.beige.withValues(alpha: 0.6),
+                    AppColors.beige.withValues(alpha: 0.0),
+                  ],
+                ),
               ),
             ),
             Positioned(
-              bottom: -40 * s, right: -40 * s,
+              bottom: -40 * s,
+              right: -40 * s,
               child: DecorCircle(
                 diameter: 220 * s,
-                gradient: RadialGradient(colors: [
-                  AppColors.goldLight.withValues(alpha: 0.3), 
-                  AppColors.goldLight.withValues(alpha: 0.0)
-                ]),
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.goldLight.withValues(alpha: 0.3),
+                    AppColors.goldLight.withValues(alpha: 0.0),
+                  ],
+                ),
               ),
             ),
 
@@ -256,7 +297,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
                     opacity: _cardFade,
                     child: SlideTransition(
                       position: _cardSlide,
-                      child: AuthHeaderCard(floatAnimation: _floatAnimation, s: s),
+                      child: AuthHeaderCard(
+                        floatAnimation: _floatAnimation,
+                        s: s,
+                      ),
                     ),
                   ),
 
@@ -270,9 +314,26 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             position: _titleSlide,
                             child: Column(
                               children: [
-                                Text('Welcome Back!', style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark)),
+                                Text(
+                                  'Welcome Back!',
+                                  style: AppFonts.style(
+                                    size: 35,
+                                    weight: FontWeight.w700,
+                                    color: AppColors.brownDark,
+                                  ),
+                                ),
                                 SizedBox(height: 8 * s),
-                                Text('Ingresa para disfrutar de tu licor favorito.', textAlign: TextAlign.center, style: AppFonts.style(size: 18, weight: FontWeight.w600, color: AppColors.brown.withValues(alpha: 0.7))),
+                                Text(
+                                  'Ingresa para disfrutar de tu licor favorito.',
+                                  textAlign: TextAlign.center,
+                                  style: AppFonts.style(
+                                    size: 18,
+                                    weight: FontWeight.w600,
+                                    color: AppColors.brown.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -291,7 +352,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                               keyboardType: TextInputType.emailAddress,
                               validator: _validateEmail,
                               prefixIcon: const HugeIcon(
-                                icon: HugeIcons.strokeRoundedMail01, 
+                                icon: HugeIcons.strokeRoundedMail01,
                                 size: 24,
                               ),
                             ),
@@ -311,14 +372,16 @@ class _LoginPageState extends ConsumerState<LoginPage>
                               obscureText: _obscurePassword,
                               validator: _validatePassword,
                               prefixIcon: const HugeIcon(
-                                icon: HugeIcons.strokeRoundedLockPassword, 
+                                icon: HugeIcons.strokeRoundedLockPassword,
                                 size: 24,
                               ),
                               suffixIcon: GestureDetector(
-                                onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                                onTap: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
                                 child: HugeIcon(
-                                  icon: _obscurePassword 
-                                      ? HugeIcons.strokeRoundedViewOffSlash 
+                                  icon: _obscurePassword
+                                      ? HugeIcons.strokeRoundedViewOffSlash
                                       : HugeIcons.strokeRoundedView,
                                   size: 24,
                                 ),
@@ -348,9 +411,22 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                     ),
                                     SizedBox(width: 12 * s),
                                     TextButton(
-                                      onPressed: () => context.push('/forgot-password'),
-                                      style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                                      child: Text('Forgot Password?', style: AppFonts.style(size: 16, weight: FontWeight.w500, color: AppColors.goldDark)),
+                                      onPressed: () =>
+                                          context.push('/forgot-password'),
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        minimumSize: Size.zero,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      child: Text(
+                                        'Forgot Password?',
+                                        style: AppFonts.style(
+                                          size: 16,
+                                          weight: FontWeight.w500,
+                                          color: AppColors.goldDark,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -363,17 +439,58 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(30),
                                       gradient: const LinearGradient(
-                                        begin: Alignment.centerLeft, end: Alignment.centerRight,
-                                        colors: [AppColors.brownDark, AppColors.brown, AppColors.goldLight],
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                        colors: [
+                                          AppColors.brownDark,
+                                          AppColors.brown,
+                                          AppColors.goldLight,
+                                        ],
                                       ),
                                     ),
                                     child: ElevatedButton(
                                       onPressed: _leaving ? null : _submit,
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent, shadowColor: Colors.transparent, elevation: 0, padding: EdgeInsets.zero, minimumSize: Size.zero,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                        backgroundColor: Colors.transparent,
+                                        shadowColor: Colors.transparent,
+                                        elevation: 0,
+                                        padding: EdgeInsets.zero,
+                                        minimumSize: Size.zero,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
                                       ),
-                                      child: Text('Sign in', style: AppFonts.style(size: 20, weight: FontWeight.w600, color: AppColors.creamText)),
+                                      child: Text(
+                                        'Sign in',
+                                        style: AppFonts.style(
+                                          size: 20,
+                                          weight: FontWeight.w600,
+                                          color: AppColors.creamText,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: 12 * s),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 54,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _leaving
+                                        ? null
+                                        : _loginWithPasskey,
+                                    icon: const Icon(Icons.fingerprint),
+                                    label: const Text('Ingresar con Passkey'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.brownDark,
+                                      side: const BorderSide(
+                                        color: AppColors.goldDark,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -392,20 +509,52 @@ class _LoginPageState extends ConsumerState<LoginPage>
                               children: [
                                 Row(
                                   children: [
-                                    const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
-                                    Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 16 * s),
-                                      child: Text('Or continue with', style: AppFonts.style(size: 15, weight: FontWeight.w500, color: AppColors.muted)),
+                                    const Expanded(
+                                      child: Divider(
+                                        color: AppColors.border,
+                                        thickness: 1.5,
+                                      ),
                                     ),
-                                    const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 16 * s,
+                                      ),
+                                      child: Text(
+                                        'Or continue with',
+                                        style: AppFonts.style(
+                                          size: 15,
+                                          weight: FontWeight.w500,
+                                          color: AppColors.muted,
+                                        ),
+                                      ),
+                                    ),
+                                    const Expanded(
+                                      child: Divider(
+                                        color: AppColors.border,
+                                        thickness: 1.5,
+                                      ),
+                                    ),
                                   ],
                                 ),
                                 SizedBox(height: 24 * s),
                                 Row(
                                   children: [
-                                    Expanded(child: SocialButton(label: 'Google', iconAsset: 'assets/icons/google.svg', onPressed: () {})),
+                                    Expanded(
+                                      child: SocialButton(
+                                        label: 'Google',
+                                        iconAsset: 'assets/icons/google.svg',
+                                        onPressed: () {},
+                                      ),
+                                    ),
                                     SizedBox(width: 16 * s),
-                                    Expanded(child: SocialButton(label: 'Apple', iconAsset: 'assets/icons/Apple_light.svg', onPressed: () {})),
+                                    Expanded(
+                                      child: SocialButton(
+                                        label: 'Apple',
+                                        iconAsset:
+                                            'assets/icons/Apple_light.svg',
+                                        onPressed: () {},
+                                      ),
+                                    ),
                                   ],
                                 ),
                                 SizedBox(height: 32 * s),
@@ -414,9 +563,22 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                   child: Text.rich(
                                     TextSpan(
                                       text: '¿No tienes una cuenta? ',
-                                      style: AppFonts.style(size: 16, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.75)),
+                                      style: AppFonts.style(
+                                        size: 16,
+                                        weight: FontWeight.w500,
+                                        color: AppColors.brown.withValues(
+                                          alpha: 0.75,
+                                        ),
+                                      ),
                                       children: [
-                                        TextSpan(text: 'Regístrate', style: AppFonts.style(size: 16, weight: FontWeight.w700, color: AppColors.goldDark)),
+                                        TextSpan(
+                                          text: 'Regístrate',
+                                          style: AppFonts.style(
+                                            size: 16,
+                                            weight: FontWeight.w700,
+                                            color: AppColors.goldDark,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -432,16 +594,12 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 ],
               ),
             ),
-            
+
             // ESCUDO ANTI-PARPADEO:
             // Solo se muestra después de que la animación del vaso desaparece,
             // evitando el parpadeo sin arruinar la transparencia del diálogo.
             if (_showShield)
-              Positioned.fill(
-                child: Container(
-                  color: AppColors.cream,
-                ),
-              ),
+              Positioned.fill(child: Container(color: AppColors.cream)),
           ],
         ),
       ),
