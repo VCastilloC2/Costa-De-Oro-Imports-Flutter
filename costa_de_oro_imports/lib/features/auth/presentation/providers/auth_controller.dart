@@ -79,6 +79,13 @@ class AuthController extends Notifier<AuthState> {
     state = AuthState(status: AuthStatus.authenticated, user: user);
   }
 
+  Future<void> registerBiometric() => _repo.registerBiometric();
+
+  Future<void> loginWithBiometric({required String correo}) async {
+    final user = await _repo.loginWithBiometric(correo: correo);
+    state = AuthState(status: AuthStatus.authenticated, user: user);
+  }
+
   Future<void> registerPasskey() => _repo.registerPasskey();
 
   Future<List<PasskeyCredential>> listPasskeys() => _repo.listPasskeys();

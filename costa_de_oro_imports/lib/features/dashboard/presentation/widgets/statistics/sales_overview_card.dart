@@ -120,37 +120,39 @@ class SalesOverviewCard extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: AppFonts.style(
+            size: 14 * s,
+            weight: FontWeight.w600,
+            color: const Color(0xFF1A1A1A),
+          ),
+        ),
+        SizedBox(height: 4 * s),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          runAlignment: WrapAlignment.spaceBetween,
+          spacing: 8 * s,
+          runSpacing: 2 * s,
           children: [
             Text(
-              title,
+              value,
               style: AppFonts.style(
                 size: 14 * s,
-                weight: FontWeight.w600,
+                weight: FontWeight.w700,
                 color: const Color(0xFF1A1A1A),
               ),
             ),
-            Row(
-              children: [
-                Text(
-                  value,
-                  style: AppFonts.style(
-                    size: 14 * s,
-                    weight: FontWeight.w700,
-                    color: const Color(0xFF1A1A1A),
-                  ),
-                ),
-                SizedBox(width: 4 * s),
-                Text(
-                  percent,
-                  style: AppFonts.style(
-                    size: 12 * s,
-                    weight: FontWeight.w500,
-                    color: percentColor ?? color,
-                  ),
-                ),
-              ],
+            Text(
+              percent,
+              textAlign: TextAlign.right,
+              style: AppFonts.style(
+                size: 12 * s,
+                weight: FontWeight.w500,
+                color: percentColor ?? color,
+              ),
             ),
           ],
         ),

@@ -6,10 +6,21 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// directamente.
 class SessionStorage {
   SessionStorage([FlutterSecureStorage? storage])
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
   static const _tokenKey = 'auth_token';
+  static const _biometricDeviceIdKey = 'biometric_device_id';
+  static const _biometricSecretKey = 'biometric_device_secret';
+
+  Future<String?> readBiometricDeviceId() =>
+      _storage.read(key: _biometricDeviceIdKey);
+  Future<String?> readBiometricSecret() =>
+      _storage.read(key: _biometricSecretKey);
+  Future<void> saveBiometricCredential(String deviceId, String secret) async {
+    await _storage.write(key: _biometricDeviceIdKey, value: deviceId);
+    await _storage.write(key: _biometricSecretKey, value: secret);
+  }
 
   Future<String?> readToken() async {
     try {

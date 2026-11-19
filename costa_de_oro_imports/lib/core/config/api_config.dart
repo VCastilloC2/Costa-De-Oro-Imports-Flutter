@@ -6,17 +6,16 @@
 class ApiConfig {
   ApiConfig._();
 
-  // Sobrescribe estos valores por entorno. El certificado HTTPS debe ser confiable
-  // en el dispositivo y cubrir el hostname/IP usado aquí.
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://192.168.1.9:8000',
-  );
+  // Un endpoint fijo evita que Debug/Release o un --dart-define apunten
+  // accidentalmente a localhost o a una IP privada.
+  static const String baseUrl =
+      'https://costa-de-oro-imports-python.onrender.com';
   static const String passkeyRpId = String.fromEnvironment(
     'PASSKEY_RP_ID',
-    defaultValue: '192.168.1.9',
+    defaultValue: 'costa-de-oro-imports-python.onrender.com',
   );
 
   static const Duration connectTimeout = Duration(seconds: 20);
-  static const Duration receiveTimeout = Duration(seconds: 30);
+  // Render puede tardar en despertar una instancia gratuita tras inactividad.
+  static const Duration receiveTimeout = Duration(seconds: 90);
 }

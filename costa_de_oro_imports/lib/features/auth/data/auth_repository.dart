@@ -13,10 +13,12 @@
 // ============================================================================
 
 import 'dart:io';
+import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:passkeys/authenticator.dart';
 import 'package:passkeys/exceptions.dart';
 import 'package:passkeys/types.dart';
@@ -63,6 +65,87 @@ class AuthRepository {
   final PasskeyAuthenticator _passkeyAuthenticator = PasskeyAuthenticator(
     debugMode: kDebugMode,
   );
+  final LocalAuthentication _localAuth = LocalAuthentication();
+
+  String _randomHex(int length) {
+    final random = Random.secure();
+    return List.generate(
+      length,
+      (_) => random.nextInt(16).toRadixString(16),
+    ).join();
+  }
+
+  /// Vincula este dispositivo a la cuenta actual. El backend recibe el secreto
+  /// aleatorio, nunca la huella; la biometría solo desbloquea localmente.
+  Future<void> registerBiometric() async {
+    try {
+      if (!await _localAuth.canCheckBiometrics ||
+          !await _localAuth.isDeviceSupported()) {
+        throw const ApiException(
+          'Este dispositivo no tiene biometría disponible.',
+        );
+      }
+      if (!await _localAuth.authenticate(
+        localizedReason:
+            'Confirma tu identidad para activar el ingreso con huella',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      ))
+        throw const ApiException('Verificación biométrica cancelada.');
+      final deviceId = _randomHex(32);
+      final secret = _randomHex(64);
+      await _dio.post<dynamic>(
+        '/auth/biometric/register',
+        data: {
+          'device_id': deviceId,
+          'device_secret': secret,
+          'device_name': _deviceName,
+        },
+      );
+      await _storage.saveBiometricCredential(deviceId, secret);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<UserModel> loginWithBiometric({required String correo}) async {
+    try {
+      final deviceId = await _storage.readBiometricDeviceId();
+      if (deviceId == null) {
+        throw const ApiException('Activa primero la huella desde tu perfil.');
+      }
+      if (!await _localAuth.authenticate(
+        localizedReason: 'Verifica tu identidad para ingresar',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      ))
+        throw const ApiException('Verificación biométrica cancelada.');
+      final secret = await _storage.readBiometricSecret();
+      if (secret == null) {
+        throw const ApiException('Activa primero la huella desde tu perfil.');
+      }
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/auth/biometric/login',
+        data: {
+          'correo': correo.trim(),
+          'device_id': deviceId,
+          'device_secret': secret,
+          'device_name': _deviceName,
+        },
+      );
+      final data = response.data!;
+      await _storage.saveToken(_extractToken(data));
+      final userJson = Map<String, dynamic>.from(data['usuario'] as Map);
+      _normalizeUserImage(userJson, data);
+      return UserModel.fromJson(userJson);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
 
   /// Completa options -> Credential Manager/biometría -> verify contra FastAPI.
   Future<void> registerPasskey({String? deviceName}) async {
@@ -203,6 +286,15 @@ class AuthRepository {
     if (error is DomainNotAssociatedException) {
       return ApiException(
         'El dominio del RP no está asociado a esta app. Revisa assetlinks.json. ${error.message ?? ''}',
+      );
+    }
+    if (error is UnhandledAuthenticatorException &&
+        error.code.contains('CREATE_PUBLIC_KEY_CREDENTIAL_DOM_EXCEPTION')) {
+      return const ApiException(
+        'Android no pudo crear la Passkey. El registro de este dispositivo '
+        'también requiere que https://<RP_ID>/.well-known/assetlinks.json '
+        'sea accesible y asocie el package name y certificado SHA-256 de la app. '
+        'Revisa además que el certificado HTTPS del RP sea confiable.',
       );
     }
     if (error is ExcludeCredentialsCanNotBeRegisteredException) {

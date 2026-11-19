@@ -64,6 +64,20 @@ class _PasskeysPageState extends ConsumerState<PasskeysPage> {
     }
   }
 
+  Future<void> _registerBiometric() async {
+    setState(() => _working = true);
+    try {
+      await ref.read(authControllerProvider.notifier).registerBiometric();
+      if (mounted) _message('Ingreso con huella activado en este dispositivo.');
+    } on ApiException catch (e) {
+      if (mounted) _message(e.message, isError: true);
+    } catch (e) {
+      if (mounted) _message('No se pudo activar la huella: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
   Future<void> _revoke(PasskeyCredential credential) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -180,6 +194,15 @@ class _PasskeysPageState extends ConsumerState<PasskeysPage> {
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.brownDark,
                             ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _working ? null : _registerBiometric,
+                            icon: const Icon(Icons.fingerprint),
+                            label: const Text('Activar ingreso con huella'),
                           ),
                         ),
                       ],

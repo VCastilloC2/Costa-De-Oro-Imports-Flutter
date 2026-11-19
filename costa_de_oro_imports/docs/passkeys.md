@@ -19,12 +19,12 @@ del usuario, tal como establece FastAPI.
 
 ## Configurar endpoint y RP ID
 
-El valor por defecto de desarrollo apunta a `https://192.168.1.9:8000` y RP ID `192.168.1.9`.
+El valor por defecto de desarrollo apunta a `https://192.168.1.9` y RP ID `192.168.1.9`.
 Para cambiarlo al ejecutar:
 
 ```powershell
 flutter run `
-  --dart-define=API_BASE_URL=https://192.168.1.9:8000 `
+  --dart-define=API_BASE_URL=https://192.168.1.9 `
   --dart-define=PASSKEY_RP_ID=192.168.1.9
 ```
 
@@ -32,12 +32,14 @@ En FastAPI usa el mismo RP ID:
 
 ```env
 PASSKEY_RP_ID=192.168.1.9
-PASSKEY_EXPECTED_ORIGINS=https://192.168.1.9:8000,android:apk-key-hash:HASH_ANDROID
+PASSKEY_EXPECTED_ORIGINS=https://192.168.1.9,android:apk-key-hash:HASH_ANDROID
 ```
 
-El certificado TLS debe incluir `192.168.1.9` como IP SAN y ser confiable en el teléfono. La app no
-omite la validación del certificado. Ambos dispositivos deben estar en la misma red y el firewall
-del computador debe permitir TCP/8000.
+FastAPI debe escuchar en HTTPS por el puerto 443 para que Android pueda recuperar
+`https://192.168.1.9/.well-known/assetlinks.json` sin redirecciones. El certificado TLS debe incluir
+`192.168.1.9` como IP SAN y ser confiable en el teléfono. La app no omite la validación del
+certificado. Ambos dispositivos deben estar en la misma red y el firewall del computador debe
+permitir TCP/443.
 
 ## Asociación de Android
 

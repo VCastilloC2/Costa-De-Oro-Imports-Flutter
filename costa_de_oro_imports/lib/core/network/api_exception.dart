@@ -25,6 +25,14 @@ class ApiException implements Exception {
       );
     }
     if (type == DioExceptionType.connectionError) {
+      final networkError = e.error?.toString().toLowerCase() ?? '';
+      if (networkError.contains('failed host lookup') ||
+          networkError.contains('name or service not known') ||
+          networkError.contains('no address associated with hostname')) {
+        return const ApiException(
+          'No se pudo encontrar el servidor (DNS). Revisa la conexión e inténtalo de nuevo.',
+        );
+      }
       return const ApiException(
         'No hay conexión con el servidor. Revisa tu internet.',
       );
@@ -54,6 +62,12 @@ class ApiException implements Exception {
     if (status == 404) {
       return ApiException(
         detail ?? 'No se encontró lo que buscabas.',
+        statusCode: status,
+      );
+    }
+    if (status == 502 || status == 503 || status == 504) {
+      return ApiException(
+        'El servidor está iniciando o temporalmente no disponible. Espera un momento e inténtalo de nuevo.',
         statusCode: status,
       );
     }
