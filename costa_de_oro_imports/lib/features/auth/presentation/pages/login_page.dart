@@ -220,6 +220,53 @@ class _LoginPageState extends ConsumerState<LoginPage>
     }
   }
 
+  Future<void> _chooseLoginMethod() async {
+    final method = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(children: [
+          const ListTile(title: Text('Elige cómo quieres ingresar')),
+          ListTile(
+            leading: const Icon(Icons.fingerprint),
+            title: const Text('Huella o biometría del dispositivo'),
+            onTap: () => Navigator.pop(context, 'biometric'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.key),
+            title: const Text('Passkey'),
+            onTap: () => Navigator.pop(context, 'passkey'),
+          ),
+        ]),
+      ),
+    );
+    if (!mounted || method == null) return;
+    if (method == 'biometric') {
+      await _loginWithBiometric();
+    } else {
+      await _loginWithPasskey();
+    }
+  }
+
+  Future<void> _loginWithBiometric() async {
+    if (_leaving) return;
+    if (_emailController.text.trim().isEmpty) {
+      _showLoginError('Escribe tu correo para ingresar con huella.');
+      return;
+    }
+    setState(() => _leaving = true);
+    try {
+      await showAuthLoading<void>(context,
+        loadingText: 'Verificando huella', successText: '¡Bienvenido!',
+        task: () => ref.read(authControllerProvider.notifier)
+            .loginWithBiometric(correo: _emailController.text));
+      if (mounted) context.go('/dashboard');
+    } on ApiException catch (e) {
+      _showLoginError(e.message);
+    } catch (e) {
+      _showLoginError('No se pudo iniciar con huella: $e');
+    }
+  }
+
   void _showLoginError(String message) {
     if (!mounted) return;
     setState(() {
@@ -480,9 +527,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                   child: OutlinedButton.icon(
                                     onPressed: _leaving
                                         ? null
-                                        : _loginWithPasskey,
+                                        : _chooseLoginMethod,
                                     icon: const Icon(Icons.fingerprint),
-                                    label: const Text('Ingresar con Passkey'),
+                                    label: const Text('Ingresar con biometría o Passkey'),
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: AppColors.brownDark,
                                       side: const BorderSide(

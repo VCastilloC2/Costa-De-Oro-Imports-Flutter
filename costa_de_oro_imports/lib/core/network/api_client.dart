@@ -28,8 +28,9 @@ final dioProvider = Provider<Dio>((ref) {
             options.path.contains('/auth/login') ||
             options.path.contains('/auth/registro') ||
             options.path.contains('/auth/passkey/login/');
+        final isBiometricLogin = options.path.contains('/auth/biometric/login');
 
-        if (!isAuthRoute) {
+        if (!isAuthRoute && !isBiometricLogin) {
           final token = await storage.readToken();
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
