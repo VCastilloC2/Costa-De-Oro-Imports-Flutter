@@ -224,19 +224,21 @@ class _LoginPageState extends ConsumerState<LoginPage>
     final method = await showModalBottomSheet<String>(
       context: context,
       builder: (context) => SafeArea(
-        child: Wrap(children: [
-          const ListTile(title: Text('Elige cómo quieres ingresar')),
-          ListTile(
-            leading: const Icon(Icons.fingerprint),
-            title: const Text('Huella o biometría del dispositivo'),
-            onTap: () => Navigator.pop(context, 'biometric'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.key),
-            title: const Text('Passkey'),
-            onTap: () => Navigator.pop(context, 'passkey'),
-          ),
-        ]),
+        child: Wrap(
+          children: [
+            const ListTile(title: Text('Elige cómo quieres ingresar')),
+            ListTile(
+              leading: const Icon(Icons.fingerprint),
+              title: const Text('Huella o biometría del dispositivo'),
+              onTap: () => Navigator.pop(context, 'biometric'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.key),
+              title: const Text('Passkey'),
+              onTap: () => Navigator.pop(context, 'passkey'),
+            ),
+          ],
+        ),
       ),
     );
     if (!mounted || method == null) return;
@@ -255,10 +257,14 @@ class _LoginPageState extends ConsumerState<LoginPage>
     }
     setState(() => _leaving = true);
     try {
-      await showAuthLoading<void>(context,
-        loadingText: 'Verificando huella', successText: '¡Bienvenido!',
-        task: () => ref.read(authControllerProvider.notifier)
-            .loginWithBiometric(correo: _emailController.text));
+      await showAuthLoading<void>(
+        context,
+        loadingText: 'Verificando huella',
+        successText: '¡Bienvenido!',
+        task: () => ref
+            .read(authControllerProvider.notifier)
+            .loginWithBiometric(correo: _emailController.text),
+      );
       if (mounted) context.go('/dashboard');
     } on ApiException catch (e) {
       _showLoginError(e.message);
@@ -529,7 +535,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                         ? null
                                         : _chooseLoginMethod,
                                     icon: const Icon(Icons.fingerprint),
-                                    label: const Text('Ingresar con biometría o Passkey'),
+                                    label: const Text(
+                                      'Ingresar con biometría o Passkey',
+                                    ),
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: AppColors.brownDark,
                                       side: const BorderSide(

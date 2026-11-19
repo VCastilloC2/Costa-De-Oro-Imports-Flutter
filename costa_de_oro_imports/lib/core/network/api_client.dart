@@ -40,6 +40,33 @@ final dioProvider = Provider<Dio>((ref) {
         handler.next(options);
       },
       onError: (error, handler) async {
+        final request = error.requestOptions;
+        final status = error.response?.statusCode;
+        final retries = request.extra['networkRetryCount'] as int? ?? 0;
+        final retryable =
+            error.type == DioExceptionType.connectionError ||
+            status == 502 ||
+            status == 503 ||
+            status == 504;
+        // GET es idempotente: reintentar una sola vez permite recuperarse de
+        // una caída breve o del arranque en frío de Render sin repetir escrituras.
+        if (request.method.toUpperCase() == 'GET' &&
+            retries == 0 &&
+            retryable) {
+          await Future<void>.delayed(const Duration(seconds: 2));
+          try {
+            handler.resolve(
+              await dio.fetch<dynamic>(
+                request.copyWith(
+                  extra: {...request.extra, 'networkRetryCount': 1},
+                ),
+              ),
+            );
+            return;
+          } on DioException {
+            // Sigue por el manejo normal del error tras el único reintento.
+          }
+        }
         final hadToken = error.requestOptions.headers.containsKey(
           'Authorization',
         );

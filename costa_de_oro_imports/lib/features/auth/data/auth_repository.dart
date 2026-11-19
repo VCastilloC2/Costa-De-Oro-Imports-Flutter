@@ -69,27 +69,45 @@ class AuthRepository {
 
   String _randomHex(int length) {
     final random = Random.secure();
-    return List.generate(length, (_) => random.nextInt(16).toRadixString(16)).join();
+    return List.generate(
+      length,
+      (_) => random.nextInt(16).toRadixString(16),
+    ).join();
   }
 
   /// Vincula este dispositivo a la cuenta actual. El backend recibe el secreto
   /// aleatorio, nunca la huella; la biometría solo desbloquea localmente.
   Future<void> registerBiometric() async {
     try {
-      if (!await _localAuth.canCheckBiometrics || !await _localAuth.isDeviceSupported()) {
-        throw const ApiException('Este dispositivo no tiene biometría disponible.');
+      if (!await _localAuth.canCheckBiometrics ||
+          !await _localAuth.isDeviceSupported()) {
+        throw const ApiException(
+          'Este dispositivo no tiene biometría disponible.',
+        );
       }
       if (!await _localAuth.authenticate(
-        localizedReason: 'Confirma tu identidad para activar el ingreso con huella',
-        options: const AuthenticationOptions(biometricOnly: true, stickyAuth: true),
-      )) throw const ApiException('Verificación biométrica cancelada.');
+        localizedReason:
+            'Confirma tu identidad para activar el ingreso con huella',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      ))
+        throw const ApiException('Verificación biométrica cancelada.');
       final deviceId = _randomHex(32);
       final secret = _randomHex(64);
-      await _dio.post<dynamic>('/auth/biometric/register', data: {
-        'device_id': deviceId, 'device_secret': secret, 'device_name': _deviceName,
-      });
+      await _dio.post<dynamic>(
+        '/auth/biometric/register',
+        data: {
+          'device_id': deviceId,
+          'device_secret': secret,
+          'device_name': _deviceName,
+        },
+      );
       await _storage.saveBiometricCredential(deviceId, secret);
-    } on DioException catch (e) { throw ApiException.fromDio(e); }
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
   }
 
   Future<UserModel> loginWithBiometric({required String correo}) async {
@@ -100,22 +118,33 @@ class AuthRepository {
       }
       if (!await _localAuth.authenticate(
         localizedReason: 'Verifica tu identidad para ingresar',
-        options: const AuthenticationOptions(biometricOnly: true, stickyAuth: true),
-      )) throw const ApiException('Verificación biométrica cancelada.');
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      ))
+        throw const ApiException('Verificación biométrica cancelada.');
       final secret = await _storage.readBiometricSecret();
       if (secret == null) {
         throw const ApiException('Activa primero la huella desde tu perfil.');
       }
-      final response = await _dio.post<Map<String, dynamic>>('/auth/biometric/login', data: {
-        'correo': correo.trim(), 'device_id': deviceId, 'device_secret': secret,
-        'device_name': _deviceName,
-      });
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/auth/biometric/login',
+        data: {
+          'correo': correo.trim(),
+          'device_id': deviceId,
+          'device_secret': secret,
+          'device_name': _deviceName,
+        },
+      );
       final data = response.data!;
       await _storage.saveToken(_extractToken(data));
       final userJson = Map<String, dynamic>.from(data['usuario'] as Map);
       _normalizeUserImage(userJson, data);
       return UserModel.fromJson(userJson);
-    } on DioException catch (e) { throw ApiException.fromDio(e); }
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
   }
 
   /// Completa options -> Credential Manager/biometría -> verify contra FastAPI.
