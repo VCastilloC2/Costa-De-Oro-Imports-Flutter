@@ -242,6 +242,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
       ),
     );
     if (!mounted || method == null) return;
+    // Password validation errors should not remain visible for passwordless login.
+    _emailKey.currentState?.clearError();
+    _passwordKey.currentState?.clearError();
     if (method == 'biometric') {
       await _loginWithBiometric();
     } else {

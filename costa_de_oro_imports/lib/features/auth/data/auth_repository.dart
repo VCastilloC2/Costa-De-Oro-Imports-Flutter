@@ -57,6 +57,23 @@ class PasskeyCredential {
       );
 }
 
+class BiometricDevice {
+  const BiometricDevice({required this.credentialId, required this.deviceId,
+    this.deviceName, this.createdAt});
+
+  final int credentialId;
+  final String deviceId;
+  final String? deviceName;
+  final String? createdAt;
+
+  factory BiometricDevice.fromJson(Map<String, dynamic> json) => BiometricDevice(
+    credentialId: (json['credential_id'] as num).toInt(),
+    deviceId: json['device_id'] as String,
+    deviceName: json['device_name'] as String?,
+    createdAt: json['created_at'] as String?,
+  );
+}
+
 class AuthRepository {
   AuthRepository(this._dio, this._storage);
 
@@ -240,6 +257,28 @@ class AuthRepository {
     }
   }
 
+  Future<List<BiometricDevice>> listBiometricDevices() async {
+    try {
+      final response = await _dio.get<List<dynamic>>('/auth/biometric/devices');
+      return (response.data ?? const <dynamic>[]).whereType<Map>()
+          .map((json) => BiometricDevice.fromJson(Map<String, dynamic>.from(json)))
+          .toList(growable: false);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<void> revokeBiometricDevice(BiometricDevice device) async {
+    try {
+      await _dio.delete<dynamic>('/auth/biometric/devices/${device.credentialId}');
+      if (await _storage.readBiometricDeviceId() == device.deviceId) {
+        await _storage.clearBiometricCredential();
+      }
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   Future<bool> validateSession() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -285,7 +324,12 @@ class AuthRepository {
     }
     if (error is DomainNotAssociatedException) {
       return ApiException(
-        'El dominio del RP no está asociado a esta app. Revisa assetlinks.json. ${error.message ?? ''}',
+        'Android no pudo asociar esta instalación con ${ApiConfig.passkeyRpId}. '
+        'Verifica que https://${ApiConfig.passkeyRpId}/.well-known/assetlinks.json '
+        'incluya el applicationId y el SHA-256 del certificado que firmó este APK. '
+        'Debug, Play App Signing y otros APK pueden usar certificados distintos. '
+        'Si acabas de corregir assetlinks.json, vuelve a instalar la app y reintenta. '
+        '${error.message ?? ''}',
       );
     }
     if (error is UnhandledAuthenticatorException &&

@@ -92,6 +92,11 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> revokePasskey(int passkeyId) => _repo.revokePasskey(passkeyId);
 
+  Future<List<BiometricDevice>> listBiometricDevices() => _repo.listBiometricDevices();
+
+  Future<void> revokeBiometricDevice(BiometricDevice device) =>
+      _repo.revokeBiometricDevice(device);
+
   Future<bool> validatePasskeySession() => _repo.validateSession();
 
   /// ==========================================================================

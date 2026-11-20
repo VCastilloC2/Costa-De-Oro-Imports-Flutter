@@ -155,6 +155,12 @@ class AppTextFieldState extends State<AppTextField> {
     return error == null;
   }
 
+  /// Clears validation feedback when the user switches to passwordless login.
+  void clearError() {
+    if (_errorText == null) return;
+    setState(() => _errorText = null);
+  }
+
   @override
   Widget build(BuildContext context) {
     // ---------------------------------------------------------------------

@@ -22,6 +22,11 @@ class SessionStorage {
     await _storage.write(key: _biometricSecretKey, value: secret);
   }
 
+  Future<void> clearBiometricCredential() async {
+    await _storage.delete(key: _biometricDeviceIdKey);
+    await _storage.delete(key: _biometricSecretKey);
+  }
+
   Future<String?> readToken() async {
     try {
       return await _storage.read(key: _tokenKey);

@@ -16,6 +16,7 @@ class PasskeysPage extends ConsumerStatefulWidget {
 
 class _PasskeysPageState extends ConsumerState<PasskeysPage> {
   List<PasskeyCredential> _credentials = const [];
+  List<BiometricDevice> _biometricDevices = const [];
   bool _loading = true;
   bool _working = false;
   String? _error;
@@ -32,10 +33,15 @@ class _PasskeysPageState extends ConsumerState<PasskeysPage> {
       _error = null;
     });
     try {
-      final credentials = await ref
-          .read(authControllerProvider.notifier)
-          .listPasskeys();
-      if (mounted) setState(() => _credentials = credentials);
+      final controller = ref.read(authControllerProvider.notifier);
+      final results = await Future.wait([
+        controller.listPasskeys(),
+        controller.listBiometricDevices(),
+      ]);
+      if (mounted) setState(() {
+        _credentials = results[0] as List<PasskeyCredential>;
+        _biometricDevices = results[1] as List<BiometricDevice>;
+      });
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -69,6 +75,7 @@ class _PasskeysPageState extends ConsumerState<PasskeysPage> {
     try {
       await ref.read(authControllerProvider.notifier).registerBiometric();
       if (mounted) _message('Ingreso con huella activado en este dispositivo.');
+      await _load();
     } on ApiException catch (e) {
       if (mounted) _message(e.message, isError: true);
     } catch (e) {
@@ -112,6 +119,31 @@ class _PasskeysPageState extends ConsumerState<PasskeysPage> {
       if (mounted) {
         _message(e.message, isError: true);
       }
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _revokeBiometric(BiometricDevice device) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Revocar ingreso con huella'),
+        content: Text('¿Quieres quitar el acceso de "${device.deviceName ?? 'este dispositivo'}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Revocar')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _working = true);
+    try {
+      await ref.read(authControllerProvider.notifier).revokeBiometricDevice(device);
+      if (mounted) _message('Acceso biométrico revocado.');
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) _message(e.message, isError: true);
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -255,6 +287,31 @@ class _PasskeysPageState extends ConsumerState<PasskeysPage> {
                           Icons.delete_outline,
                           color: AppColors.red,
                         ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 20),
+                Text(
+                  'Dispositivos con ingreso por huella (${_biometricDevices.length})',
+                  style: AppFonts.style(size: 17, weight: FontWeight.w700, color: AppColors.brownDark),
+                ),
+                const SizedBox(height: 8),
+                if (_biometricDevices.isEmpty && _error == null)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Text('No hay dispositivos vinculados para ingreso con huella.'),
+                  ),
+                for (final device in _biometricDevices)
+                  Card(
+                    color: Colors.white,
+                    child: ListTile(
+                      leading: const Icon(Icons.fingerprint, color: AppColors.goldDark),
+                      title: Text(device.deviceName ?? 'Dispositivo'),
+                      subtitle: Text(device.createdAt == null ? 'Ingreso biométrico local' : 'Vinculado: ${device.createdAt}'),
+                      trailing: IconButton(
+                        tooltip: 'Revocar dispositivo',
+                        onPressed: _working ? null : () => _revokeBiometric(device),
+                        icon: const Icon(Icons.delete_outline, color: AppColors.red),
                       ),
                     ),
                   ),
