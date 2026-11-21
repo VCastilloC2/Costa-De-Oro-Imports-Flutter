@@ -1,14 +1,13 @@
-// RAMA: chore/Core
-// ============================================================================
-// CONFIGURACIÓN DE LA API
-// ============================================================================
+// lib/core/config/api_config.dart
 
 class ApiConfig {
   ApiConfig._();
 
-  // NOTA: IP actualizada a la red local (casa) para conectar por Wi-Fi.
-  static const String baseUrl = 'http://192.168.1.54:8000';
+  static const String baseUrl = 'https://costa-de-oro-imports-python.onrender.com';
 
-  static const Duration connectTimeout = Duration(seconds: 20);
-  static const Duration receiveTimeout = Duration(seconds: 30);
+  // AUMENTAMOS LOS TIMEOUTS PARA DARLE TIEMPO A RENDER DE DESPERTAR
+  static const Duration connectTimeout = Duration(seconds: 60); 
+  static const Duration receiveTimeout = Duration(seconds: 60);
+
+  static const String passkeyRpId = 'costa-de-oro-imports-python.onrender.com';
 }

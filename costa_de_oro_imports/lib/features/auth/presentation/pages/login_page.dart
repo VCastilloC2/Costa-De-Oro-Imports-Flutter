@@ -2,11 +2,6 @@
 // ============================================================================
 // PANTALLA: LoginPage
 // ============================================================================
-// Gestiona la autenticación del usuario. Incluye validaciones, animaciones 
-// de entrada, manejo del teclado y un diseño responsivo adaptado a tablets
-// y teléfonos de diferentes tamaños.
-// Utiliza iconos de línea fina (Hugeicons) para una estética moderna.
-// ============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +12,7 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/storage/session_storage.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../../shared/widgets/app_terms_checkbox.dart';
 import '../../../../shared/widgets/app_text_field.dart';
@@ -24,7 +20,15 @@ import '../../../../shared/widgets/auth_header_card.dart';
 import '../../../../shared/widgets/auth_loading_overlay.dart';
 import '../../../../shared/widgets/decor_circle.dart';
 import '../../../../shared/widgets/social_button.dart';
+import '../../data/biometric_mode.dart';
+import '../../data/biometric_prefs.dart';
 import '../providers/auth_controller.dart';
+
+const bool kBiometricLoginEnabled = true;
+
+// Auto-prompt al abrir el login: si el usuario ya activó la huella en este
+// teléfono, Android muestra su diálogo de huella a los pocos segundos.
+const bool kBiometricAutoPrompt = true;
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -43,13 +47,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   bool _obscurePassword = true;
   bool _acceptTerms = false;
-
-  /// Bloquea la interacción mientras se procesa el login.
   bool _leaving = false;
-
-  /// Muestra el escudo sólido SOLO después de que la animación de carga termina.
-  /// Esto mantiene el efecto translúcido del diálogo de carga original.
   bool _showShield = false;
+  bool _hasBiometricCredential = false;
+  bool _autoPromptDone = false; // evita lanzar el prompt nativo dos veces
 
   late AnimationController _entryController;
   late AnimationController _floatController;
@@ -105,9 +106,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
     _socialsFade = fadeAt(0.75, 1.0);
     _socialsSlide = slideAt(0.75, 1.0);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _entryController.forward();
-    });
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _entryController.forward());
 
     _floatController = AnimationController(
       vsync: this,
@@ -117,6 +117,38 @@ class _LoginPageState extends ConsumerState<LoginPage>
     _floatAnimation = Tween<double>(begin: -6.0, end: 6.0).animate(
       CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
     );
+
+    _checkBiometricStatus();
+  }
+
+  Future<void> _checkBiometricStatus() async {
+    final prefs = BiometricPrefs.instance;
+
+    if (kUsePasskeys) {
+      // Passkeys: el flag guardado manda (se sincroniza al abrir Seguridad).
+      if (!prefs.hasPasskey) return;
+    } else {
+      final deviceId =
+          await ref.read(sessionStorageProvider).readBiometricDeviceId();
+      // Sin credencial local no hay huella: se oculta el botón y se limpia el flag.
+      if (deviceId == null) {
+        if (prefs.hasPasskey) await prefs.markDisabled();
+        return;
+      }
+      // Credencial existente pero flag apagado: se sincroniza.
+      if (!prefs.hasPasskey) await prefs.markEnabled();
+    }
+    if (!mounted) return;
+
+    setState(() => _hasBiometricCredential = true);
+
+    if (kBiometricAutoPrompt && prefs.shouldAutoPrompt && !_autoPromptDone) {
+      _autoPromptDone = true;
+      // Esperamos a que termine la animación de entrada.
+      Future<void>.delayed(const Duration(milliseconds: 1600), () {
+        if (mounted) _loginWithBiometric(auto: true);
+      });
+    }
   }
 
   @override
@@ -143,13 +175,13 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   Future<void> _submit() async {
     if (_leaving) return;
-    
+
     FocusScope.of(context).unfocus();
     SystemChannels.textInput.invokeMethod('TextInput.hide');
 
     final isEmailValid = _emailKey.currentState?.validate() ?? false;
     final isPasswordValid = _passwordKey.currentState?.validate() ?? false;
-    
+
     if (!(isEmailValid && isPasswordValid && _acceptTerms)) return;
 
     setState(() => _leaving = true);
@@ -164,10 +196,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
               password: _passwordController.text,
             ),
       );
-      
-      // La animación terminó y el diálogo se cerró. Ahora activamos el escudo.
+      // Se recuerda para vincularlo si el usuario activa la huella después.
+      await BiometricPrefs.instance
+          .saveLastLoginEmail(_emailController.text.trim());
+
       if (mounted) setState(() => _showShield = true);
-      
     } on ApiException catch (e) {
       if (mounted) setState(() { _leaving = false; _showShield = false; });
       _showLoginError(e.message);
@@ -180,12 +213,78 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
     if (!mounted) return;
     SystemChannels.textInput.invokeMethod('TextInput.hide');
-    
+
     await Future.delayed(const Duration(milliseconds: 300));
-    
+
     if (mounted) {
       context.go('/dashboard');
     }
+  }
+
+  // ==========================================================================
+  // LOGIN CON HUELLA (local_auth)
+  // El diálogo nativo de Android se muestra SIN overlay encima. El overlay del
+  // vaso solo aparece cuando la huella ya fue validada.
+  // ==========================================================================
+  Future<void> _loginWithBiometric({bool auto = false}) async {
+    if (_leaving) return;
+
+    final prefs = BiometricPrefs.instance;
+    final saved = prefs.email;
+    final correo = (saved != null && saved.isNotEmpty)
+        ? saved
+        : _emailController.text.trim();
+
+    if (!kUsePasskeys && correo.isEmpty) {
+      if (!auto) {
+        _showLoginError('Escribe tu correo una vez para usar la huella.');
+      }
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() => _leaving = true); // bloquea botones, pero SIN overlay
+
+    try {
+      // Aquí Android muestra SU diálogo de huella.
+      if (kUsePasskeys) {
+        await ref.read(authControllerProvider.notifier).loginWithPasskey();
+      } else {
+        await ref
+            .read(authControllerProvider.notifier)
+            .loginWithBiometric(correo: correo);
+        if (saved == null || saved.isEmpty) await prefs.saveEmail(correo);
+      }
+
+      // Huella OK: el vaso aparece sobre el login (visible de fondo con
+      // opacidad), igual que con correo y contraseña.
+      if (!mounted) return;
+      await showAuthLoading<void>(
+        context,
+        loadingText: 'Verificando huella',
+        successText: '¡Bienvenido!',
+        task: () async {},
+      );
+      // Igual que en _submit: el fondo se cubre solo cuando el vaso terminó.
+      if (mounted) setState(() => _showShield = true);
+    } on ApiException catch (e) {
+      if (mounted) setState(() { _leaving = false; _showShield = false; });
+      // Credencial rechazada por el servidor: no se vuelve a lanzar sola.
+      if (e.isUnauthorized) await prefs.suppressAutoPrompt();
+      // En auto-prompt o cancelación: silencio total.
+      if (!auto && !e.message.toLowerCase().contains('cancel')) {
+        _showLoginError(e.message);
+      }
+      return;
+    } catch (_) {
+      if (mounted) setState(() { _leaving = false; _showShield = false; });
+      if (!auto) _showLoginError('No se pudo iniciar sesión con la huella.');
+      return;
+    }
+
+    if (!mounted) return;
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (mounted) context.go('/dashboard');
   }
 
   void _showLoginError(String message) {
@@ -216,50 +315,16 @@ class _LoginPageState extends ConsumerState<LoginPage>
         body: Stack(
           clipBehavior: Clip.none,
           children: [
-            Positioned(
-              top: -70 * s, right: -70 * s,
-              child: DecorCircle(
-                diameter: 280 * s,
-                gradient: RadialGradient(colors: [
-                  AppColors.gold.withValues(alpha: 0.25), 
-                  AppColors.gold.withValues(alpha: 0.0)
-                ]),
-              ),
-            ),
-            Positioned(
-              top: 180 * s, left: -60 * s,
-              child: DecorCircle(
-                diameter: 160 * s,
-                gradient: RadialGradient(colors: [
-                  AppColors.beige.withValues(alpha: 0.6), 
-                  AppColors.beige.withValues(alpha: 0.0)
-                ]),
-              ),
-            ),
-            Positioned(
-              bottom: -40 * s, right: -40 * s,
-              child: DecorCircle(
-                diameter: 220 * s,
-                gradient: RadialGradient(colors: [
-                  AppColors.goldLight.withValues(alpha: 0.3), 
-                  AppColors.goldLight.withValues(alpha: 0.0)
-                ]),
-              ),
-            ),
+            Positioned(top: -70 * s, right: -70 * s, child: DecorCircle(diameter: 280 * s, gradient: RadialGradient(colors: [AppColors.gold.withValues(alpha: 0.25), AppColors.gold.withValues(alpha: 0.0)]))),
+            Positioned(top: 180 * s, left: -60 * s, child: DecorCircle(diameter: 160 * s, gradient: RadialGradient(colors: [AppColors.beige.withValues(alpha: 0.6), AppColors.beige.withValues(alpha: 0.0)]))),
+            Positioned(bottom: -40 * s, right: -40 * s, child: DecorCircle(diameter: 220 * s, gradient: RadialGradient(colors: [AppColors.goldLight.withValues(alpha: 0.3), AppColors.goldLight.withValues(alpha: 0.0)]))),
 
             ResponsiveLayout(
               useSafeArea: true,
               useScrollView: true,
               child: Column(
                 children: [
-                  FadeTransition(
-                    opacity: _cardFade,
-                    child: SlideTransition(
-                      position: _cardSlide,
-                      child: AuthHeaderCard(floatAnimation: _floatAnimation, s: s),
-                    ),
-                  ),
-
+                  FadeTransition(opacity: _cardFade, child: SlideTransition(position: _cardSlide, child: AuthHeaderCard(floatAnimation: _floatAnimation, s: s))),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16 * s),
                     child: Column(
@@ -270,7 +335,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             position: _titleSlide,
                             child: Column(
                               children: [
-                                Text('Welcome Back!', style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark)),
+                                FittedBox(fit: BoxFit.scaleDown, child: Text('Welcome Back!', style: AppFonts.style(size: 35, weight: FontWeight.w700, color: AppColors.brownDark))),
                                 SizedBox(height: 8 * s),
                                 Text('Ingresa para disfrutar de tu licor favorito.', textAlign: TextAlign.center, style: AppFonts.style(size: 18, weight: FontWeight.w600, color: AppColors.brown.withValues(alpha: 0.7))),
                               ],
@@ -278,7 +343,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
                           ),
                         ),
                         SizedBox(height: 22 * s),
-
                         FadeTransition(
                           opacity: _emailFade,
                           child: SlideTransition(
@@ -290,15 +354,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
                               validator: _validateEmail,
-                              prefixIcon: const HugeIcon(
-                                icon: HugeIcons.strokeRoundedMail01, 
-                                size: 24,
-                              ),
+                              prefixIcon: const HugeIcon(icon: HugeIcons.strokeRoundedMail01, size: 24),
                             ),
                           ),
                         ),
                         SizedBox(height: 16 * s),
-
                         FadeTransition(
                           opacity: _passwordFade,
                           child: SlideTransition(
@@ -310,24 +370,15 @@ class _LoginPageState extends ConsumerState<LoginPage>
                               controller: _passwordController,
                               obscureText: _obscurePassword,
                               validator: _validatePassword,
-                              prefixIcon: const HugeIcon(
-                                icon: HugeIcons.strokeRoundedLockPassword, 
-                                size: 24,
-                              ),
+                              prefixIcon: const HugeIcon(icon: HugeIcons.strokeRoundedLockPassword, size: 24),
                               suffixIcon: GestureDetector(
                                 onTap: () => setState(() => _obscurePassword = !_obscurePassword),
-                                child: HugeIcon(
-                                  icon: _obscurePassword 
-                                      ? HugeIcons.strokeRoundedViewOffSlash 
-                                      : HugeIcons.strokeRoundedView,
-                                  size: 24,
-                                ),
+                                child: HugeIcon(icon: _obscurePassword ? HugeIcons.strokeRoundedViewOffSlash : HugeIcons.strokeRoundedView, size: 24),
                               ),
                             ),
                           ),
                         ),
                         SizedBox(height: 16 * s),
-
                         FadeTransition(
                           opacity: _buttonsFade,
                           child: SlideTransition(
@@ -337,15 +388,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    Expanded(
-                                      child: AppTermsCheckbox(
-                                        value: _acceptTerms,
-                                        onChanged: (val) {
-                                          setState(() => _acceptTerms = val);
-                                          FocusScope.of(context).unfocus();
-                                        },
-                                      ),
-                                    ),
+                                    Expanded(child: AppTermsCheckbox(value: _acceptTerms, onChanged: (val) { setState(() => _acceptTerms = val); FocusScope.of(context).unfocus(); })),
                                     SizedBox(width: 12 * s),
                                     TextButton(
                                       onPressed: () => context.push('/forgot-password'),
@@ -355,59 +398,61 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                   ],
                                 ),
                                 SizedBox(height: 24 * s),
-
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 62,
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(30),
-                                      gradient: const LinearGradient(
-                                        begin: Alignment.centerLeft, end: Alignment.centerRight,
-                                        colors: [AppColors.brownDark, AppColors.brown, AppColors.goldLight],
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: 62,
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(30),
+                                            gradient: const LinearGradient(
+                                              begin: Alignment.centerLeft,
+                                              end: Alignment.centerRight,
+                                              colors: [AppColors.brownDark, AppColors.brown, AppColors.goldLight],
+                                            ),
+                                          ),
+                                          child: ElevatedButton(
+                                            onPressed: _leaving ? null : _submit,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.transparent,
+                                              disabledBackgroundColor: Colors.transparent,
+                                              foregroundColor: AppColors.creamText,
+                                              disabledForegroundColor: AppColors.creamText.withValues(alpha: 0.6),
+                                              shadowColor: Colors.transparent,
+                                              elevation: 0,
+                                              padding: EdgeInsets.zero,
+                                              minimumSize: Size.zero,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                            ),
+                                            child: Text('Sign in', style: AppFonts.style(size: 20, weight: FontWeight.w600, color: AppColors.creamText)),
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                    child: ElevatedButton(
-                                      onPressed: _leaving ? null : _submit,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent, shadowColor: Colors.transparent, elevation: 0, padding: EdgeInsets.zero, minimumSize: Size.zero,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    if (kBiometricLoginEnabled && _hasBiometricCredential) ...[
+                                      SizedBox(width: 12 * s),
+                                      _FingerprintIconButton(
+                                        size: 62,
+                                        onTap: _leaving ? null : () => _loginWithBiometric(),
                                       ),
-                                      child: Text('Sign in', style: AppFonts.style(size: 20, weight: FontWeight.w600, color: AppColors.creamText)),
-                                    ),
-                                  ),
+                                    ],
+                                  ],
                                 ),
                               ],
                             ),
                           ),
                         ),
-
                         SizedBox(height: 32 * s),
-
                         FadeTransition(
                           opacity: _socialsFade,
                           child: SlideTransition(
                             position: _socialsSlide,
                             child: Column(
                               children: [
-                                Row(
-                                  children: [
-                                    const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
-                                    Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 16 * s),
-                                      child: Text('Or continue with', style: AppFonts.style(size: 15, weight: FontWeight.w500, color: AppColors.muted)),
-                                    ),
-                                    const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)),
-                                  ],
-                                ),
+                                Row(children: [const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)), Padding(padding: EdgeInsets.symmetric(horizontal: 16 * s), child: Text('Or continue with', style: AppFonts.style(size: 15, weight: FontWeight.w500, color: AppColors.muted))), const Expanded(child: Divider(color: AppColors.border, thickness: 1.5))]),
                                 SizedBox(height: 24 * s),
-                                Row(
-                                  children: [
-                                    Expanded(child: SocialButton(label: 'Google', iconAsset: 'assets/icons/google.svg', onPressed: () {})),
-                                    SizedBox(width: 16 * s),
-                                    Expanded(child: SocialButton(label: 'Apple', iconAsset: 'assets/icons/Apple_light.svg', onPressed: () {})),
-                                  ],
-                                ),
+                                Row(children: [Expanded(child: SocialButton(label: 'Google', iconAsset: 'assets/icons/google.svg', onPressed: () {})), SizedBox(width: 16 * s), Expanded(child: SocialButton(label: 'Apple', iconAsset: 'assets/icons/Apple_light.svg', onPressed: () {}))]),
                                 SizedBox(height: 32 * s),
                                 GestureDetector(
                                   onTap: () => context.go('/register'),
@@ -415,9 +460,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                     TextSpan(
                                       text: '¿No tienes una cuenta? ',
                                       style: AppFonts.style(size: 16, weight: FontWeight.w500, color: AppColors.brown.withValues(alpha: 0.75)),
-                                      children: [
-                                        TextSpan(text: 'Regístrate', style: AppFonts.style(size: 16, weight: FontWeight.w700, color: AppColors.goldDark)),
-                                      ],
+                                      children: [TextSpan(text: 'Regístrate', style: AppFonts.style(size: 16, weight: FontWeight.w700, color: AppColors.goldDark))],
                                     ),
                                   ),
                                 ),
@@ -432,17 +475,51 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 ],
               ),
             ),
-            
-            // ESCUDO ANTI-PARPADEO:
-            // Solo se muestra después de que la animación del vaso desaparece,
-            // evitando el parpadeo sin arruinar la transparencia del diálogo.
-            if (_showShield)
-              Positioned.fill(
-                child: Container(
-                  color: AppColors.cream,
-                ),
-              ),
+            if (_showShield) Positioned.fill(child: Container(color: AppColors.cream)),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FingerprintIconButton extends StatelessWidget {
+  const _FingerprintIconButton({required this.onTap, required this.size});
+  final VoidCallback? onTap;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final border = CircleBorder(
+      side: BorderSide(color: AppColors.gold.withValues(alpha: 0.7), width: 1.5),
+    );
+
+    return Semantics(
+      button: true,
+      label: 'Entrar con huella',
+      child: Tooltip(
+        message: 'Entrar con huella',
+        child: Material(
+          color: Colors.white,
+          shape: border,
+          child: InkWell(
+            customBorder: border,
+            onTap: onTap == null
+                ? null
+                : () {
+                    HapticFeedback.lightImpact();
+                    onTap!();
+                  },
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: const Icon(
+                Icons.fingerprint_rounded,
+                size: 32,
+                color: AppColors.goldDark,
+              ),
+            ),
+          ),
         ),
       ),
     );
