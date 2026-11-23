@@ -48,8 +48,10 @@ dependencies:
   cached_network_image: ^3.4.1
   syncfusion_flutter_maps: ^28.1.33
   passkeys: ^2.0.0
-  shared_preferences: ^2.2.2
+  shared_preferences: 2.2.2
   local_auth: ^2.3.0
+
+
 
 dev_dependencies:
   flutter_test:
