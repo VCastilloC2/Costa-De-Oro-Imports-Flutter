@@ -2,10 +2,6 @@
 // ============================================================================
 // CONTROLADOR: AuthController
 // ============================================================================
-// Maneja el estado global de la sesión (login, logout, actualización y 
-// refresco del perfil). Utiliza Riverpod para notificar a la UI de 
-// cualquier cambio de forma reactiva.
-// ============================================================================
 
 import 'dart:io';
 
@@ -13,23 +9,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:costa_de_oro_imports/features/auth/data/auth_repository.dart';
 import 'package:costa_de_oro_imports/features/auth/data/models/user_model.dart';
 
-/// ============================================================================
-/// ENUM: AuthStatus
-/// ============================================================================
 enum AuthStatus {
-  /// La app está arrancando y comprobando si hay un token guardado.
   unknown,
-  
-  /// El usuario tiene una sesión activa y válida.
   authenticated,
-  
-  /// No hay sesión (o el token expiró).
   unauthenticated,
 }
 
-/// ============================================================================
-/// CLASE: AuthState
-/// ============================================================================
 class AuthState {
   const AuthState({this.status = AuthStatus.unknown, this.user});
   
@@ -49,9 +34,6 @@ class AuthState {
   }
 }
 
-/// ============================================================================
-/// CONTROLADOR: AuthController
-/// ============================================================================
 class AuthController extends Notifier<AuthState> {
   
   @override
@@ -59,9 +41,10 @@ class AuthController extends Notifier<AuthState> {
 
   AuthRepository get _repo => ref.read(authRepositoryProvider);
 
-  /// ==========================================================================
-  /// MÉTODO: restoreSession
-  /// ==========================================================================
+  // ==========================================================================
+  // SESIÓN Y LOGIN BÁSICO
+  // ==========================================================================
+
   Future<void> restoreSession() async {
     try {
       final user = await _repo.restoreSession();
@@ -73,27 +56,66 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  /// ==========================================================================
-  /// MÉTODO: login
-  /// ==========================================================================
   Future<void> login({required String correo, required String password}) async {
     final user = await _repo.login(correo: correo, password: password);
     state = AuthState(status: AuthStatus.authenticated, user: user);
   }
 
-  /// ==========================================================================
-  /// MÉTODO: register
-  /// ==========================================================================
   Future<void> register({required String correo, required String password}) async {
     final user = await _repo.register(correo: correo, password: password);
     state = AuthState(status: AuthStatus.authenticated, user: user);
   }
 
-  /// ==========================================================================
-  /// MÉTODO: updateProfile
-  /// ==========================================================================
-  /// Actualiza los datos del perfil. Ahora incluye el correo y la imagen
-  /// para enviar todo en una sola petición multipart al backend.
+  // ==========================================================================
+  // BIOMETRÍA LOCAL (Huella/Rostro usando local_auth)
+  // ==========================================================================
+
+  Future<void> registerBiometric() async {
+    await _repo.registerBiometric();
+  }
+
+  Future<void> loginWithBiometric({required String correo}) async {
+    final user = await _repo.loginWithBiometric(correo: correo);
+    state = AuthState(status: AuthStatus.authenticated, user: user);
+  }
+
+  Future<List<BiometricDevice>> listBiometricDevices() async {
+    return await _repo.listBiometricDevices();
+  }
+
+  Future<void> revokeBiometricDevice(int credentialId) async {
+    await _repo.revokeBiometricDevice(credentialId);
+  }
+
+  // ==========================================================================
+  // PASSKEYS (WebAuthn)
+  // ==========================================================================
+
+  Future<void> loginWithPasskey() async {
+    final user = await _repo.loginWithPasskey();
+    state = AuthState(status: AuthStatus.authenticated, user: user);
+  }
+
+  Future<void> registerPasskey({String? deviceName}) async {
+    await _repo.registerPasskey(deviceName: deviceName);
+  }
+
+  Future<List<PasskeyCredential>> listPasskeys() async {
+    return await _repo.listPasskeys();
+  }
+
+  Future<void> revokePasskey(int passkeyId) async {
+    await _repo.revokePasskey(passkeyId);
+  }
+
+  Future<bool> validateSession() async {
+    return await _repo.validateSession();
+  }
+
+  // ==========================================================================
+  // PERFIL Y CERRAR SESIÓN
+  // ==========================================================================
+
   Future<void> updateProfile({
     required String nombres,
     required String apellidos,
@@ -115,13 +137,9 @@ class AuthController extends Notifier<AuthState> {
       imagen: imagen,
     );
 
-    // Actualizamos el estado global para que la UI se redibuje
     state = AuthState(status: AuthStatus.authenticated, user: updatedUser);
   }
 
-  /// ==========================================================================
-  /// MÉTODO: refreshProfile
-  /// ==========================================================================
   Future<void> refreshProfile() async {
     try {
       final user = await _repo.fetchProfile();
@@ -131,14 +149,10 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  /// ==========================================================================
-  /// MÉTODO: logout
-  /// ==========================================================================
   Future<void> logout() async {
     await _repo.logout();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 }
 
-/// Provider global del estado de autenticación.
 final authControllerProvider = NotifierProvider<AuthController, AuthState>(AuthController.new);

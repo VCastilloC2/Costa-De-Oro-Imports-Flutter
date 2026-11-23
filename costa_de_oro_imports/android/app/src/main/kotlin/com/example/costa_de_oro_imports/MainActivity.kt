@@ -1,5 +1,7 @@
 package com.example.costa_de_oro_imports
 
-import io.flutter.embedding.android.FlutterActivity
+// 1. Cambiamos el import
+import io.flutter.embedding.android.FlutterFragmentActivity 
 
-class MainActivity : FlutterActivity()
+// 2. Cambiamos la herencia
+class MainActivity : FlutterFragmentActivity() 
