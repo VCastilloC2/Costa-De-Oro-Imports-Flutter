@@ -79,6 +79,14 @@ class AuthController extends Notifier<AuthState> {
     state = AuthState(status: AuthStatus.authenticated, user: user);
   }
 
+  Future<List<BiometricDevice>> listBiometricDevices() async {
+    return await _repo.listBiometricDevices();
+  }
+
+  Future<void> revokeBiometricDevice(int credentialId) async {
+    await _repo.revokeBiometricDevice(credentialId);
+  }
+
   // ==========================================================================
   // PASSKEYS (WebAuthn)
   // ==========================================================================

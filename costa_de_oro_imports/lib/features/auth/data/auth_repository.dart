@@ -51,6 +51,37 @@ class PasskeyCredential {
       );
 }
 
+/// Dispositivo vinculado con biometría local (GET /auth/biometric/devices).
+/// El servidor nunca devuelve el secreto.
+class BiometricDevice {
+  const BiometricDevice({
+    required this.credentialId,
+    required this.deviceId,
+    this.deviceName,
+    this.createdAt,
+  });
+
+  final int credentialId;
+  final String deviceId;
+  final String? deviceName;
+  final String? createdAt;
+
+  factory BiometricDevice.fromJson(Map<String, dynamic> json) {
+    var created = json['created_at'] as String?;
+    // El servidor manda la hora en UTC pero sin "Z": se agrega para que la
+    // fecha se muestre en hora local.
+    if (created != null && !created.endsWith('Z') && !created.contains('+')) {
+      created = '${created}Z';
+    }
+    return BiometricDevice(
+      credentialId: (json['credential_id'] as num).toInt(),
+      deviceId: json['device_id'] as String,
+      deviceName: json['device_name'] as String?,
+      createdAt: created,
+    );
+  }
+}
+
 class AuthRepository {
   AuthRepository(this._dio, this._storage);
 
@@ -145,6 +176,29 @@ class AuthRepository {
       final userJson = Map<String, dynamic>.from(data['usuario'] as Map);
       _normalizeUserImage(userJson, data);
       return UserModel.fromJson(userJson);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  /// Lista los dispositivos vinculados a la cuenta.
+  Future<List<BiometricDevice>> listBiometricDevices() async {
+    try {
+      final response =
+          await _dio.get<List<dynamic>>('/auth/biometric/devices');
+      return (response.data ?? const <dynamic>[])
+          .whereType<Map>()
+          .map((j) => BiometricDevice.fromJson(Map<String, dynamic>.from(j)))
+          .toList(growable: false);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  /// Revoca un dispositivo: el servidor elimina su secreto.
+  Future<void> revokeBiometricDevice(int credentialId) async {
+    try {
+      await _dio.delete<dynamic>('/auth/biometric/devices/$credentialId');
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

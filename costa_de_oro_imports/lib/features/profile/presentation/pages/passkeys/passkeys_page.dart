@@ -19,8 +19,9 @@ import '../../widget/passkeys/security_hero.dart';
 
 // ============================================================================
 // Seguridad y acceso. El esquema lo decide kUsePasskeys (biometric_mode.dart):
-//   false -> huella local (local_auth): un solo teléfono.
-//   true  -> passkeys (WebAuthn): varios dispositivos.
+//   false -> huella local (local_auth) con los endpoints /auth/biometric/*:
+//            register, login, GET devices y DELETE devices/{credential_id}.
+//   true  -> passkeys (WebAuthn).
 // ============================================================================
 
 class PasskeysPage extends ConsumerStatefulWidget {
@@ -33,6 +34,11 @@ class PasskeysPage extends ConsumerStatefulWidget {
 class _PasskeysPageState extends ConsumerState<PasskeysPage>
     with SingleTickerProviderStateMixin {
   List<PasskeyCredential> _credentials = const [];
+
+  /// Huella local: id de la credencial de ESTE teléfono en el servidor
+  /// (null si este teléfono no la tiene activa).
+  int? _thisId;
+
   bool _loading = true;
   bool _working = false;
   String? _error;
@@ -54,53 +60,81 @@ class _PasskeysPageState extends ConsumerState<PasskeysPage>
     super.dispose();
   }
 
-  /// Passkeys: 1, 2 o 3 según cuántas llaves. Huella local: 1 (sin activar)
-  /// o 3 (activa, anillo completo).
-  int get _level {
-    if (_credentials.isEmpty) return 1;
-    if (!kUsePasskeys) return 3;
-    return _credentials.length == 1 ? 2 : 3;
-  }
+  /// En huella local: ¿este teléfono ya la tiene activa?
+  bool get _thisActive => _thisId != null;
 
-  /// Este teléfono, representado con el mismo modelo que usa DeviceCard.
-  static const PasskeyCredential _thisPhone = PasskeyCredential(
-    passkeyId: 0,
-    deviceName: 'Este teléfono',
-    deviceType: 'single_device',
-    backedUp: false,
-  );
+  /// Passkeys: 1, 2 o 3 según cuántas llaves. Huella local: 1 (este teléfono
+  /// sin activar) o 3 (activa, anillo completo).
+  int get _level {
+    if (kUsePasskeys) {
+      if (_credentials.isEmpty) return 1;
+      return _credentials.length == 1 ? 2 : 3;
+    }
+    return _thisActive ? 3 : 1;
+  }
 
   Future<void> _load({bool silent = false}) async {
     if (!silent) {
-      setState(() { _loading = true; _error = null; });
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
     }
     try {
       final prefs = BiometricPrefs.instance;
+      final controller = ref.read(authControllerProvider.notifier);
       List<PasskeyCredential> list;
+      int? thisId;
 
       if (kUsePasskeys) {
-        list = await ref.read(authControllerProvider.notifier).listPasskeys();
+        list = await controller.listPasskeys();
         if (list.isEmpty && prefs.hasPasskey) await prefs.markDisabled();
         if (list.isNotEmpty && !prefs.hasPasskey) await prefs.markEnabled();
       } else {
-        final deviceId =
-            await ref.read(sessionStorageProvider).readBiometricDeviceId();
-        // Mantiene sincronizado el flag con lo que realmente hay guardado.
-        if (deviceId == null && prefs.hasPasskey) await prefs.markDisabled();
-        if (deviceId != null && !prefs.hasPasskey) await prefs.markEnabled();
-        list = deviceId == null ? const [] : const [_thisPhone];
+        final storage = ref.read(sessionStorageProvider);
+        final localId = await storage.readBiometricDeviceId();
+        final devices = await controller.listBiometricDevices();
+
+        final mine = <PasskeyCredential>[];
+        final others = <PasskeyCredential>[];
+        for (final d in devices) {
+          final isThis = localId != null && d.deviceId == localId;
+          if (isThis) thisId = d.credentialId;
+          final card = PasskeyCredential(
+            passkeyId: d.credentialId,
+            deviceName: isThis
+                ? 'Este teléfono · ${d.deviceName ?? 'Android'}'
+                : (d.deviceName ?? 'Dispositivo'),
+            deviceType: 'platform',
+            backedUp: false,
+            createdAt: d.createdAt,
+          );
+          (isThis ? mine : others).add(card);
+        }
+        list = [...mine, ...others];
+
+        // El teléfono guardaba un secreto, pero el servidor ya no lo tiene
+        // (se revocó desde otro lado): se limpia para no mostrar un botón roto.
+        if (localId != null && thisId == null) {
+          await storage.clearBiometricCredential();
+        }
+        if (thisId == null && prefs.hasPasskey) await prefs.markDisabled();
+        if (thisId != null && !prefs.hasPasskey) await prefs.markEnabled();
       }
 
       if (mounted) {
         setState(() {
           _credentials = list;
+          _thisId = thisId;
           _error = null;
         });
       }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
-      if (mounted) setState(() => _error = 'No pudimos cargar tus dispositivos.');
+      if (mounted) {
+        setState(() => _error = 'No pudimos cargar tus dispositivos.');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -110,29 +144,35 @@ class _PasskeysPageState extends ConsumerState<PasskeysPage>
 
   Future<void> _register() async {
     if (_working) return;
-    if (!kUsePasskeys && _credentials.isNotEmpty) {
+    if (!kUsePasskeys && _thisActive) {
       _message('Este teléfono ya tiene la huella activada.');
       return;
     }
     HapticFeedback.mediumImpact();
     setState(() => _working = true);
     try {
+      final controller = ref.read(authControllerProvider.notifier);
       if (kUsePasskeys) {
-        await ref.read(authControllerProvider.notifier).registerPasskey();
+        await controller.registerPasskey();
       } else {
-        await ref.read(authControllerProvider.notifier).registerBiometric();
+        await controller.registerBiometric();
       }
       await BiometricPrefs.instance.markEnabled();
       HapticFeedback.heavyImpact();
       if (mounted) {
         _pulse.forward(from: 0);
-        _message(kUsePasskeys ? '¡Listo! Tu llave de acceso quedó activa.' : '¡Listo! Tu huella quedó activa en este teléfono.');
+        _message(kUsePasskeys
+            ? '¡Listo! Tu llave de acceso quedó activa.'
+            : '¡Listo! Tu huella quedó activa en este teléfono.');
       }
       await _load(silent: true);
     } on ApiException catch (e) {
       if (mounted && !_isCancel(e)) _message(e.message, isError: true);
     } catch (_) {
-      if (mounted) _message('No pudimos activar la huella. Inténtalo de nuevo.', isError: true);
+      if (mounted) {
+        _message('No pudimos activar la huella. Inténtalo de nuevo.',
+            isError: true);
+      }
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -148,28 +188,33 @@ class _PasskeysPageState extends ConsumerState<PasskeysPage>
       builder: (_) => RevokeSheet(
         s: s,
         deviceName: credential.deviceName ?? 'Este dispositivo',
-        isLast: !kUsePasskeys || _credentials.length == 1,
+        isLast: _credentials.length == 1,
       ),
     );
     if (confirmed != true || !mounted) return;
 
     setState(() => _working = true);
     try {
+      final controller = ref.read(authControllerProvider.notifier);
       if (kUsePasskeys) {
-        await ref
-            .read(authControllerProvider.notifier)
-            .revokePasskey(credential.passkeyId);
-        if (mounted) _message('Dispositivo eliminado.');
+        await controller.revokePasskey(credential.passkeyId);
       } else {
-        await ref.read(sessionStorageProvider).clearBiometricCredential();
-        await BiometricPrefs.instance.markDisabled();
-        if (mounted) _message('Huella desactivada en este teléfono.');
+        // Primero se revoca en el servidor; si falla, el secreto local
+        // se conserva y el usuario puede reintentar.
+        await controller.revokeBiometricDevice(credential.passkeyId);
+        if (credential.passkeyId == _thisId) {
+          await ref.read(sessionStorageProvider).clearBiometricCredential();
+          await BiometricPrefs.instance.markDisabled();
+        }
       }
+      if (mounted) _message('Dispositivo eliminado.');
       await _load(silent: true);
     } on ApiException catch (e) {
       if (mounted) _message(e.message, isError: true);
     } catch (_) {
-      if (mounted) _message('No pudimos desactivarla. Inténtalo de nuevo.', isError: true);
+      if (mounted) {
+        _message('No pudimos eliminarlo. Inténtalo de nuevo.', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -180,7 +225,9 @@ class _PasskeysPageState extends ConsumerState<PasskeysPage>
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(text, style: AppFonts.style(size: 14, weight: FontWeight.w500, color: Colors.white)),
+          content: Text(text,
+              style: AppFonts.style(
+                  size: 14, weight: FontWeight.w500, color: Colors.white)),
           backgroundColor: isError ? Colors.red.shade800 : AppColors.brownDark,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -202,7 +249,11 @@ class _PasskeysPageState extends ConsumerState<PasskeysPage>
         scrolledUnderElevation: 0,
         iconTheme: const IconThemeData(color: AppColors.brownDark),
         centerTitle: true,
-        title: Text('Seguridad y acceso', style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
+        title: Text('Seguridad y acceso',
+            style: AppFonts.style(
+                size: 20 * s,
+                weight: FontWeight.w700,
+                color: AppColors.brownDark)),
       ),
       body: RefreshIndicator(
         color: AppColors.goldDark,
@@ -223,10 +274,9 @@ class _PasskeysPageState extends ConsumerState<PasskeysPage>
                     working: _working,
                     pulse: _pulse,
                     multiDevice: kUsePasskeys,
-                    // Con huella local ya activa no hay nada más que añadir.
-                    onActivate: (!kUsePasskeys && _credentials.isNotEmpty)
-                        ? null
-                        : _register,
+                    // Con la huella ya activa en este teléfono no hay nada
+                    // más que activar.
+                    onActivate: (!kUsePasskeys && _thisActive) ? null : _register,
                   ),
                   if (_error != null) ...[
                     SizedBox(height: 16 * s),
@@ -245,6 +295,7 @@ class _PasskeysPageState extends ConsumerState<PasskeysPage>
                           s: s,
                           credential: _credentials[i],
                           busy: _working,
+                          showLastUse: kUsePasskeys,
                           onRevoke: () => _revoke(_credentials[i]),
                         ),
                       ),

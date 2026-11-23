@@ -65,12 +65,16 @@ class DeviceCard extends StatelessWidget {
   final bool busy;
   final VoidCallback onRevoke;
 
+  /// El servidor de biometría no devuelve "último uso": se oculta esa línea.
+  final bool showLastUse;
+
   const DeviceCard({
     super.key,
     required this.s,
     required this.credential,
     required this.busy,
     required this.onRevoke,
+    this.showLastUse = true,
   });
 
   IconData get _osIcon {
@@ -131,11 +135,13 @@ class DeviceCard extends StatelessWidget {
                   created == null ? 'Añadido recientemente' : 'Añadido el ${_formatDate(created)}',
                   style: AppFonts.style(size: 12 * s, color: AppColors.muted),
                 ),
-                SizedBox(height: 2 * s),
-                Text(
-                  lastUse == null ? 'Sin usar todavía' : 'Último uso: $lastUse',
-                  style: AppFonts.style(size: 12 * s, color: AppColors.muted),
-                ),
+                if (showLastUse) ...[
+                  SizedBox(height: 2 * s),
+                  Text(
+                    lastUse == null ? 'Sin usar todavía' : 'Último uso: $lastUse',
+                    style: AppFonts.style(size: 12 * s, color: AppColors.muted),
+                  ),
+                ],
                 if (credential.backedUp) ...[
                   SizedBox(height: 8 * s),
                   Container(
