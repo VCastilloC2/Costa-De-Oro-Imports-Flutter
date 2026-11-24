@@ -3,7 +3,7 @@
 // REPOSITORIO: AuthRepository (Versión Avanzada - Compañero)
 // ============================================================================
 // Capa de datos encargada de comunicarse con los endpoints de autenticación.
-// Incluye Biometría Local (local_auth) y Passkeys (WebAuthn).
+// Incluye Biometría Local (local_auth ^3.x) y Passkeys (WebAuthn).
 // ============================================================================
 
 import 'dart:io';
@@ -87,7 +87,7 @@ class AuthRepository {
 
   final Dio _dio;
   final SessionStorage _storage;
-  
+
   final PasskeyAuthenticator _passkeyAuthenticator = PasskeyAuthenticator(
     debugMode: kDebugMode,
   );
@@ -102,7 +102,11 @@ class AuthRepository {
   }
 
   // ==========================================================================
-  // BIOMETRÍA LOCAL (local_auth)
+  // BIOMETRÍA LOCAL (local_auth ^3.x)
+  // ==========================================================================
+  // NOTA: en local_auth 3.x ya no existe AuthenticationOptions. Los parámetros
+  // (biometricOnly, persistAcrossBackgrounding) van directo en authenticate().
+  // "stickyAuth" (2.x) ahora se llama "persistAcrossBackgrounding".
   // ==========================================================================
 
   /// Vincula este dispositivo a la cuenta actual. El backend recibe el secreto
@@ -115,19 +119,20 @@ class AuthRepository {
           'Este dispositivo no tiene biometría disponible.',
         );
       }
-      if (!await _localAuth.authenticate(
+
+      final ok = await _localAuth.authenticate(
         localizedReason:
             'Confirma tu identidad para activar el ingreso con huella',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-        ),
-      ))
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
+      );
+      if (!ok) {
         throw const ApiException('Verificación biométrica cancelada.');
-        
+      }
+
       final deviceId = _randomHex(32);
       final secret = _randomHex(64);
-      
+
       await _dio.post<dynamic>(
         '/auth/biometric/register',
         data: {
@@ -148,20 +153,21 @@ class AuthRepository {
       if (deviceId == null) {
         throw const ApiException('Activa primero la huella desde tu perfil.');
       }
-      if (!await _localAuth.authenticate(
+
+      final ok = await _localAuth.authenticate(
         localizedReason: 'Verifica tu identidad para ingresar',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-        ),
-      ))
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
+      );
+      if (!ok) {
         throw const ApiException('Verificación biométrica cancelada.');
-        
+      }
+
       final secret = await _storage.readBiometricSecret();
       if (secret == null) {
         throw const ApiException('Activa primero la huella desde tu perfil.');
       }
-      
+
       final response = await _dio.post<Map<String, dynamic>>(
         '/auth/biometric/login',
         data: {
@@ -222,11 +228,11 @@ class AuthRepository {
         options['rp'] is Map ? (options['rp'] as Map)['id'] as String? : null,
       );
       final challengeId = optionsResponse.data!['challenge_id'] as String;
-      
+
       final credential = await _passkeyAuthenticator.register(
         RegisterRequestType.fromJson(options),
       );
-      
+
       await _dio.post<dynamic>(
         '/auth/passkey/register/verify',
         data: {
@@ -254,7 +260,7 @@ class AuthRepository {
       );
       _validateRpId(options['rpId'] as String?);
       final challengeId = optionsResponse.data!['challenge_id'] as String;
-      
+
       final assertion = await _passkeyAuthenticator.authenticate(
         AuthenticateRequestType.fromJson(
           options,
@@ -262,7 +268,7 @@ class AuthRepository {
           canBeSecurityKey: false,
         ),
       );
-      
+
       final finishResponse = await _dio.post<Map<String, dynamic>>(
         '/auth/passkey/login/verify',
         data: {'challenge_id': challengeId, 'credential': assertion.toJson()},
@@ -319,7 +325,7 @@ class AuthRepository {
   // ==========================================================================
   // UTILIDADES INTERNAS
   // ==========================================================================
-  
+
   String get _deviceName => Platform.isAndroid
       ? 'Android'
       : Platform.isIOS
@@ -396,7 +402,7 @@ class AuthRepository {
   // ==========================================================================
   // LOGIN Y REGISTRO TRADICIONAL
   // ==========================================================================
-  
+
   Future<UserModel> login({
     required String correo,
     required String password,
@@ -412,7 +418,7 @@ class AuthRepository {
       if (data is Map && data['usuario'] is Map<String, dynamic>) {
         await _storage.saveToken(token);
         final userJson = Map<String, dynamic>.from(data['usuario']);
-        _normalizeUserImage(userJson, Map<String, dynamic>.from(data as Map));
+        _normalizeUserImage(userJson, Map<String, dynamic>.from(data));
         return UserModel.fromJson(userJson);
       }
     } on DioException catch (e) {
@@ -485,8 +491,10 @@ class AuthRepository {
 
       final formData = FormData.fromMap(map);
 
-      print('=== [DEBUG] ENVIANDO AL BACKEND (PATCH /perfil) ===');
-      print('Campos: ${map.keys.toList()}');
+      // Logs de depuración: solo en modo debug y sin volcar datos del usuario.
+      if (kDebugMode) {
+        debugPrint('[DEBUG] PATCH /perfil -> campos: ${map.keys.toList()}');
+      }
 
       final response = await _dio.patch<dynamic>(
         '/perfil',
@@ -494,14 +502,18 @@ class AuthRepository {
         options: Options(contentType: 'multipart/form-data'),
       );
 
-      print('=== [DEBUG] RESPUESTA DEL BACKEND (Status: ${response.statusCode}) ===');
-      print(response.data);
+      if (kDebugMode) {
+        debugPrint('[DEBUG] PATCH /perfil <- status: ${response.statusCode}');
+      }
 
       return await fetchProfile();
     } on DioException catch (e) {
-      print('=== [DEBUG] ERROR AL ACTUALIZAR PERFIL ===');
-      print('Status: ${e.response?.statusCode}');
-      print('Mensaje del servidor: ${e.response?.data}');
+      if (kDebugMode) {
+        debugPrint(
+          '[DEBUG] Error al actualizar perfil -> status: '
+          '${e.response?.statusCode}, mensaje: ${e.response?.data}',
+        );
+      }
       throw ApiException.fromDio(e);
     }
   }
