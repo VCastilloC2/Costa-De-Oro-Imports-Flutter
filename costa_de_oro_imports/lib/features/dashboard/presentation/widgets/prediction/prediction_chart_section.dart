@@ -1,9 +1,3 @@
-// RAMA: feature/Products
-// ============================================================================
-// WIDGET: Grafica de prediccion (replica de la web, pensada para movil)
-// Ruta: lib/features/.../presentation/widgets/prediction_chart.dart
-// ============================================================================
-
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -18,17 +12,44 @@ import 'forecast_chart.dart';
 import 'prediction_chart_palette.dart';
 import 'historical_sales_chart.dart';
 
-enum _PredictionSeries { actual, adjustment, projection, range, currentMonth }
+/// Series que el usuario puede activar o desactivar desde la leyenda.
+enum _PredictionSeries {
+  actual,
+  adjustment,
+  projection,
+  range,
+  currentMonth,
+  outliers,
+}
 
+/// Coordina el historial, el pronóstico, la leyenda y el detalle seleccionado.
+///
+/// El widget mantiene localmente el rango visible y la visibilidad de cada
+/// serie. El mes seleccionado y la acción para generar la predicción se
+/// sincronizan con el componente padre mediante callbacks.
 class PredictionChartSection extends StatefulWidget {
+  /// Datos combinados de la gráfica y la evaluación del modelo.
   final SalesDashboardData data;
+
+  /// Valores derivados necesarios para el pronóstico y su rango.
   final ForecastStats stats;
+
+  /// Factor de escala visual aplicado por el layout de la aplicación.
   final double s;
+
+  /// Indica si el usuario ya generó una predicción en esta vista.
   final bool showForecast;
+
+  /// Mes enfocado en la gráfica o en el panel de inspección.
   final String? selectedMonth;
+
+  /// Notifica al padre el cambio de mes seleccionado.
   final ValueChanged<String> onMonthSelected;
+
+  /// Solicita navegar hasta los controles de generación.
   final VoidCallback onGoToGenerator;
 
+  /// Crea las gráficas y los controles interactivos de sus series.
   const PredictionChartSection({
     super.key,
     required this.data,
@@ -45,19 +66,27 @@ class PredictionChartSection extends StatefulWidget {
 }
 
 class _PredictionChartState extends State<PredictionChartSection> {
+  /// Cantidad de meses históricos visibles; cero representa todo el historial.
   int _range = 36; // meses de historia visibles (0 = todo)
+
+  /// Las series comienzan activas y se modifican desde la leyenda.
   final Set<_PredictionSeries> _visibleSeries = _PredictionSeries.values
       .toSet();
+
+  /// Evita repetir la respuesta háptica mientras el mismo mes sigue enfocado.
   String? _lastHapticMonth;
 
+  /// Indica si [series] debe dibujarse en su gráfica correspondiente.
   bool _isVisible(_PredictionSeries series) => _visibleSeries.contains(series);
 
+  /// Cambia la visibilidad de una serie sin alterar las demás.
   void _toggleSeries(_PredictionSeries series) {
     setState(() {
       if (!_visibleSeries.add(series)) _visibleSeries.remove(series);
     });
   }
 
+  /// Actualiza el mes seleccionado y emite una respuesta háptica al cambiarlo.
   void _selectMonth(String month) {
     if (_lastHapticMonth != month) {
       _lastHapticMonth = month;
@@ -83,6 +112,7 @@ class _PredictionChartState extends State<PredictionChartSection> {
     if (selectedIndex < 0) return;
 
     final monthsFromEnd = history.length - 1 - selectedIndex;
+    // Amplía la ventana si la selección externa ya no está dentro del rango.
     if (_range == 12 && monthsFromEnd >= 12) {
       _range = monthsFromEnd < 36 ? 36 : 0;
     } else if (_range == 36 && monthsFromEnd >= 36) {
@@ -90,6 +120,7 @@ class _PredictionChartState extends State<PredictionChartSection> {
     }
   }
 
+  /// Construye una opción de rango y mantiene la selección dentro de la ventana.
   Widget _rangeOption(
     double s,
     String label,
@@ -156,7 +187,7 @@ class _PredictionChartState extends State<PredictionChartSection> {
       );
     }
 
-    // ---- Ventana visible (1A / 3A / Todo) ----
+    // Limita la serie histórica al rango elegido sin incluir el pronóstico.
     final start = _range == 0 ? 0 : math.max(0, all.length - _range);
     final pts = all.sublist(start);
     final latestRealIndex = all.lastIndexWhere((point) => point.tipo == 'real');
@@ -188,7 +219,7 @@ class _PredictionChartState extends State<PredictionChartSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Selector de rango
+        // Selector de ventana temporal del historial.
         Align(
           alignment: Alignment.centerRight,
           child: Container(
@@ -208,7 +239,7 @@ class _PredictionChartState extends State<PredictionChartSection> {
         ),
         SizedBox(height: 12 * s),
 
-        // Leyenda
+        // Cada entrada controla de forma independiente una serie o anotación.
         Wrap(
           spacing: 4 * s,
           runSpacing: 0,
@@ -251,7 +282,14 @@ class _PredictionChartState extends State<PredictionChartSection> {
                 active: _isVisible(_PredictionSeries.currentMonth),
                 onTap: () => _toggleSeries(_PredictionSeries.currentMonth),
               ),
-            if (hasOutliers) _legend(s, 'Atipico', ring: AppColors.brownDark),
+            if (hasOutliers)
+              _legend(
+                s,
+                'Atípico',
+                ring: AppColors.brownDark,
+                active: _isVisible(_PredictionSeries.outliers),
+                onTap: () => _toggleSeries(_PredictionSeries.outliers),
+              ),
           ],
         ),
         SizedBox(height: 16 * s),
@@ -263,6 +301,7 @@ class _PredictionChartState extends State<PredictionChartSection> {
           showActual: _isVisible(_PredictionSeries.actual),
           showAdjustment: _isVisible(_PredictionSeries.adjustment),
           showCurrentMonth: _isVisible(_PredictionSeries.currentMonth),
+          showOutliers: _isVisible(_PredictionSeries.outliers),
           s: s,
           onMonthSelected: _selectMonth,
         ),

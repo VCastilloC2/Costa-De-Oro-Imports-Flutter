@@ -2,14 +2,36 @@ import 'dart:math' as math;
 
 import 'sales_prediction_model.dart';
 
+/// Métricas derivadas que los componentes del dashboard comparten.
+///
+/// Se construye desde [SalesDashboardData] para mantener en un solo lugar la
+/// selección de meses futuros, el total proyectado, el sesgo y la comparación
+/// interanual. Los rangos calculados son orientativos, no intervalos
+/// estadísticos calibrados.
 class ForecastStats {
+  /// Puntos cuyo tipo es `prediccion`, en el orden recibido del servicio.
   final List<ProjectionPoint> futuro;
+
+  /// Suma de los valores de [futuro].
   final double totalProyectado;
-  final double sigma; // error relativo RMSE del backtest (0.08 = 8%)
-  final double biasPct; // + = sobreestima
+
+  /// RMSE relativo medio del backtest, expresado como proporción.
+  ///
+  /// Por ejemplo, `0.08` equivale a un error relativo del 8 %.
+  final double sigma;
+
+  /// Sesgo promedio del backtest en porcentaje; positivo indica
+  /// sobreestimación y negativo subestimación.
+  final double biasPct;
+
+  /// Cantidad de meses con valor real válido usados en el backtest.
   final int nBacktest;
+
+  /// Fecha del último punto de tipo `real`, si existe.
   final String? ultimoRealFecha;
-  final double? yoyPct; // proximo mes vs mismo mes del anio anterior
+
+  /// Variación porcentual del primer pronóstico frente al mismo mes anterior.
+  final double? yoyPct;
 
   const ForecastStats._({
     required this.futuro,
@@ -21,6 +43,11 @@ class ForecastStats {
     required this.yoyPct,
   });
 
+  /// Deriva las métricas visuales de los datos de ventas y evaluación.
+  ///
+  /// El error se calcula con meses cuyo valor real es positivo. Si no existen
+  /// comparaciones válidas, [sigma] usa el WMAPE disponible y el sesgo queda
+  /// en cero.
   factory ForecastStats.from(SalesDashboardData d) {
     final pts = d.proyeccionVentas;
     final futuro = pts.where((p) => p.tipo == 'prediccion').toList();
@@ -70,8 +97,11 @@ class ForecastStats {
     );
   }
 
-  /// Orientative relative range width for horizon h (1 = next month).
-  /// Uses a normal-error approximation and is not empirically calibrated.
+  /// Devuelve la semiamplitud relativa del rango para el horizonte [h].
+  ///
+  /// [h] comienza en uno para el siguiente mes. La aproximación usa un
+  /// multiplicador normal y aumenta gradualmente con el horizonte; no está
+  /// calibrada como cobertura probabilística.
   double halfWidthPct(int h) {
     const z80 = 1.28;
     final base = math.max(sigma, 0.04);

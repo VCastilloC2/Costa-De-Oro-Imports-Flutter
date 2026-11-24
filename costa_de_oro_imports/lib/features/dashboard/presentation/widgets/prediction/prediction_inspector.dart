@@ -6,12 +6,26 @@ import '../../../domain/sales_prediction_model.dart';
 import 'prediction_chart_palette.dart';
 import 'prediction_formatters.dart';
 
+/// Muestra el detalle del mes seleccionado en cualquiera de las gráficas.
+///
+/// Distingue entre un cierre real, el mes parcial y un punto futuro. Para los
+/// pronósticos presenta el valor base y un rango orientativo; para los cierres
+/// compara el ajuste con el resultado real.
 class PredictionInspector extends StatelessWidget {
+  /// Punto correspondiente al mes seleccionado.
   final ProjectionPoint point;
+
+  /// Estadísticas usadas para calcular el rango y contextualizar el sesgo.
   final ForecastStats stats;
+
+  /// Índice del punto dentro de la lista futura, o un valor negativo si no es
+  /// un pronóstico.
   final int forecastIndex;
+
+  /// Factor de escala visual aplicado por el layout de la aplicación.
   final double s;
 
+  /// Crea el detalle sincronizado con el punto seleccionado en la gráfica.
   const PredictionInspector({
     super.key,
     required this.point,
