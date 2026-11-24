@@ -1,16 +1,22 @@
-// RAMA: feature/Products
-// ============================================================================
-// PROVIDER: Predicción Mensual
-// ============================================================================
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/network/api_client.dart';
 import '../../domain/sales_prediction_model.dart';
 
-final salesPredictionProvider = FutureProvider.autoDispose<SalesDashboardData>((ref) async {
+/// Carga en paralelo la serie gráfica, el backtest y el resumen del modelo.
+///
+/// Las tres respuestas se combinan en [SalesDashboardData]. Al ser
+/// `autoDispose`, Riverpod libera el resultado cuando la pantalla deja de
+/// observarlo; invalidar el provider fuerza una nueva lectura después de
+/// generar una predicción. Consulta `GET /admin/prediccion/datos-grafica`,
+/// `GET /api/prediccion/evaluar-ultimos-meses` y
+/// `GET /api/v1/predictions/summary`.
+final salesPredictionProvider = FutureProvider.autoDispose<SalesDashboardData>((
+  ref,
+) async {
   final dio = ref.watch(dioProvider);
 
-  // Hacemos las 3 peticiones en paralelo
+  // Las fuentes independientes se consultan en paralelo para reducir espera.
   final responses = await Future.wait([
     dio.get('/admin/prediccion/datos-grafica'),
     dio.get('/api/prediccion/evaluar-ultimos-meses'),
@@ -21,8 +27,9 @@ final salesPredictionProvider = FutureProvider.autoDispose<SalesDashboardData>((
   final evaluacionData = responses[1].data;
   final summaryData = responses[2].data;
 
-  // Parseamos la gráfica
-  final proyeccionRaw = graficaData['proyeccion_ventas'] as List<dynamic>? ?? [];
+  // Convierte los puntos dinámicos del endpoint a modelos del dominio.
+  final proyeccionRaw =
+      graficaData['proyeccion_ventas'] as List<dynamic>? ?? [];
   final proyeccion = proyeccionRaw
       .map((e) => ProjectionPoint.fromJson(e as Map<String, dynamic>))
       .toList();
