@@ -8,6 +8,7 @@
 // ============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 
@@ -17,15 +18,18 @@ import '../../../../core/utils/responsive_utils.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_header_card.dart';
 import '../../../../shared/widgets/decor_circle.dart';
+import '../../data/auth_repository.dart';
 
-class ResetPasswordPage extends StatefulWidget {
-  const ResetPasswordPage({super.key});
+class ResetPasswordPage extends ConsumerStatefulWidget {
+  const ResetPasswordPage({super.key, required this.email, required this.codigo});
+  final String email;
+  final String codigo;
 
   @override
-  State<ResetPasswordPage> createState() => _ResetPasswordPageState();
+  ConsumerState<ResetPasswordPage> createState() => _ResetPasswordPageState();
 }
 
-class _ResetPasswordPageState extends State<ResetPasswordPage> with TickerProviderStateMixin {
+class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> with TickerProviderStateMixin {
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   
@@ -71,12 +75,19 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> with TickerProvid
     super.dispose();
   }
 
-  void _resetPassword() {
+  bool _saving = false;
+  Future<void> _resetPassword() async {
     FocusScope.of(context).unfocus();
-    if ((_passwordKey.currentState?.validate() ?? false) && (_confirmKey.currentState?.validate() ?? false)) {
+    if (_saving || !((_passwordKey.currentState?.validate() ?? false) && (_confirmKey.currentState?.validate() ?? false))) return;
+    setState(() => _saving = true);
+    try {
+      await ref.read(authRepositoryProvider).resetPassword(correo: widget.email, codigo: widget.codigo, password: _passwordController.text);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contraseña actualizada con éxito')));
       context.go('/login');
-    }
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally { if (mounted) setState(() => _saving = false); }
   }
 
   @override
@@ -227,7 +238,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> with TickerProvid
                                   backgroundColor: Colors.transparent, shadowColor: Colors.transparent, elevation: 0,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                                 ),
-                                child: Text('Reset Password', style: AppFonts.style(size: 18, weight: FontWeight.w600, color: AppColors.creamText)),
+                                child: _saving ? const CircularProgressIndicator(color: AppColors.creamText) : Text('Reset Password', style: AppFonts.style(size: 18, weight: FontWeight.w600, color: AppColors.creamText)),
                               ),
                             ),
                           ),

@@ -7,6 +7,7 @@
 // ============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
@@ -15,15 +16,17 @@ import '../../../../app/theme/app_fonts.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../../shared/widgets/auth_header_card.dart';
 import '../../../../shared/widgets/decor_circle.dart';
+import '../../data/auth_repository.dart';
 
-class VerifyCodePage extends StatefulWidget {
-  const VerifyCodePage({super.key});
+class VerifyCodePage extends ConsumerStatefulWidget {
+  const VerifyCodePage({super.key, required this.email});
+  final String email;
 
   @override
-  State<VerifyCodePage> createState() => _VerifyCodePageState();
+  ConsumerState<VerifyCodePage> createState() => _VerifyCodePageState();
 }
 
-class _VerifyCodePageState extends State<VerifyCodePage>
+class _VerifyCodePageState extends ConsumerState<VerifyCodePage>
     with TickerProviderStateMixin {
   final int _codeLength = 5;
   late List<TextEditingController> _controllers;
@@ -110,9 +113,21 @@ class _VerifyCodePageState extends State<VerifyCodePage>
     super.dispose();
   }
 
-  void _verify() {
+  bool _busy = false;
+  Future<void> _verify() async {
     FocusScope.of(context).unfocus();
-    context.push('/reset-password');
+    final code = _controllers.map((controller) => controller.text).join();
+    if (_busy || code.length != _codeLength) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa los 5 dígitos del código.')));
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(authRepositoryProvider).verifyPasswordResetCode(correo: widget.email, codigo: code);
+      if (mounted) context.push('/reset-password', extra: {'email': widget.email, 'codigo': code});
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally { if (mounted) setState(() => _busy = false); }
   }
 
   /// Un cuadro del código. Llena su altura (expands) y toma una proporción
@@ -344,7 +359,7 @@ class _VerifyCodePageState extends State<VerifyCodePage>
                                     borderRadius: BorderRadius.circular(30),
                                   ),
                                 ),
-                                child: Text(
+                                child: _busy ? const CircularProgressIndicator(color: AppColors.creamText) : Text(
                                   'Verification',
                                   style: AppFonts.style(
                                     size: 20,

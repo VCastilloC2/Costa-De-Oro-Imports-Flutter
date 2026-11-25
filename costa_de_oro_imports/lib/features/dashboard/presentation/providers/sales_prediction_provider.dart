@@ -3,14 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_client.dart';
 import '../../domain/sales_prediction_model.dart';
 
-/// Carga en paralelo la serie gráfica, el backtest y el resumen del modelo.
+/// Carga los datos visibles del resumen sin esperar el backtest histórico.
 ///
-/// Las tres respuestas se combinan en [SalesDashboardData]. Al ser
+/// Las respuestas principales se combinan en [SalesDashboardData]. Al ser
 /// `autoDispose`, Riverpod libera el resultado cuando la pantalla deja de
-/// observarlo; invalidar el provider fuerza una nueva lectura después de
-/// generar una predicción. Consulta `GET /admin/prediccion/datos-grafica`,
-/// `GET /api/prediccion/evaluar-ultimos-meses` y
-/// `GET /api/v1/predictions/summary`.
+/// observarlo. El backtest se carga por separado para no bloquear la vista.
 final salesPredictionProvider = FutureProvider.autoDispose<SalesDashboardData>((
   ref,
 ) async {
@@ -19,13 +16,11 @@ final salesPredictionProvider = FutureProvider.autoDispose<SalesDashboardData>((
   // Las fuentes independientes se consultan en paralelo para reducir espera.
   final responses = await Future.wait([
     dio.get('/admin/prediccion/datos-grafica'),
-    dio.get('/api/prediccion/evaluar-ultimos-meses'),
     dio.get('/api/v1/predictions/summary'),
   ]);
 
   final graficaData = responses[0].data;
-  final evaluacionData = responses[1].data;
-  final summaryData = responses[2].data;
+  final summaryData = responses[1].data;
 
   // Convierte los puntos dinámicos del endpoint a modelos del dominio.
   final proyeccionRaw =
@@ -37,7 +32,15 @@ final salesPredictionProvider = FutureProvider.autoDispose<SalesDashboardData>((
   return SalesDashboardData(
     proyeccionVentas: proyeccion,
     totalVentas: (graficaData['total_ventas'] as num?)?.toDouble() ?? 0.0,
-    evaluacion: EvaluationData.fromJson(evaluacionData),
+    evaluacion: const EvaluationData(comparacion: [], mae: 0, mse: 0, wmape: 0),
     summary: SummaryData.fromJson(summaryData),
   );
-});
+}, retry: (retryCount, error) => null);
+
+/// Backtest secundario: se consulta después de que el contenido principal ya
+/// puede mostrarse, evitando que una evaluación lenta deje la pantalla vacía.
+final salesPredictionEvaluationProvider = FutureProvider.autoDispose<EvaluationData>((ref) async {
+  final dio = ref.watch(dioProvider);
+  final response = await dio.get('/api/prediccion/evaluar-ultimos-meses');
+  return EvaluationData.fromJson(response.data as Map<String, dynamic>);
+}, retry: (retryCount, error) => null);

@@ -247,7 +247,7 @@ class PredictionModelCard extends StatelessWidget {
           SizedBox(height: 8 * s),
           Row(
             children: [
-              for (final m in const [6, 12, 24])
+              for (final m in const [6, 12])
                 Padding(
                   padding: EdgeInsets.only(right: 8 * s),
                   child: ChoiceChip(

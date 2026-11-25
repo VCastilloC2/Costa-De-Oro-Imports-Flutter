@@ -53,7 +53,6 @@ class ProfileTextField extends StatefulWidget {
 
 class ProfileTextFieldState extends State<ProfileTextField> {
   static const _errorColor = Color(0xFFD64545);
-  static const _okColor = AppColors.goldDark;
 
   final FocusNode _focus = FocusNode();
   bool _hasFocus = false;

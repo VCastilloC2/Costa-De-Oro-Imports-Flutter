@@ -132,7 +132,9 @@ class _PredictionKpiCarouselState extends State<PredictionKpiCarousel> {
     return Column(
       children: [
         SizedBox(
-          height: 154 * s,
+          // Deja espacio suficiente para el subtítulo en teléfonos compactos
+          // y con escalado de texto del sistema.
+          height: 190 * s,
           child: PageView.builder(
             controller: _ctrl,
             padEnds: false,

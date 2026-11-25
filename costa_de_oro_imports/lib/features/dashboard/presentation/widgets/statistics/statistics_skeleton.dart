@@ -7,8 +7,6 @@
 // ============================================================================
 
 import 'package:flutter/material.dart';
-import '../../../../../app/theme/app_colors.dart';
-import '../../../../../core/utils/responsive_utils.dart';
 
 class StatisticsSkeleton extends StatefulWidget {
   final double s;
