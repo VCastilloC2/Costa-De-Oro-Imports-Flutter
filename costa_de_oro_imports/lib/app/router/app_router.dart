@@ -19,6 +19,7 @@ import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/profile/presentation/pages/user_profile_page.dart';
 import '../../features/profile/presentation/pages/edit_profile_page.dart';
 import '../../features/auth/presentation/providers/auth_controller.dart';
+import '../../features/auth/domain/authorization_policy.dart';
 import '../../features/profile/presentation/pages/account_details_page.dart';
 import '../../features/dashboard/presentation/pages/statistics_page.dart';
 import '../../features/dashboard/presentation/pages/prediction_page.dart';
@@ -40,8 +41,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
 
       const publicRoutes = {
-        '/welcome', '/login', '/register', '/terms',
-        '/forgot-password', '/verify-code', '/reset-password',
+        '/welcome',
+        '/login',
+        '/register',
+        '/terms',
+        '/forgot-password',
+        '/verify-code',
+        '/reset-password',
       };
       final isPublic = publicRoutes.contains(loc);
 
@@ -53,25 +59,84 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return isPublic ? null : '/login';
       }
 
+      // LoginPage navega al dashboard cuando su diálogo de carga ya terminó.
+      // Redirigir aquí en cuanto cambia AuthState desmonta el Navigator del
+      // diálogo durante su transición y puede dejar GlobalKeys duplicadas.
+      if (loc == '/login') return null;
+
+      if (loc == '/welcome') {
+        return AuthorizationPolicy.hasPermission(
+              auth.user,
+              AppPermission.administrativeDashboard,
+            )
+            ? '/dashboard'
+            : '/profile';
+      }
+
+      if (!AuthorizationPolicy.canAccessPath(auth.user, loc)) {
+        return '/profile';
+      }
+
       return null;
     },
     routes: [
       GoRoute(path: '/', redirect: (context, state) => '/welcome'),
-      GoRoute(path: '/welcome', pageBuilder: (context, state) => const NoTransitionPage(child: WelcomePage())),
-      GoRoute(path: '/login', pageBuilder: (context, state) => const NoTransitionPage(child: LoginPage())),
-      GoRoute(path: '/register', builder: (context, state) => const RegisterPage()),
+      GoRoute(
+        path: '/welcome',
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: WelcomePage()),
+      ),
+      GoRoute(
+        path: '/login',
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: LoginPage()),
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => const RegisterPage(),
+      ),
       GoRoute(path: '/terms', builder: (context, state) => const TermsPage()),
-      GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordPage()),
-      GoRoute(path: '/verify-code', builder: (context, state) => const VerifyCodePage()),
-      GoRoute(path: '/reset-password', builder: (context, state) => const ResetPasswordPage()),
-      GoRoute(path: '/dashboard', builder: (context, state) => const DashboardPage()),
-      GoRoute(path: '/profile', builder: (context, state) => const UserProfilePage()),
-      GoRoute(path: '/edit-profile', builder: (context, state) => const EditProfilePage()),
-      GoRoute(path: '/account-details', builder: (context, state) => const AccountDetailsPage()),
-      GoRoute(path: '/products', builder: (context, state) => const StatisticsPage()),
-      GoRoute(path: '/prediction', builder: (context, state) => const PredictionPage()),
-      GoRoute(path: '/passkeys', builder: (context, state) => const PasskeysPage()),
-      GoRoute(path: '/subscription', builder: (context, state) => const SubscriptionPage()), 
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordPage(),
+      ),
+      GoRoute(
+        path: '/verify-code',
+        builder: (context, state) => const VerifyCodePage(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => const ResetPasswordPage(),
+      ),
+      GoRoute(
+        path: '/dashboard',
+        builder: (context, state) => const DashboardPage(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const UserProfilePage(),
+      ),
+      GoRoute(
+        path: '/edit-profile',
+        builder: (context, state) => const EditProfilePage(),
+      ),
+      GoRoute(
+        path: '/account-details',
+        builder: (context, state) => const AccountDetailsPage(),
+      ),
+      GoRoute(
+        path: '/products',
+        builder: (context, state) => const StatisticsPage(),
+      ),
+      GoRoute(
+        path: '/prediction',
+        builder: (context, state) => const PredictionPage(),
+      ),
+
+      GoRoute(
+        path: '/passkeys',
+        builder: (context, state) => const PasskeysPage(),
+      ),
     ],
   );
 });
