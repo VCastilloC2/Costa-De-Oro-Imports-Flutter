@@ -35,14 +35,15 @@ final recentOrdersProvider = FutureProvider.autoDispose<List<RecentOrder>>((ref)
         .toList();
         
   } on DioException catch (e) {
-    // Manejo de errores de red (usando el DioException que ya tienes)
-    print('Error de Dio al cargar pedidos: ${e.message}');
-    if (e.response != null) {
-      print('Respuesta del servidor: ${e.response?.data}');
-    }
+    // No imprimir cuerpos HTML de Cloudflare/proxies: pueden ser enormes y
+    // contienen información irrelevante para diagnosticar el status HTTP.
+    print(
+      'Error al cargar pedidos: HTTP ${e.response?.statusCode ?? 'sin respuesta'} '
+      '(${e.type.name})',
+    );
     throw Exception('Error al cargar pedidos');
   } catch (e) {
     print('Error inesperado parseando pedidos: $e');
     throw Exception('Error inesperado al parsear pedidos');
   }
-});
+}, retry: (retryCount, error) => null);

@@ -117,42 +117,78 @@ class SalesOverviewCard extends ConsumerWidget {
     required Color color,
     Color? percentColor,
   }) {
+    final titleText = Text(
+      title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppFonts.style(
+        size: 14 * s,
+        weight: FontWeight.w600,
+        color: const Color(0xFF1A1A1A),
+      ),
+    );
+    final valueText = Text(
+      value,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppFonts.style(
+        size: 14 * s,
+        weight: FontWeight.w700,
+        color: const Color(0xFF1A1A1A),
+      ),
+    );
+    final percentText = Text(
+      percent,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.end,
+      style: AppFonts.style(
+        size: 12 * s,
+        weight: FontWeight.w500,
+        color: percentColor ?? color,
+      ),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: AppFonts.style(
-                size: 14 * s,
-                weight: FontWeight.w600,
-                color: const Color(0xFF1A1A1A),
-              ),
-            ),
-            Row(
-              children: [
-                Text(
-                  value,
-                  style: AppFonts.style(
-                    size: 14 * s,
-                    weight: FontWeight.w700,
-                    color: const Color(0xFF1A1A1A),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 380 * s) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(width: double.infinity, child: titleText),
+                  SizedBox(height: 4 * s),
+                  Row(
+                    children: [
+                      Flexible(flex: 5, child: valueText),
+                      SizedBox(width: 8 * s),
+                      Flexible(flex: 4, child: percentText),
+                    ],
                   ),
-                ),
-                SizedBox(width: 4 * s),
-                Text(
-                  percent,
-                  style: AppFonts.style(
-                    size: 12 * s,
-                    weight: FontWeight.w500,
-                    color: percentColor ?? color,
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(flex: 5, child: titleText),
+                SizedBox(width: 8 * s),
+                Expanded(
+                  flex: 6,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Flexible(child: valueText),
+                      SizedBox(width: 4 * s),
+                      Flexible(child: percentText),
+                    ],
                   ),
                 ),
               ],
-            ),
-          ],
+            );
+          },
         ),
         SizedBox(height: 8 * s),
         
