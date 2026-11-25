@@ -59,9 +59,18 @@ class _RecentOrdersCardState extends ConsumerState<RecentOrdersCard> {
             ),
           ),
           error: (err, stack) => Center(
-            child: Text(
-              'Error al cargar pedidos',
-              style: TextStyle(color: Colors.red.shade400),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'No se pudieron cargar los pedidos.',
+                  style: TextStyle(color: Colors.red.shade400),
+                ),
+                TextButton(
+                  onPressed: () => ref.invalidate(recentOrdersProvider),
+                  child: const Text('Reintentar'),
+                ),
+              ],
             ),
           ),
           data: (orders) {
