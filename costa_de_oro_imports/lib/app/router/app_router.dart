@@ -14,7 +14,7 @@ import '../../features/auth/presentation/pages/terms_page.dart';
 import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/presentation/pages/verify_code_page.dart';
 import '../../features/auth/presentation/pages/reset_password_page.dart';
-import '../../features/profile/presentation/pages/passkeys/passkeys_page.dart'; // <-- IMPORT AGREGADO
+import '../../features/profile/presentation/pages/passkeys_page.dart'; 
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/profile/presentation/pages/user_profile_page.dart';
 import '../../features/profile/presentation/pages/edit_profile_page.dart';
@@ -23,6 +23,7 @@ import '../../features/auth/domain/authorization_policy.dart';
 import '../../features/profile/presentation/pages/account_details_page.dart';
 import '../../features/dashboard/presentation/pages/statistics_page.dart';
 import '../../features/dashboard/presentation/pages/prediction_page.dart';
+import '../../features/profile/presentation/pages/subscription_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ValueNotifier<int>(0);
@@ -58,7 +59,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return isPublic ? null : '/login';
       }
 
-      if (loc == '/welcome' || loc == '/login') {
+      // LoginPage navega al dashboard cuando su diálogo de carga ya terminó.
+      // Redirigir aquí en cuanto cambia AuthState desmonta el Navigator del
+      // diálogo durante su transición y puede dejar GlobalKeys duplicadas.
+      if (loc == '/login') return null;
+
+      if (loc == '/welcome') {
         return AuthorizationPolicy.hasPermission(
               auth.user,
               AppPermission.administrativeDashboard,

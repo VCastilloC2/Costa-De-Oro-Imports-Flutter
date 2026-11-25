@@ -4,17 +4,37 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../../app/theme/app_colors.dart';
 import '../../../domain/forecast_stats.dart';
 import '../../../domain/sales_prediction_model.dart';
+import 'technical_details.dart';
 import 'prediction_palette.dart';
 
+/// Muestra el estado del modelo y los controles para generar un pronóstico.
+///
+/// El indicador combina WAPE, disponibilidad y antigüedad de los datos con
+/// las desviaciones recientes del backtest. El horizonte y la acción de
+/// generación son controlados por el componente padre mediante callbacks.
 class PredictionModelCard extends StatelessWidget {
+  /// Métricas y metadatos devueltos por los servicios de predicción.
   final SalesDashboardData data;
+
+  /// Estadísticas derivadas que identifican el último dato real disponible.
   final ForecastStats stats;
+
+  /// Factor de escala visual aplicado por el layout de la aplicación.
   final double s;
+
+  /// Horizonte seleccionado en meses.
   final int meses;
+
+  /// Deshabilita los controles mientras el servicio procesa la solicitud.
   final bool isGenerating;
+
+  /// Notifica al padre el cambio de horizonte.
   final ValueChanged<int> onMeses;
+
+  /// Inicia la solicitud de generación en el componente padre.
   final VoidCallback onGenerar;
 
+  /// Crea la ficha de estado, horizonte, acción y detalles técnicos.
   const PredictionModelCard({
     super.key,
     required this.data,
@@ -26,6 +46,9 @@ class PredictionModelCard extends StatelessWidget {
     required this.onGenerar,
   });
 
+  /// Calcula cuántos meses han transcurrido desde el último dato real.
+  ///
+  /// Devuelve `null` si la fecha no está disponible o no sigue `YYYY-MM`.
   int? _mesesSinActualizar() {
     final f = stats.ultimoRealFecha;
     if (f == null || f.length < 7) return null;
@@ -36,6 +59,7 @@ class PredictionModelCard extends StatelessWidget {
     return (now.year - y) * 12 + (now.month - m);
   }
 
+  /// Reduce una marca ISO de entrenamiento a una etiqueta legible.
   String _trained(String t) {
     if (t.isEmpty) return 'No disponible';
     final clean = t.replaceAll('T', ' ');
@@ -57,6 +81,9 @@ class PredictionModelCard extends StatelessWidget {
         .where((item) => item.desviacionPct.abs() > 15)
         .length;
 
+    // Sin métricas/fecha no se juzga el modelo; los estados normales usan
+    // WAPE < 15 % como estable y WAPE >= 25 % como revisión. Las desviaciones
+    // recientes (> 15 %) y la antigüedad de datos pueden elevar la alerta.
     late final Color color;
     late final String estado;
     late final String consejo;
@@ -208,7 +235,7 @@ class PredictionModelCard extends StatelessWidget {
           ),
           Divider(color: Colors.grey.shade200, height: 28 * s),
 
-          // Accion: horizonte + recalcular
+          // La generación queda bloqueada mientras la solicitud está activa.
           Text(
             'Horizonte de la nueva proyeccion',
             style: TextStyle(
@@ -286,9 +313,20 @@ class PredictionModelCard extends StatelessWidget {
             ),
           ],
 
-          // Detalles tecnicos (secundarios)
+          // Los detalles técnicos se mantienen secundarios y expandibles.
           Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            data: Theme.of(context).copyWith(
+              dividerColor: Colors.transparent,
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              hoverColor: Colors.transparent,
+              focusColor: Colors.transparent,
+              splashFactory: NoSplash.splashFactory,
+              listTileTheme: Theme.of(context).listTileTheme.copyWith(
+                tileColor: Colors.transparent,
+                selectedTileColor: Colors.transparent,
+              ),
+            ),
             child: Material(
               color: Colors.transparent,
               child: ExpansionTile(
@@ -296,42 +334,14 @@ class PredictionModelCard extends StatelessWidget {
                 childrenPadding: EdgeInsets.only(bottom: 8 * s),
                 expandedCrossAxisAlignment: CrossAxisAlignment.start,
                 title: Text(
-                  'Detalles tecnicos',
+                  'Modelo, herramientas y variables',
                   style: TextStyle(
                     fontSize: 13 * s,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey.shade700,
                   ),
                 ),
-                children: [
-                  Wrap(
-                    spacing: 8 * s,
-                    runSpacing: 4 * s,
-                    children:
-                        ['Python', 'FastAPI', 'Pandas', 'NumPy', 'TensorFlow']
-                            .map(
-                              (e) => Chip(
-                                label: Text(
-                                  e,
-                                  style: TextStyle(fontSize: 10 * s),
-                                ),
-                                backgroundColor: Colors.grey.shade100,
-                                side: BorderSide.none,
-                                padding: EdgeInsets.zero,
-                              ),
-                            )
-                            .toList(),
-                  ),
-                  SizedBox(height: 10 * s),
-                  Text(
-                    'Red neuronal entrenada con la serie mensual de ventas. El rango mostrado es orientativo y se estima a partir del error del backtest; no implica una cobertura estadistica calibrada.',
-                    style: TextStyle(
-                      fontSize: 11 * s,
-                      color: Colors.grey,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
+                children: [TechnicalDetails(data: data, stats: stats, s: s)],
               ),
             ),
           ),

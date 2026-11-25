@@ -8,13 +8,28 @@ import '../../../domain/sales_prediction_model.dart';
 import 'prediction_formatters.dart';
 import 'prediction_palette.dart';
 
+/// Resume el backtest y permite seleccionar un mes para inspeccionarlo.
+///
+/// El sesgo y el error medio se calculan con los elementos disponibles en la
+/// evaluación. Cada fila conserva su propia selección visual y comunica el
+/// mes activo al componente padre.
 class PredictionVerification extends StatelessWidget {
+  /// Métricas y comparaciones históricas recibidas de los servicios.
   final SalesDashboardData data;
+
+  /// Sesgo, cantidad de meses y fecha más reciente derivados para el dashboard.
   final ForecastStats stats;
+
+  /// Factor de escala visual aplicado por el layout de la aplicación.
   final double s;
+
+  /// Mes seleccionado en la gráfica; se usa para resaltar la fila relacionada.
   final String? selectedMonth;
+
+  /// Notifica al padre cuando se selecciona una fila de evaluación.
   final ValueChanged<String> onMonthSelected;
 
+  /// Crea el resumen y la lista ordenada de meses evaluados.
   const PredictionVerification({
     super.key,
     required this.data,
@@ -53,7 +68,7 @@ class PredictionVerification extends StatelessWidget {
         ),
         SizedBox(height: 12 * s),
 
-        // Resumen de sesgo y error medio
+        // El MAE del endpoint tiene prioridad; se deriva de las filas si falta.
         Row(
           children: [
             Expanded(
@@ -178,6 +193,7 @@ class _PredictionVerificationRow extends StatelessWidget {
     final abs = dev.abs();
     final over = dev > 0;
 
+    // Los rangos de estado son umbrales de lectura visual, no métricas nuevas.
     late final Color color;
     late final String estado;
     if (!hasActual) {
@@ -204,6 +220,10 @@ class _PredictionVerificationRow extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(16 * s),
+          splashFactory: NoSplash.splashFactory,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             margin: EdgeInsets.only(bottom: 10 * s),
@@ -340,7 +360,10 @@ class _PredictionVerificationRow extends StatelessWidget {
   }
 }
 
-/// Barra centrada: izquierda = subestimo, derecha = sobreestimo (tope 30%).
+/// Barra centrada: izquierda indica subestimación y derecha sobreestimación.
+///
+/// La longitud se limita visualmente al 30 % para que desviaciones extremas no
+/// desplacen la escala disponible para los demás meses.
 class _DeviationBar extends StatelessWidget {
   final double dev;
   final Color color;
@@ -392,7 +415,3 @@ class _DeviationBar extends StatelessWidget {
     );
   }
 }
-
-// ============================================================================
-// FICHA DEL MODELO
-// ============================================================================

@@ -3,7 +3,7 @@
 class ApiConfig {
   ApiConfig._();
 
-  static const String baseUrl = 'http://192.168.1.10:8000';
+  static const String baseUrl = 'http://192.168.1.54:8000';
 
   // AUMENTAMOS LOS TIMEOUTS PARA DARLE TIEMPO A RENDER DE DESPERTAR
   static const Duration connectTimeout = Duration(seconds: 60); 

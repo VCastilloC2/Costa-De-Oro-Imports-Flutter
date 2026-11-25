@@ -1,11 +1,9 @@
-// RAMA: feature/Products
-// ============================================================================
-// WIDGET: Skeleton de carga para PredictionPage
-// Ruta: lib/features/.../presentation/widgets/prediction_skeleton.dart
-// ============================================================================
-
 import 'package:flutter/material.dart';
 
+/// Representa la estructura del dashboard mientras se cargan sus datos.
+///
+/// La animación de opacidad mantiene la jerarquía visual de la página sin
+/// mostrar valores incompletos antes de que el provider termine.
 class PredictionSkeleton extends StatefulWidget {
   const PredictionSkeleton({super.key});
 
@@ -15,7 +13,10 @@ class PredictionSkeleton extends StatefulWidget {
 
 class _PredictionSkeletonState extends State<PredictionSkeleton>
     with SingleTickerProviderStateMixin {
+  /// Controla el pulso de opacidad compartido por los marcadores.
   late AnimationController _controller;
+
+  /// Rango de opacidad usado para simular el estado de carga.
   late Animation<double> _animation;
 
   @override
@@ -47,12 +48,13 @@ class _PredictionSkeletonState extends State<PredictionSkeleton>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 0. Tarjeta del proximo mes (hero)
+            // Espacio reservado para el resumen del siguiente mes.
             Container(
               width: double.infinity,
               padding: EdgeInsets.all(20 * s),
               decoration: BoxDecoration(
-                color: const Color(0xFF4A3426).withValues(alpha: 0.12 + opacity * 0.12),
+                color: const Color(0xFF4A3426)
+                    .withValues(alpha: 0.12 + opacity * 0.12),
                 borderRadius: BorderRadius.circular(22 * s),
               ),
               child: Column(
@@ -68,7 +70,7 @@ class _PredictionSkeletonState extends State<PredictionSkeleton>
             ),
             SizedBox(height: 16 * s),
 
-            // 1. Carrusel de KPIs (efecto peek)
+            // Espacio reservado para el carrusel de indicadores.
             SizedBox(
               height: 108 * s,
               child: ListView.builder(
@@ -89,9 +91,17 @@ class _PredictionSkeletonState extends State<PredictionSkeleton>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildLine(width: 100 * s, height: 12 * s, opacity: opacity),
+                        _buildLine(
+                          width: 100 * s,
+                          height: 12 * s,
+                          opacity: opacity,
+                        ),
                         SizedBox(height: 12 * s),
-                        _buildLine(width: 140 * s, height: 24 * s, opacity: opacity),
+                        _buildLine(
+                          width: 140 * s,
+                          height: 24 * s,
+                          opacity: opacity,
+                        ),
                       ],
                     ),
                   );
@@ -100,7 +110,7 @@ class _PredictionSkeletonState extends State<PredictionSkeleton>
             ),
             SizedBox(height: 20 * s),
 
-            // 2. Contenedor de la grafica
+            // Espacio reservado para la gráfica y su selector de rango.
             Container(
               padding: EdgeInsets.all(16 * s),
               decoration: BoxDecoration(
@@ -117,7 +127,11 @@ class _PredictionSkeletonState extends State<PredictionSkeleton>
                   SizedBox(height: 16 * s),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: _buildLine(width: 110 * s, height: 26 * s, opacity: opacity),
+                    child: _buildLine(
+                      width: 110 * s,
+                      height: 26 * s,
+                      opacity: opacity,
+                    ),
                   ),
                   SizedBox(height: 16 * s),
                   Container(
@@ -133,7 +147,7 @@ class _PredictionSkeletonState extends State<PredictionSkeleton>
             ),
             SizedBox(height: 24 * s),
 
-            // 3. Verificacion reciente
+            // Espacio reservado para los resultados de verificación.
             _buildLine(width: 200 * s, height: 18 * s, opacity: opacity),
             SizedBox(height: 16 * s),
             ...List.generate(3, (index) {
@@ -150,13 +164,29 @@ class _PredictionSkeletonState extends State<PredictionSkeleton>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildLine(width: 70 * s, height: 14 * s, opacity: opacity),
-                        _buildLine(width: 100 * s, height: 20 * s, opacity: opacity),
-                        _buildLine(width: 54 * s, height: 26 * s, opacity: opacity),
+                        _buildLine(
+                          width: 70 * s,
+                          height: 14 * s,
+                          opacity: opacity,
+                        ),
+                        _buildLine(
+                          width: 100 * s,
+                          height: 20 * s,
+                          opacity: opacity,
+                        ),
+                        _buildLine(
+                          width: 54 * s,
+                          height: 26 * s,
+                          opacity: opacity,
+                        ),
                       ],
                     ),
                     SizedBox(height: 12 * s),
-                    _buildLine(width: double.infinity, height: 8 * s, opacity: opacity),
+                    _buildLine(
+                      width: double.infinity,
+                      height: 8 * s,
+                      opacity: opacity,
+                    ),
                   ],
                 ),
               );
@@ -164,7 +194,7 @@ class _PredictionSkeletonState extends State<PredictionSkeleton>
 
             SizedBox(height: 14 * s),
 
-            // 4. Ficha del modelo
+            // Espacio reservado para el estado y los controles del modelo.
             Container(
               padding: EdgeInsets.all(16 * s),
               decoration: BoxDecoration(
@@ -179,9 +209,17 @@ class _PredictionSkeletonState extends State<PredictionSkeleton>
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildLine(width: 120 * s, height: 16 * s, opacity: opacity),
+                      _buildLine(
+                        width: 120 * s,
+                        height: 16 * s,
+                        opacity: opacity,
+                      ),
                       SizedBox(height: 8 * s),
-                      _buildLine(width: 80 * s, height: 12 * s, opacity: opacity),
+                      _buildLine(
+                        width: 80 * s,
+                        height: 12 * s,
+                        opacity: opacity,
+                      ),
                     ],
                   ),
                 ],
@@ -193,6 +231,7 @@ class _PredictionSkeletonState extends State<PredictionSkeleton>
     );
   }
 
+  /// Dibuja un marcador redondeado con las dimensiones del contenido esperado.
   Widget _buildLine({
     required double width,
     required double height,

@@ -6,9 +6,19 @@ import '../../../domain/forecast_stats.dart';
 import '../../../domain/sales_prediction_model.dart';
 import 'prediction_formatters.dart';
 
+/// Resume el primer mes pronosticado y su comparación interanual.
+///
+/// Se espera que el componente se construya cuando [ForecastStats.futuro] no
+/// esté vacío. El rango mostrado es orientativo y usa la semiamplitud derivada
+/// de las métricas de evaluación.
 class PredictionHero extends StatelessWidget {
+  /// Métricas que contienen el primer pronóstico y su contexto histórico.
   final ForecastStats stats;
+
+  /// Factor de escala visual aplicado por el layout de la aplicación.
   final double s;
+
+  /// Crea el resumen visual del siguiente mes pronosticado.
   const PredictionHero({super.key, required this.stats, required this.s});
 
   @override
@@ -127,7 +137,3 @@ class PredictionHero extends StatelessWidget {
     );
   }
 }
-
-// ============================================================================
-// CARRUSEL DE KPIs con indicador de pagina
-// ============================================================================

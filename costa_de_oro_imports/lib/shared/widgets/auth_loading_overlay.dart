@@ -77,6 +77,11 @@ Future<T?> showAuthLoading<T>(
     ),
   );
 
+  // Asegura que el diálogo ya esté montado antes de iniciar la tarea. Si la
+  // autenticación cambia el estado del router, la ruta de login se mantiene
+  // hasta que este diálogo se cierre.
+  await WidgetsBinding.instance.endOfFrame;
+
   // 2. Simulamos un progreso de carga visual que llega hasta el 88%.
   // Esto da feedback al usuario mientras el servidor responde.
   final timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
