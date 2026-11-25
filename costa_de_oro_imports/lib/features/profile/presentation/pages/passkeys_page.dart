@@ -2,20 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../app/theme/app_colors.dart';
-import '../../../../../app/theme/app_fonts.dart';
-import '../../../../../core/network/api_exception.dart';
-import '../../../../../core/storage/session_storage.dart';
-import '../../../../../core/utils/responsive_utils.dart';
-import '../../../../auth/data/auth_repository.dart';
-import '../../../../auth/data/biometric_mode.dart';
-import '../../../../auth/data/biometric_prefs.dart';
-import '../../../../auth/presentation/providers/auth_controller.dart';
-import '../../widget/passkeys/passkeys_skeleton.dart';
-import '../../widget/passkeys/device_card.dart';
-import '../../widget/passkeys/empty_state.dart';
-import '../../widget/passkeys/passkeys_shared.dart';
-import '../../widget/passkeys/security_hero.dart';
+import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_fonts.dart';
+import '../../../../core/network/api_exception.dart';
+import '../../../../core/storage/session_storage.dart';
+import '../../../../core/utils/responsive_utils.dart';
+import '../../../auth/data/auth_repository.dart';
+import '../../../auth/data/biometric_mode.dart';
+import '../../../auth/data/biometric_prefs.dart';
+import '../../../auth/presentation/providers/auth_controller.dart';
+import '../widget/passkeys/passkeys_skeleton.dart';
+import '../widget/passkeys/device_card.dart';
+import '../widget/passkeys/empty_state.dart';
+import '../widget/passkeys/passkeys_shared.dart';
+import '../widget/passkeys/security_hero.dart';
 
 // ============================================================================
 // Seguridad y acceso. El esquema lo decide kUsePasskeys (biometric_mode.dart):
