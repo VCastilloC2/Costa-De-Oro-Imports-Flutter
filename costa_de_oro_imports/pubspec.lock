@@ -998,18 +998,18 @@ packages:
     dependency: transitive
     description:
       name: syncfusion_flutter_core
-      sha256: de2496525b2ff5e4493fe1bd0da212e0500f35754a55090adf82cd9b7fa0c90f
+      sha256: "7f56deff02d596bbc83b35eb113052b4482934e8631202e98cac0354e4244e7d"
       url: "https://pub.dev"
     source: hosted
-    version: "35.2.12"
+    version: "35.2.13"
   syncfusion_flutter_maps:
     dependency: "direct main"
     description:
       name: syncfusion_flutter_maps
-      sha256: "116621ee9ba3d5b366f7f23d04388a3c583918dae9e62cb042054f20987aeed0"
+      sha256: "0727e5d60c2723feb4b45dbb059341d975d681a65381bb9a34382a52a191152f"
       url: "https://pub.dev"
     source: hosted
-    version: "35.2.12"
+    version: "35.2.13"
   synchronized:
     dependency: transitive
     description:
@@ -1030,10 +1030,10 @@ packages:
     dependency: transitive
     description:
       name: test_api
-      sha256: "2a122cbe059f8b610d3a5415f42e255b6c17b1f21eee1d960f31080237fb4f11"
+      sha256: "0a10344e901e5b2e63819567951cb6a06673ed6b84f40462188ff5a0c41f371f"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.12"
+    version: "0.7.14"
   typed_data:
     dependency: transitive
     description:
