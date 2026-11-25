@@ -8,6 +8,7 @@
 // ============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart'; 
 
@@ -17,15 +18,16 @@ import '../../../../core/utils/responsive_utils.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_header_card.dart';
 import '../../../../shared/widgets/decor_circle.dart';
+import '../../data/auth_repository.dart';
 
-class ForgotPasswordPage extends StatefulWidget {
+class ForgotPasswordPage extends ConsumerStatefulWidget {
   const ForgotPasswordPage({super.key});
 
   @override
-  State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
+  ConsumerState<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
 }
 
-class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProviderStateMixin {
+class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _emailKey = GlobalKey<AppTextFieldState>();
   
@@ -83,11 +85,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
     super.dispose();
   }
 
-  void _sendCode() {
+  bool _sending = false;
+  Future<void> _sendCode() async {
     FocusScope.of(context).unfocus();
-    if (_emailKey.currentState?.validate() ?? false) {
-      context.push('/verify-code');
-    }
+    if (_sending || !(_emailKey.currentState?.validate() ?? false)) return;
+    setState(() => _sending = true);
+    try {
+      final email = _emailController.text.trim();
+      await ref.read(authRepositoryProvider).requestPasswordReset(email);
+      if (!mounted) return;
+      context.push('/verify-code', extra: email);
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally { if (mounted) setState(() => _sending = false); }
   }
 
   @override
@@ -204,7 +214,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
                                   backgroundColor: Colors.transparent, shadowColor: Colors.transparent, elevation: 0,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                                 ),
-                                child: Text('Send Code', style: AppFonts.style(size: 20, weight: FontWeight.w600, color: AppColors.creamText)),
+                                child: _sending ? const CircularProgressIndicator(color: AppColors.creamText) : Text('Send Code', style: AppFonts.style(size: 20, weight: FontWeight.w600, color: AppColors.creamText)),
                               ),
                             ),
                           ),

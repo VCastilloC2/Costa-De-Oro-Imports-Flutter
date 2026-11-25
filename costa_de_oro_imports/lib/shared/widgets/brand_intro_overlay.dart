@@ -1,4 +1,3 @@
-import 'dart:ui'; 
 import 'package:flutter/material.dart';
 import 'animated_brand_lockup.dart';
 
@@ -24,7 +23,7 @@ class _BrandIntroOverlayState extends State<BrandIntroOverlay>
     super.initState();
     _fly = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 500),
     );
   }
 
@@ -36,7 +35,7 @@ class _BrandIntroOverlayState extends State<BrandIntroOverlay>
   }
 
   void _onLockupFinished() {
-    Future.delayed(const Duration(milliseconds: 600), () {
+    Future.delayed(const Duration(milliseconds: 120), () {
       if (mounted) _startFlight();
     });
   }
@@ -83,13 +82,12 @@ class _BrandIntroOverlayState extends State<BrandIntroOverlay>
                     fit: StackFit.expand,
                     children: [
                       // Imagen de fondo con desenfoque (esta sí es JPG, se queda igual)
-                      ImageFiltered(
-                        imageFilter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                        child: Image.asset(
-                          'assets/images/welcome.jpg', 
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stack) => Container(color: const Color(0xFF14100C)),
-                        ),
+                      Image.asset(
+                        'assets/images/welcome.jpg',
+                        cacheWidth: 1080,
+                        fit: BoxFit.cover,
+                        filterQuality: FilterQuality.low,
+                        errorBuilder: (context, error, stack) => Container(color: const Color(0xFF14100C)),
                       ),
                       Container(
                         decoration: BoxDecoration(
@@ -112,6 +110,7 @@ class _BrandIntroOverlayState extends State<BrandIntroOverlay>
                   alignment: alignment ?? Alignment.center,
                   child: AnimatedBrandLockup(
                     logoWidth: currentWidth,
+                    duration: const Duration(milliseconds: 1500),
                     textScale: 1.2 - (0.2 * v),
                     onFinished: _onLockupFinished,
                   ),

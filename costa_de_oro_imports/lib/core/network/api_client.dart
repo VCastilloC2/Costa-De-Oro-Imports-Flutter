@@ -28,9 +28,7 @@ final dioProvider = Provider<Dio>((ref) {
     InterceptorsWrapper(
       onRequest: (options, handler) async {
         // --- SOLUCIÓN: Evitar enviar el token en rutas de autenticación ---
-        final isAuthRoute =
-            options.path.contains('/auth/login') ||
-            options.path.contains('/auth/registro');
+        final isAuthRoute = options.path.startsWith('/auth/');
 
         if (!isAuthRoute) {
           final token = await storage.readToken();

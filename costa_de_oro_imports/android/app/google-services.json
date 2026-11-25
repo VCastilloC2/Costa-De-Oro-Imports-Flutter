@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "689178422854",
+    "project_id": "avid-atrium-515601-v4",
+    "storage_bucket": "avid-atrium-515601-v4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:689178422854:android:ff7a3d96a8d6696d53e447",
+        "android_client_info": {
+          "package_name": "com.example.costa_de_oro_imports"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "689178422854-bp4svnegv530fagh53vbvk484uduhc0q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.costa_de_oro_imports",
+            "certificate_hash": "774e617e81f4df6199f819deaff1dfb62df5241a"
+          }
+        },
+        {
+          "client_id": "689178422854-g9uh19v5k5rjtcrnmuusmukd5hvanv9e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzX9_JY4ECg1Nede9bgOlzoLoR_5iRVrw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "689178422854-g9uh19v5k5rjtcrnmuusmukd5hvanv9e.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "689178422854-kkjbm2rpj3nvo77juhcif4u10pb6mii9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.costaDeOroImports"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

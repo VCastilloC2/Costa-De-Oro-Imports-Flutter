@@ -24,6 +24,7 @@ import '../../features/profile/presentation/pages/account_details_page.dart';
 import '../../features/dashboard/presentation/pages/statistics_page.dart';
 import '../../features/dashboard/presentation/pages/prediction_page.dart';
 import '../../features/profile/presentation/pages/subscription_page.dart';
+import '../../features/profile/presentation/pages/account_utility_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ValueNotifier<int>(0);
@@ -59,10 +60,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return isPublic ? null : '/login';
       }
 
-      // LoginPage navega al dashboard cuando su diálogo de carga ya terminó.
-      // Redirigir aquí en cuanto cambia AuthState desmonta el Navigator del
-      // diálogo durante su transición y puede dejar GlobalKeys duplicadas.
-      if (loc == '/login') return null;
+      // Las pantallas de autenticación navegan al terminar su diálogo. Redirigir
+      // en cuanto cambia AuthState desmonta el Navigator del diálogo durante
+      // su transición y puede dejar GlobalKeys duplicadas.
+      if (loc == '/login' || loc == '/register') return null;
 
       if (loc == '/welcome') {
         return AuthorizationPolicy.hasPermission(
@@ -102,11 +103,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/verify-code',
-        builder: (context, state) => const VerifyCodePage(),
+        builder: (context, state) => VerifyCodePage(email: state.extra as String),
       ),
       GoRoute(
         path: '/reset-password',
-        builder: (context, state) => const ResetPasswordPage(),
+        builder: (context, state) {
+          final args = state.extra as Map<String, String>;
+          return ResetPasswordPage(email: args['email']!, codigo: args['codigo']!);
+        },
       ),
       GoRoute(
         path: '/dashboard',
@@ -132,6 +136,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/prediction',
         builder: (context, state) => const PredictionPage(),
       ),
+      GoRoute(
+        path: '/subscription',
+        builder: (context, state) => const SubscriptionPage(),
+      ),
+      GoRoute(path: '/orders', builder: (context, state) => const AccountUtilityPage(kind: 'orders')),
+      GoRoute(path: '/payment-history', builder: (context, state) => const AccountUtilityPage(kind: 'payment-history')),
+      GoRoute(path: '/notifications', builder: (context, state) => const AccountUtilityPage(kind: 'notifications')),
+      GoRoute(path: '/contact', builder: (context, state) => const AccountUtilityPage(kind: 'contact')),
+      GoRoute(path: '/privacy', builder: (context, state) => const AccountUtilityPage(kind: 'privacy')),
+      GoRoute(path: '/help', builder: (context, state) => const AccountUtilityPage(kind: 'help')),
 
       GoRoute(
         path: '/passkeys',

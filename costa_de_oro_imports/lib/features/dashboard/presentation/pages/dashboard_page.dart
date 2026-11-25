@@ -8,6 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:hugeicons/hugeicons.dart';
 
@@ -42,6 +43,7 @@ class DashboardPage extends ConsumerStatefulWidget {
 
 class _DashboardPageState extends ConsumerState<DashboardPage>
     with TickerProviderStateMixin {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   late AnimationController _entryController;
 
   bool _incomeChartVisible = false;
@@ -86,6 +88,15 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
       ),
     );
   }
+
+  Widget _drawerLink(BuildContext context, String title, String path) => ListTile(
+        title: Text(title, style: AppFonts.style(size: 15, weight: FontWeight.w600, color: AppColors.brownDark)),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          _scaffoldKey.currentState?.closeDrawer();
+          context.push(path);
+        },
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -156,6 +167,27 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
     // 2. CONTENIDO PRINCIPAL
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: Drawer(
+        backgroundColor: AppColors.cream,
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text('Costa de Oro Imports', style: AppFonts.style(size: 20, weight: FontWeight.w800, color: AppColors.brownDark)),
+              const SizedBox(height: 18),
+              _drawerLink(context, 'Panel principal', '/dashboard'),
+              _drawerLink(context, 'Ver pedidos', '/orders'),
+              _drawerLink(context, 'Historial de pagos', '/payment-history'),
+              _drawerLink(context, 'Notificaciones', '/notifications'),
+              _drawerLink(context, 'Contactanos', '/contact'),
+              _drawerLink(context, 'Politica de privacidad', '/privacy'),
+              _drawerLink(context, 'Obtener ayuda', '/help'),
+              _drawerLink(context, 'Perfil', '/profile'),
+            ],
+          ),
+        ),
+      ),
       backgroundColor: AppColors.cream,
       body: ResponsiveLayout(
         useSafeArea: true,
@@ -172,6 +204,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                   s: s,
                   userName: data.profile.name,
                   imageUrl: authUser?.imagen,
+                  onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
+                  onNotificationsTap: () => context.push('/notifications'),
                 ),
               ),
               SizedBox(height: 16 * s),

@@ -7,7 +7,6 @@
 // ============================================================================
 
 import 'package:flutter/material.dart';
-import '../../../../app/theme/app_colors.dart';
 
 class DashboardSkeleton extends StatefulWidget {
   final double s;

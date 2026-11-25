@@ -205,6 +205,44 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
     }
   }
 
+  Future<void> _registerWithSocial(String provider) async {
+    if (_leaving) return;
+    FocusScope.of(context).unfocus();
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+    setState(() => _leaving = true);
+
+    try {
+      await showAuthLoading<void>(
+        context,
+        loadingText: provider == 'google'
+            ? 'Continuando con Google'
+            : 'Continuando con Apple',
+        successText: '¡Bienvenido!',
+        task: () async {
+          final auth = ref.read(authControllerProvider.notifier);
+          if (provider == 'google') {
+            await auth.loginWithGoogle();
+          } else {
+            await auth.loginWithApple();
+          }
+        },
+      );
+      if (mounted) setState(() => _showShield = true);
+    } on ApiException catch (error) {
+      if (mounted) setState(() { _leaving = false; _showShield = false; });
+      if (!error.message.toLowerCase().contains('cancel')) _showError(error.message);
+      return;
+    } catch (_) {
+      if (mounted) setState(() { _leaving = false; _showShield = false; });
+      _showError('No se pudo continuar con ${provider == 'google' ? 'Google' : 'Apple'}.');
+      return;
+    }
+
+    if (!mounted) return;
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (mounted) context.go('/dashboard');
+  }
+
   void _showError(String message) {
     if (!mounted) return;
     setState(() {
@@ -313,6 +351,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                               hint: 'Enter your email',
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
+                              autofillHints: const [AutofillHints.email, AutofillHints.newUsername],
                               validator: _validateEmail,
                               prefixIcon: const HugeIcon(
                                 icon: HugeIcons.strokeRoundedMail01, 
@@ -333,6 +372,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                               hint: 'Enter your Password',
                               controller: _passwordController,
                               obscureText: _obscurePassword,
+                              autofillHints: const [AutofillHints.newPassword],
                               validator: _validatePassword,
                               prefixIcon: const HugeIcon(
                                 icon: HugeIcons.strokeRoundedLockPassword, 
@@ -362,6 +402,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                               hint: 'Confirm your Password',
                               controller: _confirmPasswordController,
                               obscureText: _obscureConfirmPassword,
+                              autofillHints: const [AutofillHints.newPassword],
                               validator: _validateConfirmPassword,
                               prefixIcon: const HugeIcon(
                                 icon: HugeIcons.strokeRoundedLockPassword, 
@@ -452,12 +493,23 @@ class _RegisterPageState extends ConsumerState<RegisterPage>
                                 SizedBox(height: 24 * s),
                                 Row(
                                   children: [
-                                    Expanded(child: SocialButton(label: 'Google', iconAsset: 'assets/icons/google.svg', onPressed: () {})),
+                                    Expanded(child: SocialButton(label: 'Google', iconAsset: 'assets/icons/google.svg', onPressed: _leaving ? null : () => _registerWithSocial('google'))),
                                     SizedBox(width: 16 * s),
-                                    Expanded(child: SocialButton(label: 'Apple', iconAsset: 'assets/icons/Apple_light.svg', onPressed: () {})),
+                                    Expanded(child: SocialButton(label: 'Apple', iconAsset: 'assets/icons/Apple_light.svg', onPressed: _leaving ? null : () => _registerWithSocial('apple'))),
                                   ],
                                 ),
                                 SizedBox(height: 22 * s),
+                                TextButton(
+                                  onPressed: () => context.push('/forgot-password'),
+                                  child: Text(
+                                    '¿Olvidaste tu contraseña?',
+                                    style: AppFonts.style(
+                                      size: 15,
+                                      weight: FontWeight.w600,
+                                      color: AppColors.goldDark,
+                                    ),
+                                  ),
+                                ),
                                 GestureDetector(
                                   onTap: () => context.go('/login'),
                                   child: Text.rich(
