@@ -224,20 +224,23 @@ class _AuthLoadingView extends StatelessWidget {
                           key: ValueKey(done), // Fuerza el cambio de widget al cambiar de estado
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 10,
+                              runSpacing: 4,
                               children: [
                                 // Icono de check que aparece solo al terminar
-                                if (done) ...[
+                                if (done)
                                   const Icon(
                                     Icons.check_circle_rounded,
                                     color: AppColors.goldLight,
                                     size: 30,
                                   ),
-                                  const SizedBox(width: 10),
-                                ],
                                 Text(
                                   done ? successText : loadingText,
+                                  textAlign: TextAlign.center,
+                                  softWrap: true,
                                   style: AppFonts.style(
                                     size: 30 * s, 
                                     weight: FontWeight.w700,
