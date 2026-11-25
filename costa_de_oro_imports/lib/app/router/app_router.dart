@@ -58,7 +58,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return isPublic ? null : '/login';
       }
 
-      if (loc == '/welcome' || loc == '/login') {
+      // LoginPage navega al dashboard cuando su diálogo de carga ya terminó.
+      // Redirigir aquí en cuanto cambia AuthState desmonta el Navigator del
+      // diálogo durante su transición y puede dejar GlobalKeys duplicadas.
+      if (loc == '/login') return null;
+
+      if (loc == '/welcome') {
         return AuthorizationPolicy.hasPermission(
               auth.user,
               AppPermission.administrativeDashboard,
