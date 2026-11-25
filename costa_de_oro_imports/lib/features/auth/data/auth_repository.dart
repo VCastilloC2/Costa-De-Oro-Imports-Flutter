@@ -18,6 +18,7 @@ import 'package:passkeys/exceptions.dart';
 import 'package:passkeys/types.dart';
 
 import 'package:costa_de_oro_imports/core/network/api_client.dart';
+import 'package:costa_de_oro_imports/core/network/api_response_cache.dart';
 import 'package:costa_de_oro_imports/core/network/api_exception.dart';
 import 'package:costa_de_oro_imports/core/config/api_config.dart';
 import 'package:costa_de_oro_imports/core/storage/session_storage.dart';
@@ -179,9 +180,7 @@ class AuthRepository {
       );
       final data = response.data!;
       await _storage.saveToken(_extractToken(data));
-      final userJson = Map<String, dynamic>.from(data['usuario'] as Map);
-      _normalizeUserImage(userJson, data);
-      return UserModel.fromJson(userJson);
+      return await fetchProfile();
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
@@ -190,8 +189,7 @@ class AuthRepository {
   /// Lista los dispositivos vinculados a la cuenta.
   Future<List<BiometricDevice>> listBiometricDevices() async {
     try {
-      final response =
-          await _dio.get<List<dynamic>>('/auth/biometric/devices');
+      final response = await _dio.get<List<dynamic>>('/auth/biometric/devices');
       return (response.data ?? const <dynamic>[])
           .whereType<Map>()
           .map((j) => BiometricDevice.fromJson(Map<String, dynamic>.from(j)))
@@ -276,9 +274,7 @@ class AuthRepository {
       final data = finishResponse.data!;
       final token = _extractToken(data);
       await _storage.saveToken(token);
-      final userJson = Map<String, dynamic>.from(data['usuario'] as Map);
-      _normalizeUserImage(userJson, data);
-      return UserModel.fromJson(userJson);
+      return await fetchProfile();
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     } catch (e) {
@@ -417,9 +413,7 @@ class AuthRepository {
       token = _extractToken(data);
       if (data is Map && data['usuario'] is Map<String, dynamic>) {
         await _storage.saveToken(token);
-        final userJson = Map<String, dynamic>.from(data['usuario']);
-        _normalizeUserImage(userJson, Map<String, dynamic>.from(data));
-        return UserModel.fromJson(userJson);
+        return await fetchProfile();
       }
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
@@ -523,20 +517,24 @@ class AuthRepository {
   // ==========================================================================
   Future<UserModel> fetchProfile() async {
     try {
-      final res = await _dio.get<dynamic>('/api/graficas/dashboard');
+      final res = await _dio.get<dynamic>('/perfil/configuracion');
       final data = res.data;
 
       if (data is! Map<String, dynamic>) {
         throw const ApiException('Respuesta de perfil inesperada.');
       }
 
-      if (data['usuario'] is Map<String, dynamic>) {
-        final userJson = Map<String, dynamic>.from(data['usuario']);
-        _normalizeUserImage(userJson, data);
-        return UserModel.fromJson(userJson);
+      final user = UserModel.fromJson(data);
+      if (!user.hasActiveAccount) {
+        await _storage.clear();
+        throw const ApiException(
+          'La cuenta no cumple las condiciones de acceso.',
+          statusCode: 403,
+        );
       }
-
-      return UserModel.fromJson(data);
+      final userJson = Map<String, dynamic>.from(data);
+      _normalizeUserImage(userJson, data);
+      return UserModel.fromJson(userJson);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
@@ -551,7 +549,7 @@ class AuthRepository {
     try {
       return await fetchProfile();
     } on ApiException catch (e) {
-      if (e.isUnauthorized) {
+      if (e.isUnauthorized || e.isForbidden) {
         await _storage.clear();
         return null;
       }
@@ -564,6 +562,7 @@ class AuthRepository {
       await _dio.post<dynamic>('/auth/logout');
     } catch (_) {}
     await _storage.clear();
+    await ApiResponseCache().clear();
   }
 
   // ==========================================================================
