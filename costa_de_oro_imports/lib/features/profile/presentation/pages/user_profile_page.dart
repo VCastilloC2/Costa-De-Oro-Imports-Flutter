@@ -54,15 +54,18 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
     final isIncomplete = done < ProfileRules.totalFields;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F6F0), 
+      backgroundColor: const Color(0xFFF9F6F0),
       bottomNavigationBar: const AppBottomNavBar(),
-      body: _isLoading 
+      body: _isLoading
           ? _UserProfileSkeleton(s: s)
           : ResponsiveLayout(
               useSafeArea: true,
               useScrollView: true,
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24 * s, vertical: 16 * s),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 24 * s,
+                  vertical: 16 * s,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -70,7 +73,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                     Row(
                       children: [
                         GestureDetector(
-                          onTap: () => context.go('/dashboard'), 
+                          onTap: () => context.go('/dashboard'),
                           child: Container(
                             padding: EdgeInsets.all(8 * s),
                             decoration: BoxDecoration(
@@ -78,15 +81,15 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05), 
-                                  blurRadius: 10, 
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
                             child: HugeIcon(
-                              icon: HugeIcons.strokeRoundedArrowLeft01, 
-                              size: 20 * s, 
+                              icon: HugeIcons.strokeRoundedArrowLeft01,
+                              size: 20 * s,
                               color: AppColors.brownDark,
                               strokeWidth: 2.2,
                             ),
@@ -94,10 +97,10 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                         ),
                         SizedBox(width: 16 * s),
                         Text(
-                          'Perfil', 
+                          'Perfil',
                           style: AppFonts.style(
-                            size: 24 * s, 
-                            weight: FontWeight.w700, 
+                            size: 24 * s,
+                            weight: FontWeight.w700,
                             color: AppColors.brownDark,
                           ),
                         ),
@@ -114,8 +117,8 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                         borderRadius: BorderRadius.circular(24 * s),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03), 
-                            blurRadius: 15, 
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 15,
                             offset: const Offset(0, 8),
                           ),
                         ],
@@ -124,33 +127,48 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                         children: [
                           // Avatar del usuario
                           Container(
-                            width: 56 * s, 
+                            width: 56 * s,
                             height: 56 * s,
                             decoration: BoxDecoration(
-                              color: AppColors.beige, 
+                              color: AppColors.beige,
                               shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.goldLight, width: 1.5),
+                              border: Border.all(
+                                color: AppColors.goldLight,
+                                width: 1.5,
+                              ),
                             ),
                             alignment: Alignment.center,
                             child: ClipOval(
-                              child: (user?.imagen != null && user!.imagen!.startsWith('http'))
+                              child:
+                                  (user?.imagen != null &&
+                                      user!.imagen!.startsWith('http'))
                                   ? CachedNetworkImage(
                                       imageUrl: user.imagen!,
                                       width: 56 * s,
                                       height: 56 * s,
                                       fit: BoxFit.cover,
-                                      placeholder: (context, url) => Container(color: AppColors.beige),
-                                      errorWidget: (context, url, error) => Center(
-                                        child: Text(
-                                          user.initials ?? 'U', 
-                                          style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark),
-                                        ),
-                                      ),
+                                      placeholder: (context, url) =>
+                                          Container(color: AppColors.beige),
+                                      errorWidget: (context, url, error) =>
+                                          Center(
+                                            child: Text(
+                                              user.initials ?? 'U',
+                                              style: AppFonts.style(
+                                                size: 20 * s,
+                                                weight: FontWeight.w700,
+                                                color: AppColors.brownDark,
+                                              ),
+                                            ),
+                                          ),
                                     )
                                   : Center(
                                       child: Text(
-                                        user?.initials ?? 'U', 
-                                        style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark),
+                                        user?.initials ?? 'U',
+                                        style: AppFonts.style(
+                                          size: 20 * s,
+                                          weight: FontWeight.w700,
+                                          color: AppColors.brownDark,
+                                        ),
                                       ),
                                     ),
                             ),
@@ -161,13 +179,21 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  user?.fullName ?? 'Usuario', 
-                                  style: AppFonts.style(size: 18 * s, weight: FontWeight.w700, color: AppColors.brownDark),
+                                  user?.fullName ?? 'Usuario',
+                                  style: AppFonts.style(
+                                    size: 18 * s,
+                                    weight: FontWeight.w700,
+                                    color: AppColors.brownDark,
+                                  ),
                                 ),
                                 SizedBox(height: 4 * s),
                                 Text(
-                                  user?.correo ?? 'correo@ejemplo.com', 
-                                  style: AppFonts.style(size: 13 * s, weight: FontWeight.w500, color: AppColors.muted),
+                                  user?.correo ?? 'correo@ejemplo.com',
+                                  style: AppFonts.style(
+                                    size: 13 * s,
+                                    weight: FontWeight.w500,
+                                    color: AppColors.muted,
+                                  ),
                                 ),
                               ],
                             ),
@@ -176,10 +202,13 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                             onTap: () => context.push('/edit-profile'),
                             child: Container(
                               padding: EdgeInsets.all(10 * s),
-                              decoration: const BoxDecoration(color: AppColors.cream, shape: BoxShape.circle),
+                              decoration: const BoxDecoration(
+                                color: AppColors.cream,
+                                shape: BoxShape.circle,
+                              ),
                               child: HugeIcon(
-                                icon: HugeIcons.strokeRoundedPencilEdit02, 
-                                size: 20 * s, 
+                                icon: HugeIcons.strokeRoundedPencilEdit02,
+                                size: 20 * s,
                                 color: AppColors.brownDark,
                                 strokeWidth: 2.2,
                               ),
@@ -188,7 +217,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                         ],
                       ),
                     ),
-                    
+
                     // Banner de perfil incompleto
                     if (isIncomplete) ...[
                       SizedBox(height: 16 * s),
@@ -199,11 +228,15 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(20 * s),
-                            border: Border.all(color: AppColors.goldDark.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: AppColors.goldDark.withValues(alpha: 0.3),
+                            ),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.goldDark.withValues(alpha: 0.05), 
-                                blurRadius: 15, 
+                                color: AppColors.goldDark.withValues(
+                                  alpha: 0.05,
+                                ),
+                                blurRadius: 15,
                                 offset: const Offset(0, 8),
                               ),
                             ],
@@ -213,12 +246,14 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                               Container(
                                 padding: EdgeInsets.all(10 * s),
                                 decoration: BoxDecoration(
-                                  color: AppColors.goldLight.withValues(alpha: 0.2),
+                                  color: AppColors.goldLight.withValues(
+                                    alpha: 0.2,
+                                  ),
                                   shape: BoxShape.circle,
                                 ),
                                 child: HugeIcon(
-                                  icon: HugeIcons.strokeRoundedAlert02, 
-                                  color: AppColors.goldDark, 
+                                  icon: HugeIcons.strokeRoundedAlert02,
+                                  color: AppColors.goldDark,
                                   size: 24 * s,
                                   strokeWidth: 2.2,
                                 ),
@@ -230,19 +265,27 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                                   children: [
                                     Text(
                                       'Completa tu perfil',
-                                      style: AppFonts.style(size: 14 * s, weight: FontWeight.w700, color: AppColors.brownDark),
+                                      style: AppFonts.style(
+                                        size: 14 * s,
+                                        weight: FontWeight.w700,
+                                        color: AppColors.brownDark,
+                                      ),
                                     ),
                                     SizedBox(height: 4 * s),
                                     Text(
                                       'Agiliza tus envios agregando tus datos reales.',
-                                      style: AppFonts.style(size: 12 * s, weight: FontWeight.w500, color: AppColors.muted),
+                                      style: AppFonts.style(
+                                        size: 12 * s,
+                                        weight: FontWeight.w500,
+                                        color: AppColors.muted,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                               HugeIcon(
-                                icon: HugeIcons.strokeRoundedArrowRight01, 
-                                size: 16 * s, 
+                                icon: HugeIcons.strokeRoundedArrowRight01,
+                                size: 16 * s,
                                 color: AppColors.brownDark,
                                 strokeWidth: 2.2,
                               ),
@@ -261,34 +304,44 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                       s: s,
                       children: [
                         _buildMenuItem(
-                          icon: HugeIcons.strokeRoundedUser, 
-                          title: 'Detalles de la cuenta', 
-                          subtitle: 'Gestiona tu informacion personal', 
-                          onTap: () => context.push('/account-details'), 
+                          icon: HugeIcons.strokeRoundedUser,
+                          title: 'Detalles de la cuenta',
+                          subtitle: 'Gestiona tu informacion personal',
+                          onTap: () => context.push('/account-details'),
                           s: s,
                         ),
                         _buildDivider(),
                         _buildMenuItem(
-                          icon: HugeIcons.strokeRoundedInvoice01, 
-                          title: 'Historial de pagos', 
-                          subtitle: 'Revisa tus pedidos anteriores', 
-                          onTap: () {}, 
+                          icon: HugeIcons.strokeRoundedInvoice01,
+                          title: 'Historial de pagos',
+                          subtitle: 'Revisa tus pedidos anteriores',
+                          onTap: () {},
                           s: s,
                         ),
                         _buildDivider(),
                         _buildMenuItem(
-                          icon: HugeIcons.strokeRoundedNotification01, 
-                          title: 'Notificaciones', 
-                          subtitle: 'Configura tus alertas', 
-                          onTap: () {}, 
+                          icon: HugeIcons.strokeRoundedNotification01,
+                          title: 'Notificaciones',
+                          subtitle: 'Configura tus alertas',
+                          onTap: () {},
                           s: s,
                         ),
                         _buildDivider(),
                         _buildMenuItem(
-                          icon: HugeIcons.strokeRoundedSettings01, 
-                          title: 'Seguridad y Acceso', 
-                          subtitle: 'Huella, rostro y Passkeys', 
-                          onTap: () => context.push('/passkeys'), // <-- Navega a la pantalla de Passkeys
+                          icon: HugeIcons.strokeRoundedCreditCard,
+                          title: 'Mi suscripción',
+                          subtitle: 'Plan Profesional · Activo',
+                          onTap: () => context.push('/subscription'),
+                          s: s,
+                        ),
+                        _buildDivider(),
+                        _buildMenuItem(
+                          icon: HugeIcons.strokeRoundedSettings01,
+                          title: 'Seguridad y Acceso',
+                          subtitle: 'Huella, rostro y Passkeys',
+                          onTap: () => context.push(
+                            '/passkeys',
+                          ), 
                           s: s,
                         ),
                       ],
@@ -302,34 +355,34 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                       s: s,
                       children: [
                         _buildMenuItem(
-                          icon: HugeIcons.strokeRoundedCustomerSupport, 
-                          title: 'Contactanos', 
-                          subtitle: 'Necesitas ayuda?', 
-                          onTap: () {}, 
+                          icon: HugeIcons.strokeRoundedCustomerSupport,
+                          title: 'Contactanos',
+                          subtitle: 'Necesitas ayuda?',
+                          onTap: () {},
                           s: s,
                         ),
                         _buildDivider(),
                         _buildMenuItem(
-                          icon: HugeIcons.strokeRoundedDocumentAttachment, 
-                          title: 'Terminos y condiciones', 
-                          subtitle: 'Lee nuestras politicas', 
-                          onTap: () => context.push('/terms'), 
+                          icon: HugeIcons.strokeRoundedDocumentAttachment,
+                          title: 'Terminos y condiciones',
+                          subtitle: 'Lee nuestras politicas',
+                          onTap: () => context.push('/terms'),
                           s: s,
                         ),
                         _buildDivider(),
                         _buildMenuItem(
-                          icon: HugeIcons.strokeRoundedShield01, 
-                          title: 'Politica de privacidad', 
-                          subtitle: 'Como protegemos tus datos', 
-                          onTap: () {}, 
+                          icon: HugeIcons.strokeRoundedShield01,
+                          title: 'Politica de privacidad',
+                          subtitle: 'Como protegemos tus datos',
+                          onTap: () {},
                           s: s,
                         ),
                         _buildDivider(),
                         _buildMenuItem(
-                          icon: HugeIcons.strokeRoundedHelpCircle, 
-                          title: 'Obtener ayuda', 
-                          subtitle: 'Preguntas frecuentes', 
-                          onTap: () {}, 
+                          icon: HugeIcons.strokeRoundedHelpCircle,
+                          title: 'Obtener ayuda',
+                          subtitle: 'Preguntas frecuentes',
+                          onTap: () {},
                           s: s,
                         ),
                         _buildDivider(),
@@ -344,7 +397,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                         ),
                       ],
                     ),
-                    SizedBox(height: 40 * s), 
+                    SizedBox(height: 40 * s),
                   ],
                 ),
               ),
@@ -368,19 +421,54 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 40 * s, height: 4 * s, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+              Container(
+                width: 40 * s,
+                height: 4 * s,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               SizedBox(height: 24 * s),
-              Text('Cerrar sesion', style: AppFonts.style(size: 20 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
+              Text(
+                'Cerrar sesion',
+                style: AppFonts.style(
+                  size: 20 * s,
+                  weight: FontWeight.w700,
+                  color: AppColors.brownDark,
+                ),
+              ),
               SizedBox(height: 12 * s),
-              Text('Estas seguro que deseas cerrar sesion?', textAlign: TextAlign.center, style: AppFonts.style(size: 14 * s, weight: FontWeight.w500, color: AppColors.muted)),
+              Text(
+                'Estas seguro que deseas cerrar sesion?',
+                textAlign: TextAlign.center,
+                style: AppFonts.style(
+                  size: 14 * s,
+                  weight: FontWeight.w500,
+                  color: AppColors.muted,
+                ),
+              ),
               SizedBox(height: 32 * s),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(bottomSheetContext),
-                      style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.border, width: 1.5), padding: EdgeInsets.symmetric(vertical: 16 * s), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16 * s))),
-                      child: Text('Cancelar', style: AppFonts.style(size: 15 * s, weight: FontWeight.w600, color: AppColors.brownDark)),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: AppColors.border, width: 1.5),
+                        padding: EdgeInsets.symmetric(vertical: 16 * s),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16 * s),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancelar',
+                        style: AppFonts.style(
+                          size: 15 * s,
+                          weight: FontWeight.w600,
+                          color: AppColors.brownDark,
+                        ),
+                      ),
                     ),
                   ),
                   SizedBox(width: 16 * s),
@@ -390,8 +478,25 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                         Navigator.pop(bottomSheetContext);
                         ref.read(authControllerProvider.notifier).logout();
                       },
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent.withValues(alpha: 0.1), foregroundColor: Colors.redAccent, elevation: 0, padding: EdgeInsets.symmetric(vertical: 16 * s), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16 * s))),
-                      child: Text('Si, cerrar sesion', style: AppFonts.style(size: 15 * s, weight: FontWeight.w700, color: Colors.redAccent)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent.withValues(
+                          alpha: 0.1,
+                        ),
+                        foregroundColor: Colors.redAccent,
+                        elevation: 0,
+                        padding: EdgeInsets.symmetric(vertical: 16 * s),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16 * s),
+                        ),
+                      ),
+                      child: Text(
+                        'Si, cerrar sesion',
+                        style: AppFonts.style(
+                          size: 15 * s,
+                          weight: FontWeight.w700,
+                          color: Colors.redAccent,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -407,28 +512,44 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   Widget _buildSectionTitle(String title, double s) {
     return Padding(
       padding: EdgeInsets.only(left: 8 * s),
-      child: Text(title, style: AppFonts.style(size: 16 * s, weight: FontWeight.w700, color: AppColors.brownDark)),
+      child: Text(
+        title,
+        style: AppFonts.style(
+          size: 16 * s,
+          weight: FontWeight.w700,
+          color: AppColors.brownDark,
+        ),
+      ),
     );
   }
 
-  Widget _buildSectionCard({required double s, required List<Widget> children}) {
+  Widget _buildSectionCard({
+    required double s,
+    required List<Widget> children,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24 * s),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 15, offset: const Offset(0, 8))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(children: children),
     );
   }
 
   Widget _buildMenuItem({
-    required List<List<dynamic>> icon, 
-    required String title, 
-    String? subtitle, 
-    required VoidCallback onTap, 
+    required List<List<dynamic>> icon,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
     required double s,
-    Color iconColor = AppColors.brownDark, 
+    Color iconColor = AppColors.brownDark,
     Color textColor = AppColors.brownDark,
   }) {
     return InkWell(
@@ -438,29 +559,54 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
         padding: EdgeInsets.symmetric(horizontal: 20 * s, vertical: 16 * s),
         child: Row(
           children: [
-            HugeIcon(icon: icon, color: iconColor, size: 24 * s, strokeWidth: 2.2),
+            HugeIcon(
+              icon: icon,
+              color: iconColor,
+              size: 24 * s,
+              strokeWidth: 2.2,
+            ),
             SizedBox(width: 16 * s),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppFonts.style(size: 15 * s, weight: FontWeight.w600, color: textColor)),
+                  Text(
+                    title,
+                    style: AppFonts.style(
+                      size: 15 * s,
+                      weight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
                   if (subtitle != null) ...[
                     SizedBox(height: 4 * s),
-                    Text(subtitle, style: AppFonts.style(size: 12 * s, weight: FontWeight.w400, color: AppColors.muted)),
+                    Text(
+                      subtitle,
+                      style: AppFonts.style(
+                        size: 12 * s,
+                        weight: FontWeight.w400,
+                        color: AppColors.muted,
+                      ),
+                    ),
                   ],
                 ],
               ),
             ),
-            if (subtitle != null) 
-              HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 16 * s, color: AppColors.muted, strokeWidth: 2.2),
+            if (subtitle != null)
+              HugeIcon(
+                icon: HugeIcons.strokeRoundedArrowRight01,
+                size: 16 * s,
+                color: AppColors.muted,
+                strokeWidth: 2.2,
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDivider() => const Divider(color: Color(0xFFF0F0F0), height: 1, thickness: 1);
+  Widget _buildDivider() =>
+      const Divider(color: Color(0xFFF0F0F0), height: 1, thickness: 1);
 }
 
 // Esqueleto de carga
@@ -479,7 +625,10 @@ class _UserProfileSkeletonState extends State<_UserProfileSkeleton>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
   }
 
   @override
@@ -506,7 +655,11 @@ class _UserProfileSkeletonState extends State<_UserProfileSkeleton>
                 return LinearGradient(
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
-                  colors: const [Color(0xFFF2ECE2), Color(0xFFF9F6F0), Color(0xFFF2ECE2)],
+                  colors: const [
+                    Color(0xFFF2ECE2),
+                    Color(0xFFF9F6F0),
+                    Color(0xFFF2ECE2),
+                  ],
                   stops: [
                     (_controller.value - 0.3).clamp(0.0, 1.0),
                     _controller.value,
@@ -520,21 +673,72 @@ class _UserProfileSkeletonState extends State<_UserProfileSkeleton>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [
-                Container(width: 40 * s, height: 40 * s, decoration: const BoxDecoration(color: Color(0xFFF2ECE2), shape: BoxShape.circle)),
-                SizedBox(width: 16 * s),
-                Container(width: 80 * s, height: 24 * s, decoration: BoxDecoration(color: const Color(0xFFF2ECE2), borderRadius: BorderRadius.circular(12 * s))),
-              ]),
+              Row(
+                children: [
+                  Container(
+                    width: 40 * s,
+                    height: 40 * s,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF2ECE2),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  SizedBox(width: 16 * s),
+                  Container(
+                    width: 80 * s,
+                    height: 24 * s,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2ECE2),
+                      borderRadius: BorderRadius.circular(12 * s),
+                    ),
+                  ),
+                ],
+              ),
               SizedBox(height: 24 * s),
-              Container(width: double.infinity, height: 96 * s, decoration: BoxDecoration(color: const Color(0xFFF2ECE2), borderRadius: BorderRadius.circular(24 * s))),
+              Container(
+                width: double.infinity,
+                height: 96 * s,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2ECE2),
+                  borderRadius: BorderRadius.circular(24 * s),
+                ),
+              ),
               SizedBox(height: 24 * s),
-              Container(width: 100 * s, height: 16 * s, decoration: BoxDecoration(color: const Color(0xFFF2ECE2), borderRadius: BorderRadius.circular(8 * s))),
+              Container(
+                width: 100 * s,
+                height: 16 * s,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2ECE2),
+                  borderRadius: BorderRadius.circular(8 * s),
+                ),
+              ),
               SizedBox(height: 12 * s),
-              Container(width: double.infinity, height: 200 * s, decoration: BoxDecoration(color: const Color(0xFFF2ECE2), borderRadius: BorderRadius.circular(24 * s))),
+              Container(
+                width: double.infinity,
+                height: 200 * s,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2ECE2),
+                  borderRadius: BorderRadius.circular(24 * s),
+                ),
+              ),
               SizedBox(height: 32 * s),
-              Container(width: 120 * s, height: 16 * s, decoration: BoxDecoration(color: const Color(0xFFF2ECE2), borderRadius: BorderRadius.circular(8 * s))),
+              Container(
+                width: 120 * s,
+                height: 16 * s,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2ECE2),
+                  borderRadius: BorderRadius.circular(8 * s),
+                ),
+              ),
               SizedBox(height: 12 * s),
-              Container(width: double.infinity, height: 240 * s, decoration: BoxDecoration(color: const Color(0xFFF2ECE2), borderRadius: BorderRadius.circular(24 * s))),
+              Container(
+                width: double.infinity,
+                height: 240 * s,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2ECE2),
+                  borderRadius: BorderRadius.circular(24 * s),
+                ),
+              ),
             ],
           ),
         ),

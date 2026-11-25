@@ -14,7 +14,7 @@ import '../../features/auth/presentation/pages/terms_page.dart';
 import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/presentation/pages/verify_code_page.dart';
 import '../../features/auth/presentation/pages/reset_password_page.dart';
-import '../../features/profile/presentation/pages/passkeys/passkeys_page.dart'; // <-- IMPORT AGREGADO
+import '../../features/profile/presentation/pages/passkeys_page.dart'; 
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/profile/presentation/pages/user_profile_page.dart';
 import '../../features/profile/presentation/pages/edit_profile_page.dart';
@@ -22,6 +22,7 @@ import '../../features/auth/presentation/providers/auth_controller.dart';
 import '../../features/profile/presentation/pages/account_details_page.dart';
 import '../../features/dashboard/presentation/pages/statistics_page.dart';
 import '../../features/dashboard/presentation/pages/prediction_page.dart';
+import '../../features/profile/presentation/pages/subscription_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ValueNotifier<int>(0);
@@ -69,11 +70,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/account-details', builder: (context, state) => const AccountDetailsPage()),
       GoRoute(path: '/products', builder: (context, state) => const StatisticsPage()),
       GoRoute(path: '/prediction', builder: (context, state) => const PredictionPage()),
-
-      GoRoute(
-        path: '/passkeys', 
-        builder: (context, state) => const PasskeysPage(),
-      ), 
+      GoRoute(path: '/passkeys', builder: (context, state) => const PasskeysPage()),
+      GoRoute(path: '/subscription', builder: (context, state) => const SubscriptionPage()), 
     ],
   );
 });
