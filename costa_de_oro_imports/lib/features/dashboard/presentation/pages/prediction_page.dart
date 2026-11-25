@@ -1,5 +1,3 @@
-// PANTALLA: Resumen de predicciones
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,6 +20,12 @@ import '../widgets/prediction/prediction_palette.dart';
 import '../widgets/prediction/prediction_verification.dart';
 import '../widgets/prediction_skeleton.dart';
 
+/// Pantalla del dashboard de ventas y predicciones.
+///
+/// Observa [salesPredictionProvider], presenta estados de carga y error y
+/// conserva la selección del mes y la visibilidad de la predicción generada.
+/// La generación y el estado temporal de sus controles viven en
+/// [_DashboardContent].
 class PredictionPage extends ConsumerStatefulWidget {
   const PredictionPage({super.key});
 
@@ -30,9 +34,13 @@ class PredictionPage extends ConsumerStatefulWidget {
 }
 
 class _PredictionPageState extends ConsumerState<PredictionPage> {
+  /// Evita mostrar la serie de pronóstico antes de que el usuario la genere.
   bool _hasGeneratedPrediction = false;
+
+  /// Mes actualmente seleccionado en la gráfica o en la verificación.
   String? _selectedMonth;
 
+  /// Sincroniza la selección del mes entre los componentes de la pantalla.
   void _selectMonth(String month) {
     if (_selectedMonth != month) setState(() => _selectedMonth = month);
   }
@@ -107,6 +115,11 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
   }
 }
 
+/// Compone las secciones del dashboard una vez cargados los datos.
+///
+/// Recibe las decisiones de selección y visibilidad desde la página, y
+/// administra el horizonte elegido, el progreso de generación y los destinos
+/// de desplazamiento de las tarjetas KPI.
 class _DashboardContent extends ConsumerStatefulWidget {
   final SalesDashboardData data;
   final double s;
@@ -129,12 +142,18 @@ class _DashboardContent extends ConsumerStatefulWidget {
 }
 
 class _DashboardContentState extends ConsumerState<_DashboardContent> {
+  /// Indica si la solicitud de generación está en curso.
   bool _isGenerating = false;
+
+  /// Horizonte mensual enviado al servicio al recalcular la proyección.
   int _meses = 12;
+
+  /// Anclas de desplazamiento para navegar desde las tarjetas KPI.
   final _chartKey = GlobalKey();
   final _verificationKey = GlobalKey();
   final _modelKey = GlobalKey();
 
+  /// Desplaza la página hasta el componente asociado a [key].
   void _scrollTo(GlobalKey key) {
     final target = key.currentContext;
     if (target == null) return;
@@ -146,6 +165,14 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
     );
   }
 
+  /// Solicita un nuevo pronóstico y vuelve a cargar los datos del dashboard.
+  ///
+  /// Envía `POST /admin/prediccion/generar` con seis años de historia y el
+  /// horizonte seleccionado en meses.
+  ///
+  /// Si el backend confirma la generación pero la respuesta refrescada no
+  /// contiene puntos de pronóstico, informa que la actualización visual falló
+  /// por separado de la generación.
   Future<void> _generar() async {
     setState(() => _isGenerating = true);
     var generationCompleted = false;
@@ -229,7 +256,7 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
         ),
         SizedBox(height: 20 * s),
 
-        // GRAFICA
+        // Gráfica histórica y futura.
         Container(
           key: _chartKey,
           padding: EdgeInsets.all(16 * s),
@@ -274,7 +301,7 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
         ),
         SizedBox(height: 24 * s),
 
-        // VERIFICACION
+        // Backtest reciente y selección mensual sincronizada con la gráfica.
         PredictionVerification(
           key: _verificationKey,
           data: data,
@@ -285,7 +312,7 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
         ),
         SizedBox(height: 24 * s),
 
-        // FICHA DEL MODELO
+        // Estado del modelo y controles de generación.
         PredictionModelCard(
           key: _modelKey,
           data: data,
@@ -300,7 +327,3 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
     );
   }
 }
-
-// ============================================================================
-// HERO: proximo mes
-// ============================================================================

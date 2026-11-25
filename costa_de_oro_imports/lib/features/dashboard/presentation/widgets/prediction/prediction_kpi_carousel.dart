@@ -8,11 +8,25 @@ import '../../../domain/sales_prediction_model.dart';
 import 'prediction_formatters.dart';
 import 'prediction_palette.dart';
 
+/// Carrusel de indicadores que enlaza sus tarjetas con secciones del dashboard.
+///
+/// Cada tarjeta presenta un KPI derivado de los datos actuales. Los puntos
+/// inferiores permiten saltar directamente a una tarjeta y anuncian el estado
+/// seleccionado mediante semántica accesible.
 class PredictionKpiCarousel extends StatefulWidget {
+  /// Métricas y resultados de evaluación del dashboard.
   final SalesDashboardData data;
+
+  /// Pronóstico y estadísticas derivadas compartidas por otras secciones.
   final ForecastStats stats;
+
+  /// Factor de escala visual aplicado por el layout de la aplicación.
   final double s;
+
+  /// Informa qué sección debe mostrar el padre al tocar una tarjeta.
   final ValueChanged<int> onCardTap;
+
+  /// Crea el carrusel de cuatro indicadores interactivos.
   const PredictionKpiCarousel({
     super.key,
     required this.data,
@@ -26,7 +40,10 @@ class PredictionKpiCarousel extends StatefulWidget {
 }
 
 class _PredictionKpiCarouselState extends State<PredictionKpiCarousel> {
+  /// Controla el desplazamiento del carrusel y de sus indicadores.
   final _ctrl = PageController(viewportFraction: 0.94);
+
+  /// Índice de la tarjeta visible actualmente.
   int _page = 0;
 
   @override
@@ -48,6 +65,7 @@ class _PredictionKpiCarouselState extends State<PredictionKpiCarousel> {
         : (wape < 25 ? PredictionPalette.amber : PredictionPalette.red);
     final bias = st.biasPct;
 
+    // Los colores de WAPE y sesgo expresan niveles de atención visual.
     final cards = <_Kpi>[
       _Kpi(
         title: 'Proyeccion hasta',
@@ -135,6 +153,10 @@ class _PredictionKpiCarouselState extends State<PredictionKpiCarousel> {
               label: 'KPI ${i + 1} de ${cards.length}: ${cards[i].title}',
               child: InkWell(
                 customBorder: const CircleBorder(),
+                splashFactory: NoSplash.splashFactory,
+                splashColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                overlayColor: const WidgetStatePropertyAll(Colors.transparent),
                 onTap: () => _ctrl.animateToPage(
                   i,
                   duration: const Duration(milliseconds: 240),
@@ -165,6 +187,7 @@ class _PredictionKpiCarouselState extends State<PredictionKpiCarousel> {
 }
 
 class _Kpi {
+  /// Datos de presentación de una tarjeta KPI.
   final String title, value, sub;
   final List<List<dynamic>> icon;
   final Color iconBg;
@@ -199,6 +222,10 @@ class _KpiCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(24 * s),
+          splashFactory: NoSplash.splashFactory,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
           child: Container(
             margin: EdgeInsets.only(right: 8 * s),
             padding: EdgeInsets.symmetric(horizontal: 18 * s, vertical: 16 * s),
@@ -297,7 +324,3 @@ class _KpiCard extends StatelessWidget {
     );
   }
 }
-
-// ============================================================================
-// VERIFICACION RECIENTE
-// ============================================================================
