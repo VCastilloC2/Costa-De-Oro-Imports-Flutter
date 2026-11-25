@@ -26,7 +26,7 @@ class _WelcomePageState extends State<WelcomePage>
     super.initState();
     _intro = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 2000),
     );
   }
 
