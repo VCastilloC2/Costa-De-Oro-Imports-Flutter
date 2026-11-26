@@ -80,7 +80,10 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
                   ),
                   SizedBox(height: 24 * s),
                   predictionAsync.when(
-                    skipLoadingOnReload: true,
+                    // No conserves un resumen anterior mientras FastAPI
+                    // responde a una recarga o actualización manual.
+                    skipLoadingOnRefresh: false,
+                    skipLoadingOnReload: false,
                     loading: () => const PredictionSkeleton(),
                     error: (err, stack) => Center(
                       child: Padding(
