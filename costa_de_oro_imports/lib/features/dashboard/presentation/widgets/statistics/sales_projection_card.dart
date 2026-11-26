@@ -22,7 +22,8 @@ class SalesProjectionCard extends ConsumerStatefulWidget {
   const SalesProjectionCard({super.key, required this.isVisible});
 
   @override
-  ConsumerState<SalesProjectionCard> createState() => _SalesProjectionCardState();
+  ConsumerState<SalesProjectionCard> createState() =>
+      _SalesProjectionCardState();
 }
 
 class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
@@ -84,7 +85,7 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
             style: AppFonts.style(size: 12 * s, color: Colors.black54),
           ),
           SizedBox(height: 24 * s),
-          
+
           SizedBox(
             height: 220 * s,
             child: projectionAsync.when(
@@ -111,20 +112,13 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
     final List<FlSpot> spots = [];
     for (int i = 0; i < data.series.length; i++) {
       if (i < data.categorias.length) {
-        spots.add(
-          FlSpot(
-            // CORRECCIÓN: Usamos el año directamente (ej: 2020.0) en lugar de dividirlo.
-            data.categorias[i], 
-            data.series[i],
-          ),
-        );
+        spots.add(FlSpot(data.categorias[i], data.series[i]));
       }
     }
 
-    // Calculamos los límites del Eje X basándonos en los años reales
-    final xMin = data.categorias.first - 0.5;
-    final xMax = data.categorias.last + 0.5;
-    
+    final xMin = spots.first.x;
+    final xMax = spots.last.x;
+
     // Límites del Eje Y con un pequeño margen de respiro
     final yMin = data.minVenta * 0.8;
     final yMax = data.maxVenta * 1.1;
@@ -141,6 +135,7 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
       child: LineChart(
         duration: Duration.zero,
         LineChartData(
+          clipData: const FlClipData.all(),
           minX: xMin,
           maxX: xMax,
           minY: yMin,
@@ -148,28 +143,32 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
           lineTouchData: LineTouchData(
             enabled: true,
             touchSpotThreshold: 20,
-            getTouchedSpotIndicator: (LineChartBarData barData, List<int> spotIndexes) {
-              return spotIndexes.map((spotIndex) {
-                return TouchedSpotIndicatorData(
-                  const FlLine(color: Colors.transparent),
-                  FlDotData(
-                    show: true,
-                    getDotPainter: (spot, percent, barData, index) {
-                      return FlDotCirclePainter(
-                        radius: 5 * s,
-                        color: const Color(0xFF3B82F6),
-                        strokeWidth: 2 * s,
-                        strokeColor: Colors.white,
-                      );
-                    },
-                  ),
-                );
-              }).toList();
-            },
+            getTouchedSpotIndicator:
+                (LineChartBarData barData, List<int> spotIndexes) {
+                  return spotIndexes.map((spotIndex) {
+                    return TouchedSpotIndicatorData(
+                      const FlLine(color: Colors.transparent),
+                      FlDotData(
+                        show: true,
+                        getDotPainter: (spot, percent, barData, index) {
+                          return FlDotCirclePainter(
+                            radius: 5 * s,
+                            color: const Color(0xFF3B82F6),
+                            strokeWidth: 2 * s,
+                            strokeColor: Colors.white,
+                          );
+                        },
+                      ),
+                    );
+                  }).toList();
+                },
             touchTooltipData: LineTouchTooltipData(
               getTooltipColor: (spot) => const Color(0xFF1A1A1A),
-              tooltipBorderRadius: BorderRadius.circular(8 * s), 
-              tooltipPadding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 8 * s),
+              tooltipBorderRadius: BorderRadius.circular(8 * s),
+              tooltipPadding: EdgeInsets.symmetric(
+                horizontal: 12 * s,
+                vertical: 8 * s,
+              ),
               tooltipMargin: 8 * s,
               fitInsideHorizontally: true,
               fitInsideVertically: true,
@@ -177,7 +176,7 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
                 return touchedSpots.map((spot) {
                   final millones = (spot.y / 1000000).toStringAsFixed(1);
                   // Como el eje X ahora tiene el año real, lo leemos directamente
-                  final anio = spot.x.toInt(); 
+                  final anio = spot.x.toInt();
                   return LineTooltipItem(
                     'Año $anio\n',
                     AppFonts.style(size: 12 * s, color: Colors.white70),
@@ -231,15 +230,21 @@ class _SalesProjectionCardState extends ConsumerState<SalesProjectionCard>
                 },
               ),
             ),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
           ),
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
             horizontalInterval: yInterval,
-            getDrawingHorizontalLine: (value) =>
-                FlLine(color: Colors.grey.withValues(alpha: 0.1), strokeWidth: 1),
+            getDrawingHorizontalLine: (value) => FlLine(
+              color: Colors.grey.withValues(alpha: 0.1),
+              strokeWidth: 1,
+            ),
           ),
           borderData: FlBorderData(show: false),
           lineBarsData: [
@@ -273,16 +278,15 @@ class _SweepClipper extends CustomClipper<Rect> {
   _SweepClipper(this.progress);
 
   final double progress;
-  static const _margin = 10.0;
 
   @override
   Rect getClip(Size size) {
     if (progress <= 0) return Rect.zero;
-    final right = progress >= 1 ? size.width + _margin : size.width * progress;
-    return Rect.fromLTRB(-_margin, -_margin, right, size.height + _margin);
+    final right = (size.width * progress).clamp(0.0, size.width).toDouble();
+    return Rect.fromLTRB(0, 0, right, size.height);
   }
 
   @override
-  bool shouldReclip(covariant _SweepClipper oldClipper) => 
+  bool shouldReclip(covariant _SweepClipper oldClipper) =>
       oldClipper.progress != progress;
 }
