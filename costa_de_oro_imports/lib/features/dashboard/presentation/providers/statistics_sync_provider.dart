@@ -39,6 +39,7 @@ class StatisticsSyncState {
   }
 
   String? get message => switch (status) {
+    DashboardSyncStatus.loading => 'Actualizando los datos del dashboard.',
     DashboardSyncStatus.offline =>
       'Sin conexión. Mostrando los últimos datos guardados.',
     DashboardSyncStatus.updateFailed =>

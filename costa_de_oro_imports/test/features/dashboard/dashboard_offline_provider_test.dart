@@ -63,7 +63,10 @@ class _OfflineDashboardRepository extends DashboardRepository {
   Future<DashboardSnapshot?> readCachedDashboard(int? userId) async => cached;
 
   @override
-  Future<DashboardSnapshot> fetchDashboard(int? userId) async {
+  Future<DashboardSnapshot> fetchDashboard(
+    int? userId, {
+    bool forceRefresh = false,
+  }) async {
     throw DioException.connectionError(
       requestOptions: RequestOptions(path: '/api/graficas/dashboard'),
       reason: 'No network connection',

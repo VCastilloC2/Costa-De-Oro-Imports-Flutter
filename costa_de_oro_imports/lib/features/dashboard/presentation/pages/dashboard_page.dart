@@ -69,7 +69,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   bool _hasInitialConnectivity = false;
   bool? _hadNetworkConnection;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  Timer? _connectivityPoll;
 
   @override
   void initState() {
@@ -95,10 +94,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
         );
       },
     );
-    _connectivityPoll = Timer.periodic(
-      const Duration(seconds: 4),
-      (_) => unawaited(_checkConnectivity()),
-    );
     unawaited(_checkConnectivity());
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -110,7 +105,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
   @override
   void dispose() {
-    _connectivityPoll?.cancel();
     unawaited(_connectivitySubscription?.cancel());
     _entryController.dispose();
     super.dispose();
@@ -162,6 +156,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     if (!_hasInitialConnectivity) {
       _hasInitialConnectivity = true;
       _hadNetworkConnection = hasNetwork;
+      if (!hasNetwork) {
+        ref.read(dashboardProvider.notifier).markConnectionUnavailable();
+      }
       return;
     }
 
@@ -172,6 +169,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     if (!hasNetwork) {
       ref.read(dashboardProvider.notifier).markConnectionUnavailable();
     } else if (wasConnected == false) {
+      ref.read(dashboardProvider.notifier).markConnectionAvailable();
       unawaited(_refreshWhenConnectionReturns());
     }
   }
@@ -236,46 +234,45 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     required String path,
     required IconData icon,
     bool selected = false,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Material(
-          color: selected ? AppColors.creamDark : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          child: ListTile(
-            dense: true,
-            visualDensity: const VisualDensity(vertical: -1),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-            leading: Icon(
-              icon,
-              size: 20,
-              color: selected ? AppColors.brownDark : AppColors.muted,
-            ),
-            title: Text(
-              title,
-              style: AppFonts.style(
-                size: 13,
-                weight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? AppColors.brownDark : AppColors.brown,
-              ),
-            ),
-            trailing: selected
-                ? Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: AppColors.goldDark,
-                      shape: BoxShape.circle,
-                    ),
-                  )
-                : null,
-            onTap: () {
-              _scaffoldKey.currentState?.closeDrawer();
-              context.push(path);
-            },
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Material(
+      color: selected ? AppColors.creamDark : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: ListTile(
+        dense: true,
+        visualDensity: const VisualDensity(vertical: -1),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+        leading: Icon(
+          icon,
+          size: 20,
+          color: selected ? AppColors.brownDark : AppColors.muted,
+        ),
+        title: Text(
+          title,
+          style: AppFonts.style(
+            size: 13,
+            weight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? AppColors.brownDark : AppColors.brown,
           ),
         ),
-      );
+        trailing: selected
+            ? Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: AppColors.goldDark,
+                  shape: BoxShape.circle,
+                ),
+              )
+            : null,
+        onTap: () {
+          _scaffoldKey.currentState?.closeDrawer();
+          context.push(path);
+        },
+      ),
+    ),
+  );
 
   Widget _drawerSection(String title) => Padding(
     padding: const EdgeInsets.fromLTRB(12, 18, 12, 7),
@@ -445,8 +442,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                   CircleAvatar(
                     radius: 20,
                     backgroundColor: AppColors.creamDark,
-                    backgroundImage: imageUrl != null &&
-                            imageUrl.startsWith('http')
+                    backgroundImage:
+                        imageUrl != null && imageUrl.startsWith('http')
                         ? NetworkImage(imageUrl)
                         : null,
                     child: imageUrl != null && imageUrl.startsWith('http')
@@ -491,9 +488,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                     tooltip: 'Cerrar sesión',
                     onPressed: () async {
                       _scaffoldKey.currentState?.closeDrawer();
-                      await ref
-                          .read(authControllerProvider.notifier)
-                          .logout();
+                      await ref.read(authControllerProvider.notifier).logout();
                     },
                     icon: const Icon(
                       Icons.logout_rounded,
@@ -612,11 +607,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
       return parts.isEmpty ? null : parts.first;
     }
 
-    final greetingName = firstNameOf(authUser?.nombres) ??
+    final greetingName =
+        firstNameOf(authUser?.nombres) ??
         firstNameOf(data.profile.name) ??
         'Usuario';
     final accountName = authUser?.fullName.trim() ?? '';
-    final displayUserName = accountName.isNotEmpty && accountName != authUser?.correo
+    final displayUserName =
+        accountName.isNotEmpty && accountName != authUser?.correo
         ? accountName
         : data.profile.name.trim().isNotEmpty
         ? data.profile.name.trim()
@@ -776,10 +773,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                         _reveal(
                           0.2,
                           0.5,
-                          WelcomeBanner(
-                            s: s,
-                            firstName: greetingName,
-                          ),
+                          WelcomeBanner(s: s, firstName: greetingName),
                         ),
                         SizedBox(height: 16 * s),
 

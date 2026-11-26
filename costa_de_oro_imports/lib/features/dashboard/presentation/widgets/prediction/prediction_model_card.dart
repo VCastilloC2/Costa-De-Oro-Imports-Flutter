@@ -267,7 +267,7 @@ class PredictionModelCard extends StatelessWidget {
               label: Text(
                 isGenerating
                     ? 'Consultando predicción guardada...'
-                    : 'Consultar predicción guardada',
+                    : 'Consultar predicción',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13 * s),
               ),
             ),

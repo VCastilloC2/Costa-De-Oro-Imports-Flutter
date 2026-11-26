@@ -1,8 +1,3 @@
-// RAMA: feature/Dashboard
-// ============================================================================
-// REPOSITORIO: Dashboard
-// ============================================================================
-
 import 'dart:developer' as developer;
 
 import 'package:dio/dio.dart';
@@ -10,20 +5,21 @@ import 'package:dio/dio.dart';
 import 'dashboard_cache_data_source.dart';
 import '../domain/dashboard_models.dart';
 
-/// Resultado del dashboard junto con el momento en que se guardó localmente.
 class DashboardSnapshot {
   const DashboardSnapshot({
     required this.data,
     required this.savedAt,
     this.cacheWarning,
+    this.isStale = false,
   });
 
   final DashboardData data;
   final DateTime savedAt;
   final String? cacheWarning;
+  final bool isStale;
 }
 
-/// Coordina las respuestas remotas y la copia local del dashboard.
+/// Combina la copia local por usuario con el resumen remoto agrupado.
 class DashboardRepository {
   DashboardRepository(this._dio, {DashboardCacheDataSource? cacheDataSource})
     : _cacheDataSource = cacheDataSource ?? DashboardCacheDataSource();
@@ -31,35 +27,47 @@ class DashboardRepository {
   final Dio _dio;
   final DashboardCacheDataSource _cacheDataSource;
 
-  /// Recupera la copia guardada para el usuario, si existe.
   Future<DashboardSnapshot?> readCachedDashboard(int? userId) async {
     if (userId == null || userId <= 0) return null;
     final cached = await _cacheDataSource.read(userId);
     if (cached == null) return null;
-
     return DashboardSnapshot(
-      data: _parseResponses(
+      data: DashboardData.fromResponses(
         dashboardRoot: cached.dashboardRoot,
         incomeExpense: cached.incomeExpense,
         totalSales: cached.totalSales,
       ),
       savedAt: cached.savedAt,
+      isStale: true,
     );
   }
 
-  /// Descarga las fuentes, actualiza el caché y devuelve el resultado vigente.
-  Future<DashboardSnapshot> fetchDashboard(int? userId) async {
-    final responses = await Future.wait<dynamic>([
-      _dio.get('/api/graficas/dashboard', options: options),
-      _dio.get('/api/graficas/ingresos-gastos', options: options),
-      _dio.get('/api/graficas/ventas-totales', options: options),
-    ]);
+  Future<DashboardSnapshot> fetchDashboard(
+    int? userId, {
+    bool forceRefresh = false,
+  }) async {
+    final response = await _dio.get(
+      '/api/graficas/dashboard-completo',
+      options: Options(
+        extra: {'cacheTtlSeconds': 120, 'bypassCache': forceRefresh},
+      ),
+    );
+    final bundle = _asMap(response.data);
+    final dashboardRoot = _asMap(bundle['dashboard']);
+    final incomeExpense = _asMap(bundle['ingresosGastos']);
+    final totalSales = _asMap(bundle['ventasTotales']);
+    if (dashboardRoot.isEmpty || incomeExpense.isEmpty || totalSales.isEmpty) {
+      throw const FormatException(
+        'La respuesta del dashboard está incompleta.',
+      );
+    }
 
-    final dashboardRoot = _asMap(responses[0].data);
-    final incomeExpense = _asMap(responses[1].data);
-    final totalSales = _asMap(responses[2].data);
-    final savedAt = DateTime.now().toUtc();
-    final data = _parseResponses(
+    final isStale = response.extra['staleCache'] == true;
+    final cachedAt = response.extra['cachedAt'];
+    final savedAt = response.extra['fromCache'] == true && cachedAt is String
+        ? DateTime.tryParse(cachedAt) ?? DateTime.now().toUtc()
+        : DateTime.now().toUtc();
+    final data = DashboardData.fromResponses(
       dashboardRoot: dashboardRoot,
       incomeExpense: incomeExpense,
       totalSales: totalSales,
@@ -93,18 +101,9 @@ class DashboardRepository {
       data: data,
       savedAt: savedAt,
       cacheWarning: cacheWarning,
+      isStale: isStale,
     );
   }
-
-  DashboardData _parseResponses({
-    required Map<String, dynamic> dashboardRoot,
-    required Map<String, dynamic> incomeExpense,
-    required Map<String, dynamic> totalSales,
-  }) => DashboardData.fromResponses(
-    dashboardRoot: dashboardRoot,
-    incomeExpense: incomeExpense,
-    totalSales: totalSales,
-  );
 
   Map<String, dynamic> _asMap(dynamic value) =>
       value is Map ? Map<String, dynamic>.from(value) : const {};

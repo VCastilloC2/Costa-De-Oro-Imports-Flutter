@@ -34,8 +34,8 @@ class PredictionPage extends ConsumerStatefulWidget {
 }
 
 class _PredictionPageState extends ConsumerState<PredictionPage> {
-  /// El pronóstico se genera al iniciar FastAPI y llega en el resumen guardado.
-  bool _hasGeneratedPrediction = true;
+  /// La proyección se revela solo cuando el usuario la consulta explícitamente.
+  bool _hasGeneratedPrediction = false;
 
   /// Permite una sola recarga al volver arriba después de bajar por la página.
   bool _scrollRefreshArmed = true;
@@ -86,79 +86,79 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
             child: NotificationListener<ScrollNotification>(
               onNotification: _handleScroll,
               child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.symmetric(
-                horizontal: 20 * s,
-                vertical: 20 * s,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  DashboardHeader(
-                    s: s,
-                    userName: user?.fullName ?? 'Usuario',
-                    imageUrl: user?.imagen,
-                    title: 'Resumen de Predicciones',
-                  ),
-                  if (predictionAsync.isRefreshing)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Center(
-                        child: SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                        ),
-                      ),
-                    ),
-                  SizedBox(height: 24 * s),
-                  predictionAsync.when(
-                    // Una recarga manual no debe desmontar la predicción que
-                    // ya está visible; si falla, se conserva el último resumen.
-                    skipLoadingOnRefresh: true,
-                    skipLoadingOnReload: true,
-                    skipError: true,
-                    loading: () => const PredictionSkeleton(),
-                    error: (err, stack) => Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              err.toString().toLowerCase().contains('timeout')
-                                  ? 'El servidor está tardando en responder. Intenta de nuevo en unos segundos.'
-                                  : 'No se pudieron cargar los datos de predicción.',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                            const SizedBox(height: 12),
-                            OutlinedButton.icon(
-                              onPressed: () =>
-                                  ref.invalidate(salesPredictionProvider),
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('Reintentar'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    data: (data) => _DashboardContent(
-                      data: data,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 20 * s,
+                  vertical: 20 * s,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DashboardHeader(
                       s: s,
-                      showGeneratedPrediction: _hasGeneratedPrediction,
-                      selectedMonth: _selectedMonth,
-                      onMonthSelected: _selectMonth,
-                      onPredictionLoaded: () {
-                        if (mounted) {
-                          setState(() => _hasGeneratedPrediction = true);
-                        }
-                      },
+                      userName: user?.fullName ?? 'Usuario',
+                      imageUrl: user?.imagen,
+                      title: 'Resumen de Predicciones',
                     ),
-                  ),
-                  SizedBox(height: 24 * s),
-                ],
-              ),
+                    if (predictionAsync.isRefreshing)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Center(
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                          ),
+                        ),
+                      ),
+                    SizedBox(height: 24 * s),
+                    predictionAsync.when(
+                      // Una recarga manual no debe desmontar la predicción que
+                      // ya está visible; si falla, se conserva el último resumen.
+                      skipLoadingOnRefresh: true,
+                      skipLoadingOnReload: true,
+                      skipError: true,
+                      loading: () => const PredictionSkeleton(),
+                      error: (err, stack) => Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                err.toString().toLowerCase().contains('timeout')
+                                    ? 'El servidor está tardando en responder. Intenta de nuevo en unos segundos.'
+                                    : 'No se pudieron cargar los datos de predicción.',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.red),
+                              ),
+                              const SizedBox(height: 12),
+                              OutlinedButton.icon(
+                                onPressed: () =>
+                                    ref.invalidate(salesPredictionProvider),
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Reintentar'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      data: (data) => _DashboardContent(
+                        data: data,
+                        s: s,
+                        showGeneratedPrediction: _hasGeneratedPrediction,
+                        selectedMonth: _selectedMonth,
+                        onMonthSelected: _selectMonth,
+                        onPredictionLoaded: () {
+                          if (mounted) {
+                            setState(() => _hasGeneratedPrediction = true);
+                          }
+                        },
+                      ),
+                    ),
+                    SizedBox(height: 24 * s),
+                  ],
+                ),
               ),
             ),
           ),
@@ -242,7 +242,8 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
 
       final nuevo = generatedPoints.fold<double>(
         0,
-        (total, point) => total + ((point['prediccion'] as num?)?.toDouble() ?? 0),
+        (total, point) =>
+            total + ((point['prediccion'] as num?)?.toDouble() ?? 0),
       );
       ref.invalidate(salesPredictionProvider);
       ref.invalidate(salesPredictionEvaluationProvider);
@@ -263,9 +264,7 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Error al consultar la predicción guardada: $e',
-            ),
+            content: Text('Error al consultar la predicción guardada: $e'),
             backgroundColor: PredictionPalette.red,
           ),
         );
@@ -279,7 +278,8 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
   Widget build(BuildContext context) {
     final s = widget.s;
     final evaluation = ref.watch(salesPredictionEvaluationProvider);
-    final data = evaluation.whenOrNull(
+    final data =
+        evaluation.whenOrNull(
           data: (value) => widget.data.copyWith(evaluacion: value),
         ) ??
         widget.data;

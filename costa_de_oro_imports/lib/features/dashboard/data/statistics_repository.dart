@@ -142,7 +142,11 @@ class StatisticsRepository {
 
     try {
       final response = await _dio.get(endpoint);
-      final savedAt = DateTime.now().toUtc();
+      final isOfflineSnapshot = response.extra['staleCache'] == true;
+      final cacheTime = response.extra['cachedAt'];
+      final savedAt = response.extra['fromCache'] == true && cacheTime is String
+          ? DateTime.tryParse(cacheTime) ?? DateTime.now().toUtc()
+          : DateTime.now().toUtc();
       String? cacheWarning;
 
       if (userId != null && userId > 0) {
@@ -169,8 +173,8 @@ class StatisticsRepository {
       return StatisticsSnapshot(
         data: response.data,
         savedAt: savedAt,
-        fromCache: false,
-        isOffline: false,
+        fromCache: isOfflineSnapshot,
+        isOffline: isOfflineSnapshot,
         cacheWarning: cacheWarning,
       );
     } on DioException catch (error, stackTrace) {
