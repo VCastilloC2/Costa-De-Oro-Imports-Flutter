@@ -221,6 +221,46 @@ class _LoginPageState extends ConsumerState<LoginPage>
     }
   }
 
+  Future<void> _loginWithSocial(String provider) async {
+    if (_leaving) return;
+    FocusScope.of(context).unfocus();
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+    setState(() => _leaving = true);
+
+    try {
+      await showAuthLoading<void>(
+        context,
+        loadingText: provider == 'google'
+            ? 'Iniciando con Google'
+            : 'Iniciando con Apple',
+        successText: '¡Bienvenido!',
+        task: () async {
+          final auth = ref.read(authControllerProvider.notifier);
+          if (provider == 'google') {
+            await auth.loginWithGoogle();
+          } else {
+            await auth.loginWithApple();
+          }
+        },
+      );
+      if (mounted) setState(() => _showShield = true);
+    } on ApiException catch (error) {
+      if (mounted) setState(() { _leaving = false; _showShield = false; });
+      if (!error.message.toLowerCase().contains('cancel')) {
+        _showLoginError(error.message);
+      }
+      return;
+    } catch (_) {
+      if (mounted) setState(() { _leaving = false; _showShield = false; });
+      _showLoginError('No se pudo iniciar sesión con ${provider == 'google' ? 'Google' : 'Apple'}.');
+      return;
+    }
+
+    if (!mounted) return;
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (mounted) context.go('/dashboard');
+  }
+
   // ==========================================================================
   // LOGIN CON HUELLA (local_auth)
   // El diálogo nativo de Android se muestra SIN overlay encima. El overlay del
@@ -353,6 +393,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                               hint: 'Enter your email',
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
+                              autofillHints: const [AutofillHints.username, AutofillHints.email],
                               validator: _validateEmail,
                               prefixIcon: const HugeIcon(icon: HugeIcons.strokeRoundedMail01, size: 24),
                             ),
@@ -369,6 +410,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                               hint: 'Enter your password',
                               controller: _passwordController,
                               obscureText: _obscurePassword,
+                              autofillHints: const [AutofillHints.password],
                               validator: _validatePassword,
                               prefixIcon: const HugeIcon(icon: HugeIcons.strokeRoundedLockPassword, size: 24),
                               suffixIcon: GestureDetector(
@@ -452,7 +494,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                               children: [
                                 Row(children: [const Expanded(child: Divider(color: AppColors.border, thickness: 1.5)), Padding(padding: EdgeInsets.symmetric(horizontal: 16 * s), child: Text('Or continue with', style: AppFonts.style(size: 15, weight: FontWeight.w500, color: AppColors.muted))), const Expanded(child: Divider(color: AppColors.border, thickness: 1.5))]),
                                 SizedBox(height: 24 * s),
-                                Row(children: [Expanded(child: SocialButton(label: 'Google', iconAsset: 'assets/icons/google.svg', onPressed: () {})), SizedBox(width: 16 * s), Expanded(child: SocialButton(label: 'Apple', iconAsset: 'assets/icons/Apple_light.svg', onPressed: () {}))]),
+                                Row(children: [Expanded(child: SocialButton(label: 'Google', iconAsset: 'assets/icons/google.svg', onPressed: _leaving ? null : () => _loginWithSocial('google'))), SizedBox(width: 16 * s), Expanded(child: SocialButton(label: 'Apple', iconAsset: 'assets/icons/Apple_light.svg', onPressed: _leaving ? null : () => _loginWithSocial('apple')))]),
                                 SizedBox(height: 32 * s),
                                 GestureDetector(
                                   onTap: () => context.go('/register'),

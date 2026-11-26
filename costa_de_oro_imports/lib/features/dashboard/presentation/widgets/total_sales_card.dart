@@ -7,17 +7,22 @@
 // ============================================================================
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../domain/dashboard_models.dart'; // Importamos DonutItem
 
-class TotalSalesCard extends StatefulWidget {
+class TotalSalesCard extends ConsumerStatefulWidget {
   final double s;
   final bool isVisible;
   final List<DonutItem> items; // Ahora recibe los items
@@ -32,10 +37,10 @@ class TotalSalesCard extends StatefulWidget {
   });
 
   @override
-  State<TotalSalesCard> createState() => _TotalSalesCardState();
+  ConsumerState<TotalSalesCard> createState() => _TotalSalesCardState();
 }
 
-class _TotalSalesCardState extends State<TotalSalesCard>
+class _TotalSalesCardState extends ConsumerState<TotalSalesCard>
     with TickerProviderStateMixin {
   static const _colors = [
     Color(0xFF2E9E4F), // Verde
@@ -60,6 +65,7 @@ class _TotalSalesCardState extends State<TotalSalesCard>
   int? _selected;
   List<double> _from = const [];
   List<double> _to = const [];
+  bool _exporting = false;
 
   @override
   void initState() {
@@ -188,17 +194,90 @@ class _TotalSalesCardState extends State<TotalSalesCard>
             ListTile(
               leading: const HugeIcon(icon: HugeIcons.strokeRoundedPdf01, color: AppColors.brownDark),
               title: const Text('Documento PDF'),
-              onTap: () => Navigator.pop(ctx),
+              onTap: () {
+                Navigator.pop(ctx);
+                _exportReport(context, 'pdf');
+              },
             ),
             ListTile(
               leading: const HugeIcon(icon: HugeIcons.strokeRoundedXls01, color: AppColors.brownDark),
               title: const Text('Hoja de calculo Excel'),
-              onTap: () => Navigator.pop(ctx),
+              onTap: () {
+                Navigator.pop(ctx);
+                _exportReport(context, 'xlsx');
+              },
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _exportReport(BuildContext context, String format) async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Row(children: [
+          const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+          const SizedBox(width: 12),
+          Text('Preparando archivo ${format.toUpperCase()}…'),
+        ]),
+      ));
+
+    try {
+      final response = await ref.read(dioProvider).get<List<int>>(
+        '/api/graficas/ventas-totales/export',
+        queryParameters: {'format': format, 'meses': 12},
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final data = response.data;
+      if (data == null || data.isEmpty) {
+        throw const FormatException('El servidor devolvió un reporte vacío.');
+      }
+
+      final now = DateTime.now();
+      final fileName = 'ventas_totales_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.$format';
+      final savedPath = await FilePicker.saveFile(
+        fileName: fileName,
+        bytes: Uint8List.fromList(data),
+        dialogTitle: 'Guardar reporte de ventas',
+      );
+      if (!mounted) return;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(savedPath == null
+              ? 'Descarga cancelada.'
+              : 'Reporte guardado correctamente.'),
+        ));
+    } on DioException catch (error) {
+      if (!mounted) return;
+      final responseData = error.response?.data;
+      final detail = responseData is Map ? responseData['detail']?.toString() : null;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(detail ?? 'No se pudo descargar el reporte. Verifica tu conexión e inténtalo de nuevo.'),
+          backgroundColor: AppColors.red,
+        ));
+    } catch (_) {
+      if (!mounted) return;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text('No se pudo guardar el reporte en el dispositivo.'),
+          backgroundColor: AppColors.red,
+        ));
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
   }
 
   @override

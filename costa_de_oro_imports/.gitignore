@@ -48,6 +48,7 @@ app.*.map.json
 .widget_preview/
 
 # --- ARCHIVOS GENERADOS POR FLUTTER (NUEVOS) ---
+.env
 # Evitan que los archivos nativos generados aparezcan en Source Control
 **/GeneratedPluginRegistrant.*
 **/generated_plugin_registrant.*

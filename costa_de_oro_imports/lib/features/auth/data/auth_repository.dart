@@ -12,10 +12,12 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:passkeys/authenticator.dart';
 import 'package:passkeys/exceptions.dart';
 import 'package:passkeys/types.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import 'package:costa_de_oro_imports/core/network/api_client.dart';
 import 'package:costa_de_oro_imports/core/network/api_response_cache.dart';
@@ -23,6 +25,8 @@ import 'package:costa_de_oro_imports/core/network/api_exception.dart';
 import 'package:costa_de_oro_imports/core/config/api_config.dart';
 import 'package:costa_de_oro_imports/core/storage/session_storage.dart';
 import 'package:costa_de_oro_imports/features/auth/data/models/user_model.dart';
+
+import 'social_auth_config.dart';
 
 class PasskeyCredential {
   const PasskeyCredential({
@@ -89,10 +93,179 @@ class AuthRepository {
   final Dio _dio;
   final SessionStorage _storage;
 
+  Future<void> requestPasswordReset(String correo) async {
+    try {
+      await _dio.post<dynamic>(
+        '/auth/password/forgot',
+        data: {'correo': correo.trim()},
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<void> verifyPasswordResetCode({
+    required String correo,
+    required String codigo,
+  }) async {
+    try {
+      await _dio.post<dynamic>(
+        '/auth/password/verify',
+        data: {'correo': correo.trim(), 'codigo': codigo},
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<void> resetPassword({
+    required String correo,
+    required String codigo,
+    required String password,
+  }) async {
+    try {
+      await _dio.post<dynamic>(
+        '/auth/password/reset',
+        data: {
+          'correo': correo.trim(),
+          'codigo': codigo,
+          'nueva_contrasena': password,
+        },
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   final PasskeyAuthenticator _passkeyAuthenticator = PasskeyAuthenticator(
     debugMode: kDebugMode,
   );
   final LocalAuthentication _localAuth = LocalAuthentication();
+  static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  static Future<void>? _googleInitialization;
+
+  Future<void> _initializeGoogleSignIn() async {
+    final pending = _googleInitialization ??= _googleSignIn.initialize(
+      // Android obtiene el token de backend a través de serverClientId.
+      // clientId solo se configura para los clientes nativos de Apple.
+      clientId: !(Platform.isIOS || Platform.isMacOS) || SocialAuthConfig.googleIosClientId.isEmpty
+          ? null
+          : SocialAuthConfig.googleIosClientId,
+      serverClientId: SocialAuthConfig.googleServerClientId.isEmpty
+          ? null
+          : SocialAuthConfig.googleServerClientId,
+    );
+    try {
+      await pending;
+    } catch (_) {
+      _googleInitialization = null;
+      rethrow;
+    }
+  }
+
+  Future<UserModel> loginWithGoogle() async {
+    try {
+      if (SocialAuthConfig.googleServerClientId.isEmpty) {
+        throw const ApiException(
+          'Falta GOOGLE_SERVER_CLIENT_ID. Configúralo con el ID de cliente web '
+          'de Google para que Flutter pueda obtener el token que valida FastAPI.',
+        );
+      }
+      await _initializeGoogleSignIn();
+      final account = await _googleSignIn.authenticate();
+      final idToken = account.authentication.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw ApiException(
+          'Google no entregó un token. Configura GOOGLE_SERVER_CLIENT_ID '
+          'con el ID de cliente web de Google.',
+        );
+      }
+      final names = (account.displayName ?? '').trim().split(RegExp(r'\s+'));
+      return await _loginWithOAuth(
+        'google',
+        idToken,
+        nombres: names.isEmpty ? null : names.first,
+        apellidos: names.length < 2 ? null : names.skip(1).join(' '),
+      );
+    } on GoogleSignInException catch (error) {
+      if (error.code == GoogleSignInExceptionCode.canceled) {
+        throw const ApiException('Inicio de sesión con Google cancelado.');
+      }
+      throw ApiException(
+        'No se pudo iniciar sesión con Google. '
+        '${error.description ?? error.code.name}',
+      );
+    }
+  }
+
+  Future<UserModel> loginWithApple() async {
+    try {
+      final WebAuthenticationOptions? webOptions;
+      if (Platform.isAndroid) {
+        if (SocialAuthConfig.appleServiceId.isEmpty ||
+            SocialAuthConfig.appleRedirectUri.isEmpty) {
+          throw const ApiException(
+            'Configura APPLE_SERVICE_ID y APPLE_REDIRECT_URI para usar Apple en Android.',
+          );
+        }
+        webOptions = WebAuthenticationOptions(
+          clientId: SocialAuthConfig.appleServiceId,
+          redirectUri: Uri.parse(SocialAuthConfig.appleRedirectUri),
+        );
+      } else {
+        webOptions = null;
+      }
+
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: const [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        webAuthenticationOptions: webOptions,
+      );
+      final idToken = credential.identityToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw const ApiException('Apple no entregó un token de identidad.');
+      }
+      return await _loginWithOAuth(
+        'apple',
+        idToken,
+        nombres: credential.givenName,
+        apellidos: credential.familyName,
+      );
+    } on SignInWithAppleAuthorizationException catch (error) {
+      if (error.code == AuthorizationErrorCode.canceled) {
+        throw const ApiException('Inicio de sesión con Apple cancelado.');
+      }
+      throw ApiException('No se pudo iniciar sesión con Apple: ${error.message}');
+    } on DioException catch (error) {
+      throw ApiException.fromDio(error);
+    }
+  }
+
+  Future<UserModel> _loginWithOAuth(
+    String provider,
+    String idToken, {
+    String? nombres,
+    String? apellidos,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/auth/$provider',
+        data: {
+          'id_token': idToken,
+          if (nombres != null && nombres.trim().isNotEmpty)
+            'nombres': nombres.trim(),
+          if (apellidos != null && apellidos.trim().isNotEmpty)
+            'apellidos': apellidos.trim(),
+        },
+      );
+      await _storage.saveToken(_extractToken(response.data));
+      return await fetchProfile();
+    } on DioException catch (error) {
+      throw ApiException.fromDio(error);
+    }
+  }
 
   String _randomHex(int length) {
     final random = Random.secure();
@@ -558,6 +731,7 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
+    // El cierre local debe funcionar incluso si el JWT ya venció o fue revocado.
     try {
       await _dio.post<dynamic>('/auth/logout');
     } catch (_) {}

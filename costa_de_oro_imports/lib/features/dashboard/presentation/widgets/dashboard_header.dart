@@ -25,6 +25,8 @@ class DashboardHeader extends StatelessWidget {
   final String? imageUrl;
   // NUEVO PARAMETRO: Permite personalizar el titulo de la pantalla
   final String title;
+  final VoidCallback? onMenuTap;
+  final VoidCallback? onNotificationsTap;
 
   const DashboardHeader({
     super.key, 
@@ -32,6 +34,8 @@ class DashboardHeader extends StatelessWidget {
     required this.userName,
     this.imageUrl,
     this.title = 'Panel de control', // Valor por defecto para el Dashboard
+    this.onMenuTap,
+    this.onNotificationsTap,
   });
 
   // Contenedor cuadrado exclusivo para el boton de menu
@@ -69,37 +73,47 @@ class DashboardHeader extends StatelessWidget {
     return Row(
       children: [
         // 1. Boton de menu (cuadrado)
-        _squareButton(
-          HugeIcon(
-            icon: HugeIcons.strokeRoundedMenu01, 
-            color: AppColors.brownDark, 
-            size: 22 * s, 
-            strokeWidth: 2.0,
+        GestureDetector(
+          onTap: onMenuTap,
+          child: _squareButton(
+            HugeIcon(
+              icon: HugeIcons.strokeRoundedMenu01,
+              color: AppColors.brownDark,
+              size: 22 * s,
+              strokeWidth: 2.0,
+            ),
           ),
         ),
         SizedBox(width: 12 * s),
         
         // 2. Titulo dinamico de la pantalla
-        Text(
-          title, // Usa el parametro en lugar del texto fijo
-          style: AppFonts.style(
-            size: 18 * s, 
-            weight: FontWeight.w700, 
-            color: AppColors.brownDark,
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppFonts.style(
+              size: 18 * s,
+              weight: FontWeight.w700,
+              color: AppColors.brownDark,
+            ),
           ),
         ),
-        const Spacer(),
+        SizedBox(width: 12 * s),
         
         // 3. Campana de notificaciones (Circulo perfecto)
         Stack(
           clipBehavior: Clip.none,
           children: [
-            _circleButton(
-              HugeIcon(
-                icon: HugeIcons.strokeRoundedNotification01, 
-                color: AppColors.brownDark, 
-                size: 22 * s, 
-                strokeWidth: 2.0,
+            GestureDetector(
+              onTap: onNotificationsTap,
+              child: _circleButton(
+                HugeIcon(
+                  icon: HugeIcons.strokeRoundedNotification01,
+                  color: AppColors.brownDark,
+                  size: 22 * s,
+                  strokeWidth: 2.0,
+                ),
               ),
             ),
             // Insignia roja de notificaciones

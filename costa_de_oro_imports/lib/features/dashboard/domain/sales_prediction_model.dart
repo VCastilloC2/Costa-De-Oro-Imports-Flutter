@@ -194,6 +194,13 @@ class SalesDashboardData {
     required this.summary,
   });
 
+  SalesDashboardData copyWith({EvaluationData? evaluacion}) => SalesDashboardData(
+    proyeccionVentas: proyeccionVentas,
+    totalVentas: totalVentas,
+    evaluacion: evaluacion ?? this.evaluacion,
+    summary: summary,
+  );
+
   /// WAPE del resumen, con respaldo al valor de WMAPE del backtest.
   ///
   /// El resumen tiene prioridad cuando su WAPE es mayor que cero.

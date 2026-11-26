@@ -49,6 +49,7 @@ class AppTextField extends StatefulWidget {
     required this.hint,
     this.controller,
     this.keyboardType,
+    this.autofillHints,
     this.obscureText = false,
     this.prefixIcon,
     this.suffixIcon,
@@ -68,6 +69,9 @@ class AppTextField extends StatefulWidget {
   /// Tipo de teclado que se mostrará al enfocar el campo
   /// (email, numérico, texto, etc.).
   final TextInputType? keyboardType;
+
+  /// Sugerencias de autocompletado del teclado/plataforma para correo y claves.
+  final Iterable<String>? autofillHints;
 
   /// Indica si el texto debe ocultarse (por ejemplo, para contraseñas).
   /// Por defecto es `false`.
@@ -298,6 +302,7 @@ class AppTextFieldState extends State<AppTextField> {
                                       controller: widget.controller,
                                       focusNode: _focusNode,
                                       keyboardType: widget.keyboardType,
+                                      autofillHints: widget.autofillHints,
                                       obscureText: widget.obscureText,
                                       cursorColor: animatedTextColor,
                                       style: AppFonts.style(

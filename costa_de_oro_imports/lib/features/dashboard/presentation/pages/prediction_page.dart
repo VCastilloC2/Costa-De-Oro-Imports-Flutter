@@ -60,6 +60,7 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
           child: RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(salesPredictionProvider);
+              ref.invalidate(salesPredictionEvaluationProvider);
               await ref.read(salesPredictionProvider.future);
             },
             child: SingleChildScrollView(
@@ -79,15 +80,32 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
                   ),
                   SizedBox(height: 24 * s),
                   predictionAsync.when(
-                    skipLoadingOnReload: true,
+                    // No conserves un resumen anterior mientras FastAPI
+                    // responde a una recarga o actualización manual.
+                    skipLoadingOnRefresh: false,
+                    skipLoadingOnReload: false,
                     loading: () => const PredictionSkeleton(),
                     error: (err, stack) => Center(
                       child: Padding(
                         padding: const EdgeInsets.all(20),
-                        child: Text(
-                          'Error al cargar datos\n$err',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.red),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              err.toString().toLowerCase().contains('timeout')
+                                  ? 'El servidor está tardando en responder. Intenta de nuevo en unos segundos.'
+                                  : 'No se pudieron cargar los datos de predicción.',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: () =>
+                                  ref.invalidate(salesPredictionProvider),
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Reintentar'),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -185,6 +203,7 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
       generationCompleted = true;
 
       ref.invalidate(salesPredictionProvider);
+      ref.invalidate(salesPredictionEvaluationProvider);
       final refreshedData = await ref.read(salesPredictionProvider.future);
       final generatedPoints = refreshedData.proyeccionVentas
           .where((point) => point.tipo == 'prediccion')
@@ -232,7 +251,11 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
   @override
   Widget build(BuildContext context) {
     final s = widget.s;
-    final data = widget.data;
+    final evaluation = ref.watch(salesPredictionEvaluationProvider);
+    final data = evaluation.whenOrNull(
+          data: (value) => widget.data.copyWith(evaluacion: value),
+        ) ??
+        widget.data;
     final stats = ForecastStats.from(data);
 
     return Column(
@@ -320,7 +343,7 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
           s: s,
           meses: _meses,
           isGenerating: _isGenerating,
-          onMeses: (m) => setState(() => _meses = m),
+          onMeses: (m) => setState(() => _meses = m.clamp(1, 12).toInt()),
           onGenerar: _generar,
         ),
       ],

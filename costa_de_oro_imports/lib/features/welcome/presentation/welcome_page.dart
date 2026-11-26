@@ -26,7 +26,7 @@ class _WelcomePageState extends State<WelcomePage>
     super.initState();
     _intro = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2200),
+      duration: const Duration(milliseconds: 2000),
     );
   }
 
@@ -86,8 +86,9 @@ class _WelcomePageState extends State<WelcomePage>
           SizedBox.expand(
             child: Image.asset(
               'assets/images/welcome.jpg',
+              cacheWidth: 1080,
               fit: BoxFit.cover,
-              filterQuality: FilterQuality.high,
+              filterQuality: FilterQuality.low,
               errorBuilder: (context, error, stack) => Container(color: Colors.black),
             ),
           ),

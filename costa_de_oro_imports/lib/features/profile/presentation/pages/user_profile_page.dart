@@ -152,7 +152,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                                       errorWidget: (context, url, error) =>
                                           Center(
                                             child: Text(
-                                              user.initials ?? 'U',
+                                              user.initials,
                                               style: AppFonts.style(
                                                 size: 20 * s,
                                                 weight: FontWeight.w700,
@@ -315,7 +315,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                           icon: HugeIcons.strokeRoundedInvoice01,
                           title: 'Historial de pagos',
                           subtitle: 'Revisa tus pedidos anteriores',
-                          onTap: () {},
+                          onTap: () => context.push('/payment-history'),
                           s: s,
                         ),
                         _buildDivider(),
@@ -323,7 +323,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                           icon: HugeIcons.strokeRoundedNotification01,
                           title: 'Notificaciones',
                           subtitle: 'Configura tus alertas',
-                          onTap: () {},
+                          onTap: () => context.push('/notifications'),
                           s: s,
                         ),
                         _buildDivider(),
@@ -358,7 +358,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                           icon: HugeIcons.strokeRoundedCustomerSupport,
                           title: 'Contactanos',
                           subtitle: 'Necesitas ayuda?',
-                          onTap: () {},
+                          onTap: () => context.push('/contact'),
                           s: s,
                         ),
                         _buildDivider(),
@@ -374,7 +374,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                           icon: HugeIcons.strokeRoundedShield01,
                           title: 'Politica de privacidad',
                           subtitle: 'Como protegemos tus datos',
-                          onTap: () {},
+                          onTap: () => context.push('/privacy'),
                           s: s,
                         ),
                         _buildDivider(),
@@ -382,7 +382,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                           icon: HugeIcons.strokeRoundedHelpCircle,
                           title: 'Obtener ayuda',
                           subtitle: 'Preguntas frecuentes',
-                          onTap: () {},
+                          onTap: () => context.push('/help'),
                           s: s,
                         ),
                         _buildDivider(),

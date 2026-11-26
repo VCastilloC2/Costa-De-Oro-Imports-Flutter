@@ -1,0 +1,23 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "avid-atrium-515601-v4",
+          "appId": "1:689178422854:android:ff7a3d96a8d6696d53e447",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "avid-atrium-515601-v4",
+          "configurations": {
+            "android": "1:689178422854:android:ff7a3d96a8d6696d53e447",
+            "ios": "1:689178422854:ios:696e4fc608ed7b5c53e447",
+            "web": "1:689178422854:web:74b091ef7e69e51a53e447"
+          }
+        }
+      }
+    }
+  }
+}

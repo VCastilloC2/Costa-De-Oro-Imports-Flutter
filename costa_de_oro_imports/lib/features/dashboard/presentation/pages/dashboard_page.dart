@@ -20,6 +20,7 @@ import 'dart:developer' as developer;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:hugeicons/hugeicons.dart';
 
@@ -56,6 +57,7 @@ enum _ReconnectFeedback { refreshing, updated }
 
 class _DashboardPageState extends ConsumerState<DashboardPage>
     with TickerProviderStateMixin {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   late AnimationController _entryController;
 
   bool _incomeChartVisible = false;
@@ -228,6 +230,286 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     );
   }
 
+  Widget _drawerItem(
+    BuildContext context, {
+    required String title,
+    required String path,
+    required IconData icon,
+    bool selected = false,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Material(
+          color: selected ? AppColors.creamDark : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          child: ListTile(
+            dense: true,
+            visualDensity: const VisualDensity(vertical: -1),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            leading: Icon(
+              icon,
+              size: 20,
+              color: selected ? AppColors.brownDark : AppColors.muted,
+            ),
+            title: Text(
+              title,
+              style: AppFonts.style(
+                size: 13,
+                weight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? AppColors.brownDark : AppColors.brown,
+              ),
+            ),
+            trailing: selected
+                ? Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: AppColors.goldDark,
+                      shape: BoxShape.circle,
+                    ),
+                  )
+                : null,
+            onTap: () {
+              _scaffoldKey.currentState?.closeDrawer();
+              context.push(path);
+            },
+          ),
+        ),
+      );
+
+  Widget _drawerSection(String title) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 18, 12, 7),
+    child: Text(
+      title.toUpperCase(),
+      style: AppFonts.style(
+        size: 9,
+        weight: FontWeight.w700,
+        color: AppColors.muted,
+        letterSpacing: 1.1,
+      ),
+    ),
+  );
+
+  Widget _dashboardDrawer(
+    BuildContext context,
+    String userName,
+    String email,
+    String? imageUrl,
+  ) {
+    final drawerWidth = (MediaQuery.sizeOf(context).width * .78)
+        .clamp(280.0, 340.0)
+        .toDouble();
+    return Drawer(
+      width: drawerWidth,
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 12, 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppColors.gold, AppColors.goldLight],
+                      ),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Text(
+                      'CO',
+                      style: AppFonts.style(
+                        size: 14,
+                        weight: FontWeight.w900,
+                        color: AppColors.brownDark,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Costa de Oro',
+                          style: AppFonts.style(
+                            size: 15,
+                            weight: FontWeight.w800,
+                            color: AppColors.brownDark,
+                          ),
+                        ),
+                        Text(
+                          'IMPORTS',
+                          style: AppFonts.style(
+                            size: 9,
+                            weight: FontWeight.w600,
+                            color: AppColors.muted,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Cerrar menú',
+                    onPressed: () => _scaffoldKey.currentState?.closeDrawer(),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.muted,
+                      size: 20,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+                children: [
+                  _drawerItem(
+                    context,
+                    title: 'Panel de control',
+                    path: '/dashboard',
+                    icon: Icons.dashboard_outlined,
+                    selected: true,
+                  ),
+                  _drawerSection('Administración de tienda'),
+                  _drawerItem(
+                    context,
+                    title: 'Productos y reportes',
+                    path: '/products',
+                    icon: Icons.inventory_2_outlined,
+                  ),
+                  _drawerItem(
+                    context,
+                    title: 'Compras',
+                    path: '/orders',
+                    icon: Icons.shopping_bag_outlined,
+                  ),
+                  _drawerItem(
+                    context,
+                    title: 'Predicciones',
+                    path: '/prediction',
+                    icon: Icons.show_chart_rounded,
+                  ),
+                  _drawerSection('Cuenta y soporte'),
+                  _drawerItem(
+                    context,
+                    title: 'Historial de pagos',
+                    path: '/payment-history',
+                    icon: Icons.receipt_long_outlined,
+                  ),
+                  _drawerItem(
+                    context,
+                    title: 'Notificaciones',
+                    path: '/notifications',
+                    icon: Icons.notifications_none_rounded,
+                  ),
+                  _drawerItem(
+                    context,
+                    title: 'Contáctanos',
+                    path: '/contact',
+                    icon: Icons.support_agent_rounded,
+                  ),
+                  _drawerItem(
+                    context,
+                    title: 'Política de privacidad',
+                    path: '/privacy',
+                    icon: Icons.shield_outlined,
+                  ),
+                  _drawerItem(
+                    context,
+                    title: 'Obtener ayuda',
+                    path: '/help',
+                    icon: Icons.help_outline_rounded,
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: AppColors.border.withValues(alpha: .7),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: AppColors.creamDark,
+                    backgroundImage: imageUrl != null &&
+                            imageUrl.startsWith('http')
+                        ? NetworkImage(imageUrl)
+                        : null,
+                    child: imageUrl != null && imageUrl.startsWith('http')
+                        ? null
+                        : Text(
+                            Formatters.initials(userName),
+                            style: AppFonts.style(
+                              size: 12,
+                              weight: FontWeight.w800,
+                              color: AppColors.brown,
+                            ),
+                          ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          userName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppFonts.style(
+                            size: 12,
+                            weight: FontWeight.w700,
+                            color: AppColors.brownDark,
+                          ),
+                        ),
+                        Text(
+                          email,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppFonts.style(
+                            size: 10,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Cerrar sesión',
+                    onPressed: () async {
+                      _scaffoldKey.currentState?.closeDrawer();
+                      await ref
+                          .read(authControllerProvider.notifier)
+                          .logout();
+                    },
+                    icon: const Icon(
+                      Icons.logout_rounded,
+                      size: 19,
+                      color: AppColors.brown,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildReconnectSkeleton(double s) {
     return KeyedSubtree(
       key: const ValueKey('dashboard-reconnect-skeleton'),
@@ -321,6 +603,25 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
     final data = state.data!;
 
+    String? firstNameOf(String? value) {
+      final parts = (value ?? '')
+          .trim()
+          .split(RegExp(r'\s+'))
+          .where((part) => part.isNotEmpty)
+          .toList();
+      return parts.isEmpty ? null : parts.first;
+    }
+
+    final greetingName = firstNameOf(authUser?.nombres) ??
+        firstNameOf(data.profile.name) ??
+        'Usuario';
+    final accountName = authUser?.fullName.trim() ?? '';
+    final displayUserName = accountName.isNotEmpty && accountName != authUser?.correo
+        ? accountName
+        : data.profile.name.trim().isNotEmpty
+        ? data.profile.name.trim()
+        : 'Usuario';
+
     // =========================================================================
     // CALCULO DE TENDENCIAS REALES (Data Storytelling)
     // =========================================================================
@@ -399,6 +700,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
     // 2. CONTENIDO PRINCIPAL
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: _dashboardDrawer(
+        context,
+        displayUserName,
+        authUser?.correo ?? '',
+        authUser?.imagen,
+      ),
       backgroundColor: AppColors.cream,
       body: ResponsiveLayout(
         useSafeArea: true,
@@ -434,8 +742,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                           0.3,
                           DashboardHeader(
                             s: s,
-                            userName: data.profile.name,
+                            userName: displayUserName,
                             imageUrl: authUser?.imagen,
+                            onMenuTap: () =>
+                                _scaffoldKey.currentState?.openDrawer(),
+                            onNotificationsTap: () =>
+                                context.push('/notifications'),
                           ),
                         ),
 
@@ -466,7 +778,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                           0.5,
                           WelcomeBanner(
                             s: s,
-                            firstName: data.profile.name.split(' ').first,
+                            firstName: greetingName,
                           ),
                         ),
                         SizedBox(height: 16 * s),

@@ -13,7 +13,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
@@ -26,7 +25,6 @@ import '../../presentation/widget/profile_bento/profile_bento.dart';
 
 const Color _kSheet = Color(0xFFF9F6F0);
 const Color _kDarkA = Color(0xFF1E130C);
-const Color _kDarkB = Color(0xFF3A2414);
 
 double _heroHeight(double s, double top) => top + kToolbarHeight + 262 * s;
 

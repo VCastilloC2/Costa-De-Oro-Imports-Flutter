@@ -61,6 +61,16 @@ class AuthController extends Notifier<AuthState> {
     state = AuthState(status: AuthStatus.authenticated, user: user);
   }
 
+  Future<void> loginWithGoogle() async {
+    final user = await _repo.loginWithGoogle();
+    state = AuthState(status: AuthStatus.authenticated, user: user);
+  }
+
+  Future<void> loginWithApple() async {
+    final user = await _repo.loginWithApple();
+    state = AuthState(status: AuthStatus.authenticated, user: user);
+  }
+
   Future<void> register({required String correo, required String password}) async {
     final user = await _repo.register(correo: correo, password: password);
     state = AuthState(status: AuthStatus.authenticated, user: user);
