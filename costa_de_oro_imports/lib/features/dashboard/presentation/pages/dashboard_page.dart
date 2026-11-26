@@ -56,7 +56,7 @@ class DashboardPage extends ConsumerStatefulWidget {
 enum _ReconnectFeedback { refreshing, updated }
 
 class _DashboardPageState extends ConsumerState<DashboardPage>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   late AnimationController _entryController;
 
@@ -73,6 +73,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     VisibilityDetectorController.instance.updateInterval = const Duration(
       milliseconds: 100,
@@ -105,9 +106,19 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     unawaited(_connectivitySubscription?.cancel());
     _entryController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Android puede recuperar internet sin cambiar el tipo de enlace (Wi-Fi
+      // sigue activo); al volver a la app probamos de nuevo el backend.
+      unawaited(_checkConnectivity(forceRecovery: true));
+    }
   }
 
   void _handleConnectivityChange(List<ConnectivityResult> results) {
@@ -117,7 +128,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     _recordConnectivity(hasNetwork);
   }
 
-  Future<void> _checkConnectivity() async {
+  Future<void> _checkConnectivity({bool forceRecovery = false}) async {
     try {
       final results = await Connectivity().checkConnectivity();
       _handleConnectivityChange(results);
@@ -138,8 +149,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
       if (needsRecovery &&
           !state.isLoading &&
-          retryDelayElapsed &&
+          (retryDelayElapsed || forceRecovery) &&
           !_reconnectRefreshInProgress) {
+        ref.read(dashboardProvider.notifier).markConnectionAvailable();
         unawaited(_refreshWhenConnectionReturns());
       }
     } catch (error, stackTrace) {
@@ -163,12 +175,36 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     }
 
     final wasConnected = _hadNetworkConnection;
-    if (wasConnected == hasNetwork) return;
+    if (wasConnected == hasNetwork) {
+      // Un mismo Wi-Fi puede recuperar acceso a internet sin emitir un cambio
+      // de transporte. Si el último request quedó offline, vuelve a probar.
+      if (hasNetwork) _recoverDashboardOnAvailableNetwork();
+      return;
+    }
     _hadNetworkConnection = hasNetwork;
 
     if (!hasNetwork) {
       ref.read(dashboardProvider.notifier).markConnectionUnavailable();
     } else if (wasConnected == false) {
+      ref.read(dashboardProvider.notifier).markConnectionAvailable();
+      unawaited(_refreshWhenConnectionReturns());
+    }
+  }
+
+  void _recoverDashboardOnAvailableNetwork() {
+    final state = ref.read(dashboardProvider);
+    final needsRecovery =
+        state.syncStatus == DashboardSyncStatus.offline ||
+        state.syncStatus == DashboardSyncStatus.updateFailed;
+    final lastAttempt = _lastReconnectAttemptAt;
+    final retryDelayElapsed =
+        lastAttempt == null ||
+        DateTime.now().difference(lastAttempt) >= const Duration(seconds: 15);
+
+    if (needsRecovery &&
+        !state.isLoading &&
+        retryDelayElapsed &&
+        !_reconnectRefreshInProgress) {
       ref.read(dashboardProvider.notifier).markConnectionAvailable();
       unawaited(_refreshWhenConnectionReturns());
     }
@@ -523,6 +559,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
   Future<void> _refreshDashboard() async {
     final userId = ref.read(authControllerProvider).user?.id;
+    ref.read(dashboardProvider.notifier).markConnectionAvailable();
     await ref
         .read(dashboardProvider.notifier)
         .load(userId: userId, force: true);
