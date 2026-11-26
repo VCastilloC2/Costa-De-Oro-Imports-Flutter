@@ -38,6 +38,28 @@ class DashboardState {
   final DateTime? lastUpdated;
   final DashboardSyncStatus syncStatus;
   final String? syncMessage;
+
+  DashboardState copyWith({
+    bool? isLoading,
+    String? error,
+    bool clearError = false,
+    DashboardData? data,
+    DateTime? lastUpdated,
+    DashboardSyncStatus? syncStatus,
+    String? syncMessage,
+    bool clearSyncMessage = false,
+  }) {
+    return DashboardState(
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : error ?? this.error,
+      data: data ?? this.data,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+      syncStatus: syncStatus ?? this.syncStatus,
+      syncMessage: clearSyncMessage
+          ? null
+          : syncMessage ?? this.syncMessage,
+    );
+  }
 }
 
 final dashboardRepositoryProvider = Provider<DashboardRepository>((ref) {

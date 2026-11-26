@@ -50,9 +50,9 @@ class DashboardRepository {
   /// Descarga las fuentes, actualiza el caché y devuelve el resultado vigente.
   Future<DashboardSnapshot> fetchDashboard(int? userId) async {
     final responses = await Future.wait<dynamic>([
-      _dio.get('/api/graficas/dashboard'),
-      _dio.get('/api/graficas/ingresos-gastos'),
-      _dio.get('/api/graficas/ventas-totales'),
+      _dio.get('/api/graficas/dashboard', options: options),
+      _dio.get('/api/graficas/ingresos-gastos', options: options),
+      _dio.get('/api/graficas/ventas-totales', options: options),
     ]);
 
     final dashboardRoot = _asMap(responses[0].data);
