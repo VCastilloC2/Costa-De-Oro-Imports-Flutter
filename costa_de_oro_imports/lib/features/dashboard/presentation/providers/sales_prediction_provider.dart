@@ -13,14 +13,19 @@ final salesPredictionProvider = FutureProvider.autoDispose<SalesDashboardData>((
 ) async {
   final dio = ref.watch(dioProvider);
 
-  // Las fuentes independientes se consultan en paralelo para reducir espera.
-  final responses = await Future.wait([
-    dio.get('/admin/prediccion/datos-grafica'),
-    dio.get('/api/v1/predictions/summary'),
-  ]);
+  // La gráfica contiene la predicción guardada y es la fuente principal.
+  final graficaFuture = dio.get('/admin/prediccion/datos-grafica');
 
-  final graficaData = responses[0].data;
-  final summaryData = responses[1].data;
+  // El resumen sólo aporta métricas y metadatos. Si su endpoint falla, la
+  // predicción sigue disponible y no se debe convertir toda la pantalla en error.
+  final summaryFuture = dio
+      .get('/api/v1/predictions/summary')
+      .then((response) => response.data)
+      .catchError((Object _) => const <String, dynamic>{});
+  final graficaResponse = await graficaFuture;
+  final summaryData = await summaryFuture;
+
+  final graficaData = graficaResponse.data;
 
   // Convierte los puntos dinámicos del endpoint a modelos del dominio.
   final proyeccionRaw =

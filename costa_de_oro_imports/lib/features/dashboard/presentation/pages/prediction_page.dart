@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
 import '../../../dashboard/presentation/widgets/dashboard_header.dart';
@@ -36,12 +37,32 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
   /// El pronóstico se genera al iniciar FastAPI y llega en el resumen guardado.
   bool _hasGeneratedPrediction = true;
 
+  /// Permite una sola recarga al volver arriba después de bajar por la página.
+  bool _scrollRefreshArmed = true;
+
   /// Mes actualmente seleccionado en la gráfica o en la verificación.
   String? _selectedMonth;
 
   /// Sincroniza la selección del mes entre los componentes de la pantalla.
   void _selectMonth(String month) {
     if (_selectedMonth != month) setState(() => _selectedMonth = month);
+  }
+
+  bool _handleScroll(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) return false;
+    final distanceFromTop = notification.metrics.extentBefore;
+    if (distanceFromTop > 500) _scrollRefreshArmed = true;
+
+    if (_scrollRefreshArmed &&
+        distanceFromTop > 0 &&
+        distanceFromTop <= 180 &&
+        notification is ScrollUpdateNotification &&
+        (notification.scrollDelta ?? 0) < 0) {
+      _scrollRefreshArmed = false;
+      ref.invalidate(salesPredictionProvider);
+      ref.invalidate(salesPredictionEvaluationProvider);
+    }
+    return false;
   }
 
   @override
@@ -62,7 +83,9 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
               ref.invalidate(salesPredictionEvaluationProvider);
               await ref.read(salesPredictionProvider.future);
             },
-            child: SingleChildScrollView(
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _handleScroll,
+              child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: EdgeInsets.symmetric(
                 horizontal: 20 * s,
@@ -77,12 +100,24 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
                     imageUrl: user?.imagen,
                     title: 'Resumen de Predicciones',
                   ),
+                  if (predictionAsync.isRefreshing)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        ),
+                      ),
+                    ),
                   SizedBox(height: 24 * s),
                   predictionAsync.when(
-                    // No conserves un resumen anterior mientras FastAPI
-                    // responde a una recarga o actualización manual.
-                    skipLoadingOnRefresh: false,
-                    skipLoadingOnReload: false,
+                    // Una recarga manual no debe desmontar la predicción que
+                    // ya está visible; si falla, se conserva el último resumen.
+                    skipLoadingOnRefresh: true,
+                    skipLoadingOnReload: true,
+                    skipError: true,
                     loading: () => const PredictionSkeleton(),
                     error: (err, stack) => Center(
                       child: Padding(
@@ -123,6 +158,7 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
                   ),
                   SizedBox(height: 24 * s),
                 ],
+              ),
               ),
             ),
           ),
@@ -183,21 +219,33 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
   Future<void> _generar() async {
     setState(() => _isGenerating = true);
     try {
-      ref.invalidate(salesPredictionProvider);
-      ref.invalidate(salesPredictionEvaluationProvider);
-      final refreshedData = await ref.read(salesPredictionProvider.future);
-      final generatedPoints = refreshedData.proyeccionVentas
-          .where((point) => point.tipo == 'prediccion')
+      // Esta ruta devuelve el snapshot persistido del modelo mensual.
+      final response = await ref
+          .read(dioProvider)
+          .post('/admin/prediccion/generar');
+      if (response.data is! Map) {
+        throw StateError('El servidor devolvió un resumen inválido.');
+      }
+      final payload = Map<String, dynamic>.from(response.data as Map);
+      final pointsRaw = payload['proyeccion_ventas'] ?? payload['serie'];
+      if (pointsRaw is! List) {
+        throw StateError('La respuesta no contiene la proyección guardada.');
+      }
+      final generatedPoints = pointsRaw
+          .whereType<Map>()
+          .map((point) => Map<String, dynamic>.from(point))
+          .where((point) => point['tipo'] == 'prediccion')
           .toList();
       if (generatedPoints.isEmpty) {
-        throw StateError(
-          'El servicio no devolvio puntos de proyeccion despues del recalculo.',
-        );
+        throw StateError('El resumen guardado no contiene meses proyectados.');
       }
+
       final nuevo = generatedPoints.fold<double>(
         0,
-        (total, point) => total + point.prediccion,
+        (total, point) => total + ((point['prediccion'] as num?)?.toDouble() ?? 0),
       );
+      ref.invalidate(salesPredictionProvider);
+      ref.invalidate(salesPredictionEvaluationProvider);
       widget.onPredictionLoaded();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
