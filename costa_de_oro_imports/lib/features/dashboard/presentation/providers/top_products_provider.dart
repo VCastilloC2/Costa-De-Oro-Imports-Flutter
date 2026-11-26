@@ -7,30 +7,47 @@
 // ============================================================================
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/network/api_client.dart';
+
 import '../../domain/top_product_model.dart';
+import 'statistics_data_provider.dart';
 
-final topProductsProvider = FutureProvider.autoDispose<List<TopProduct>>((ref) async {
-  final dio = ref.watch(dioProvider);
-  final response = await dio.get('/api/reportes/ventas-producto');
+final topProductsProvider = FutureProvider.autoDispose<List<TopProduct>>((ref) {
+  return loadStatisticsData(
+    ref,
+    cacheKey: 'top_products',
+    endpoint: '/api/reportes/ventas-producto',
+    parse: (data) {
+      final root = statisticsMap(data);
+      final productsData = root['ventasProducto'];
+      if (productsData == null) return <TopProduct>[];
+      if (productsData is! List) {
+        throw const FormatException(
+          'La respuesta de productos vendidos no es válida.',
+        );
+      }
+      final products = productsData
+          .map((product) => TopProduct.fromJson(statisticsMap(product)))
+          .toList();
 
-  final root = response.data as Map<String, dynamic>;
-  final List<dynamic> data = root['ventasProducto'] ?? [];
-  final products = data.map((e) => TopProduct.fromJson(e)).toList();
+      final totalGeneral = root['totalGeneral'];
+      final grand =
+          (totalGeneral is Map
+              ? (totalGeneral['totalGeneral'] as num?)?.toDouble()
+              : null) ??
+          products.fold<double>(0, (sum, product) => sum + product.total);
 
-  // Total general del reporte (con IVA). Si no viene, se suma de los productos.
-  final totalGeneral = root['totalGeneral'];
-  final grand = (totalGeneral is Map ? (totalGeneral['totalGeneral'] as num?)?.toDouble() : null) ??
-      products.fold<double>(0, (sum, p) => sum + p.total);
+      products.sort((a, b) {
+        final byUnits = b.ventas.compareTo(a.ventas);
+        return byUnits != 0 ? byUnits : b.total.compareTo(a.total);
+      });
 
-  // Mas vendidos por unidades; a igualdad, el que mas dinero genera.
-  products.sort((a, b) {
-    final byUnits = b.ventas.compareTo(a.ventas);
-    return byUnits != 0 ? byUnits : b.total.compareTo(a.total);
-  });
-
-  return products
-      .take(4)
-      .map((p) => p.withShare(grand > 0 ? p.total / grand : 0))
-      .toList();
+      return products
+          .take(4)
+          .map(
+            (product) =>
+                product.withShare(grand > 0 ? product.total / grand : 0),
+          )
+          .toList();
+    },
+  );
 });

@@ -21,13 +21,15 @@ class SalesProjectionData {
   });
 
   factory SalesProjectionData.fromJson(Map<String, dynamic> json) {
-    final seriesList = (json['series'] as List<dynamic>?)
+    final seriesList =
+        (json['series'] as List<dynamic>?)
             ?.map((e) => (e as num).toDouble())
             .toList() ??
         [];
-        
-    final categoriasList = (json['categorias'] as List<dynamic>?)
-            ?.map((e) => (e as num).toDouble())
+
+    final categoriasList =
+        (json['categorias'] as List<dynamic>?)
+            ?.map((e) => (e as num).toDouble() / 1000)
             .toList() ??
         [];
 
