@@ -6,7 +6,7 @@ class ApiConfig {
 
   static final String baseUrl = AppEnvironment.get(
     'API_BASE_URL',
-    fallback: 'http://192.168.1.9:8000',
+    fallback: 'https://costa-de-oro-imports-python.onrender.com',
   );
 
   // AUMENTAMOS LOS TIMEOUTS PARA DARLE TIEMPO A RENDER DE DESPERTAR
