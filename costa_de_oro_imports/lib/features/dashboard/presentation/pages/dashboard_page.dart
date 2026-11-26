@@ -223,6 +223,29 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
     final data = state.data ?? DashboardData.skeleton;
 
+    // La cuenta autenticada es la fuente de verdad para el saludo. El perfil
+    // que acompaña al resumen puede contener un nombre de ejemplo del backend.
+    String? firstNameOf(String? value) {
+      final parts = (value ?? '')
+          .trim()
+          .split(RegExp(r'\s+'))
+          .where((part) => part.isNotEmpty)
+          .toList();
+      return parts.isEmpty ? null : parts.first;
+    }
+
+    final accountFirstName = firstNameOf(authUser?.nombres);
+    final profileFirstName = firstNameOf(data.profile.name);
+    final greetingName = accountFirstName ?? profileFirstName ?? 'Usuario';
+    final accountFullName = authUser?.fullName.trim();
+    final displayUserName = accountFullName != null &&
+            accountFullName.isNotEmpty &&
+            accountFullName != authUser?.correo
+        ? accountFullName
+        : data.profile.name.trim().isNotEmpty
+            ? data.profile.name.trim()
+            : 'Usuario';
+
     // =========================================================================
     // CALCULO DE TENDENCIAS REALES (Data Storytelling)
     // =========================================================================
@@ -265,7 +288,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     // 2. CONTENIDO PRINCIPAL
     return Scaffold(
       key: _scaffoldKey,
-      drawer: _dashboardDrawer(context, data.profile.name, authUser?.correo ?? '', authUser?.imagen),
+      drawer: _dashboardDrawer(context, displayUserName, authUser?.correo ?? '', authUser?.imagen),
       backgroundColor: AppColors.cream,
       body: ResponsiveLayout(
         useSafeArea: true,
@@ -280,7 +303,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                 0.3,
                 DashboardHeader(
                   s: s,
-                  userName: data.profile.name,
+                  userName: displayUserName,
                   imageUrl: authUser?.imagen,
                   onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
                   onNotificationsTap: () => context.push('/notifications'),
@@ -292,7 +315,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
               SizedBox(height: 16 * s),
 
               _reveal(0.2, 0.5,
-                  WelcomeBanner(s: s, firstName: data.profile.name.split(' ').first)),
+                  WelcomeBanner(s: s, firstName: greetingName)),
               SizedBox(height: 16 * s),
 
               _reveal(

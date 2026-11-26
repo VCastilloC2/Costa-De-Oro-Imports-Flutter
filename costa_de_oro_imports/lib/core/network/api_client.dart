@@ -13,6 +13,19 @@ final dioProvider = Provider<Dio>((ref) {
   final cache = ApiResponseCache();
   bool isPrivilegedRoute(String path) =>
       path == '/api/graficas' || path.startsWith('/api/graficas/');
+  bool isPublicAuthRoute(String path) => const {
+    '/auth/password/forgot',
+    '/auth/password/verify',
+    '/auth/password/reset',
+    '/auth/login',
+    '/auth/registro',
+    '/auth/google',
+    '/auth/apple',
+    '/auth/apple/callback',
+    '/auth/biometric/login',
+    '/auth/passkey/login/options',
+    '/auth/passkey/login/verify',
+  }.contains(path);
 
   final dio = Dio(
     BaseOptions(
@@ -27,23 +40,21 @@ final dioProvider = Provider<Dio>((ref) {
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) async {
-        // --- SOLUCIÓN: Evitar enviar el token en rutas de autenticación ---
-        final isAuthRoute = options.path.startsWith('/auth/');
+        // Solo las operaciones de inicio/recuperación son públicas. Rutas
+        // como /auth/biometric/devices y /register requieren la sesión JWT.
+        final isPublicAuth = isPublicAuthRoute(options.path);
+        final token = isPublicAuth ? null : await storage.readToken();
+        if (token != null && token.isNotEmpty) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
 
-        if (!isAuthRoute) {
-          final token = await storage.readToken();
-          if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
-
-          final ttlSeconds = options.extra['cacheTtlSeconds'];
-          if (options.method == 'GET' &&
-              !isPrivilegedRoute(options.path) &&
-              ttlSeconds is int &&
-              ttlSeconds > 0) {
-            final cached = await cache.read(options, token);
-            if (cached != null) return handler.resolve(cached);
-          }
+        final ttlSeconds = options.extra['cacheTtlSeconds'];
+        if (options.method == 'GET' &&
+            !isPrivilegedRoute(options.path) &&
+            ttlSeconds is int &&
+            ttlSeconds > 0) {
+          final cached = await cache.read(options, token);
+          if (cached != null) return handler.resolve(cached);
         }
 
         handler.next(options);
