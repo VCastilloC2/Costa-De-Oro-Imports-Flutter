@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
-import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
@@ -34,8 +33,8 @@ class PredictionPage extends ConsumerStatefulWidget {
 }
 
 class _PredictionPageState extends ConsumerState<PredictionPage> {
-  /// Evita mostrar la serie de pronóstico antes de que el usuario la genere.
-  bool _hasGeneratedPrediction = false;
+  /// El pronóstico se genera al iniciar FastAPI y llega en el resumen guardado.
+  bool _hasGeneratedPrediction = true;
 
   /// Mes actualmente seleccionado en la gráfica o en la verificación.
   String? _selectedMonth;
@@ -115,7 +114,7 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
                       showGeneratedPrediction: _hasGeneratedPrediction,
                       selectedMonth: _selectedMonth,
                       onMonthSelected: _selectMonth,
-                      onPredictionGenerated: () {
+                      onPredictionLoaded: () {
                         if (mounted) {
                           setState(() => _hasGeneratedPrediction = true);
                         }
@@ -136,7 +135,7 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
 /// Compone las secciones del dashboard una vez cargados los datos.
 ///
 /// Recibe las decisiones de selección y visibilidad desde la página, y
-/// administra el horizonte elegido, el progreso de generación y los destinos
+/// administra el estado de consulta y los destinos
 /// de desplazamiento de las tarjetas KPI.
 class _DashboardContent extends ConsumerStatefulWidget {
   final SalesDashboardData data;
@@ -144,7 +143,7 @@ class _DashboardContent extends ConsumerStatefulWidget {
   final bool showGeneratedPrediction;
   final String? selectedMonth;
   final ValueChanged<String> onMonthSelected;
-  final VoidCallback onPredictionGenerated;
+  final VoidCallback onPredictionLoaded;
 
   const _DashboardContent({
     required this.data,
@@ -152,7 +151,7 @@ class _DashboardContent extends ConsumerStatefulWidget {
     required this.showGeneratedPrediction,
     required this.selectedMonth,
     required this.onMonthSelected,
-    required this.onPredictionGenerated,
+    required this.onPredictionLoaded,
   });
 
   @override
@@ -162,9 +161,6 @@ class _DashboardContent extends ConsumerStatefulWidget {
 class _DashboardContentState extends ConsumerState<_DashboardContent> {
   /// Indica si la solicitud de generación está en curso.
   bool _isGenerating = false;
-
-  /// Horizonte mensual enviado al servicio al recalcular la proyección.
-  int _meses = 12;
 
   /// Anclas de desplazamiento para navegar desde las tarjetas KPI.
   final _chartKey = GlobalKey();
@@ -183,25 +179,10 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
     );
   }
 
-  /// Solicita un nuevo pronóstico y vuelve a cargar los datos del dashboard.
-  ///
-  /// Envía `POST /admin/prediccion/generar` con seis años de historia y el
-  /// horizonte seleccionado en meses.
-  ///
-  /// Si el backend confirma la generación pero la respuesta refrescada no
-  /// contiene puntos de pronóstico, informa que la actualización visual falló
-  /// por separado de la generación.
+  /// Consulta el resumen de pronóstico que FastAPI guardó al iniciar.
   Future<void> _generar() async {
     setState(() => _isGenerating = true);
-    var generationCompleted = false;
     try {
-      final dio = ref.read(dioProvider);
-      await dio.post(
-        '/admin/prediccion/generar',
-        data: {'anios': 6, 'proyeccion_meses': _meses},
-      );
-      generationCompleted = true;
-
       ref.invalidate(salesPredictionProvider);
       ref.invalidate(salesPredictionEvaluationProvider);
       final refreshedData = await ref.read(salesPredictionProvider.future);
@@ -217,15 +198,15 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
         0,
         (total, point) => total + point.prediccion,
       );
-      widget.onPredictionGenerated();
+      widget.onPredictionLoaded();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: PredictionPalette.green,
             content: Text(
               nuevo > 0
-                  ? 'Proyeccion actualizada: ${formatCompactCop(nuevo)} en los proximos $_meses meses'
-                  : 'Proyeccion actualizada',
+                  ? 'Proyección guardada consultada: ${formatCompactCop(nuevo)} en los próximos 12 meses'
+                  : 'Proyección guardada consultada',
             ),
           ),
         );
@@ -235,9 +216,7 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              generationCompleted
-                  ? 'La prediccion se genero, pero no se pudo actualizar la grafica: $e'
-                  : 'Error al generar: $e',
+              'Error al consultar la predicción guardada: $e',
             ),
             backgroundColor: PredictionPalette.red,
           ),
@@ -341,9 +320,7 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
           data: data,
           stats: stats,
           s: s,
-          meses: _meses,
           isGenerating: _isGenerating,
-          onMeses: (m) => setState(() => _meses = m.clamp(1, 12).toInt()),
           onGenerar: _generar,
         ),
       ],
