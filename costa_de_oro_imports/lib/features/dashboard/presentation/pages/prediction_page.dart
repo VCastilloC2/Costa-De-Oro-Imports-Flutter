@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_fonts.dart';
-import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
 import '../../../dashboard/presentation/widgets/dashboard_header.dart';
@@ -34,8 +34,11 @@ class PredictionPage extends ConsumerStatefulWidget {
 }
 
 class _PredictionPageState extends ConsumerState<PredictionPage> {
-  /// Evita mostrar la serie de pronóstico antes de que el usuario la genere.
+  /// La proyección se revela solo cuando el usuario la consulta explícitamente.
   bool _hasGeneratedPrediction = false;
+
+  /// Permite una sola recarga al volver arriba después de bajar por la página.
+  bool _scrollRefreshArmed = true;
 
   /// Mes actualmente seleccionado en la gráfica o en la verificación.
   String? _selectedMonth;
@@ -43,6 +46,23 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
   /// Sincroniza la selección del mes entre los componentes de la pantalla.
   void _selectMonth(String month) {
     if (_selectedMonth != month) setState(() => _selectedMonth = month);
+  }
+
+  bool _handleScroll(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) return false;
+    final distanceFromTop = notification.metrics.extentBefore;
+    if (distanceFromTop > 500) _scrollRefreshArmed = true;
+
+    if (_scrollRefreshArmed &&
+        distanceFromTop > 0 &&
+        distanceFromTop <= 180 &&
+        notification is ScrollUpdateNotification &&
+        (notification.scrollDelta ?? 0) < 0) {
+      _scrollRefreshArmed = false;
+      ref.invalidate(salesPredictionProvider);
+      ref.invalidate(salesPredictionEvaluationProvider);
+    }
+    return false;
   }
 
   @override
@@ -63,67 +83,82 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
               ref.invalidate(salesPredictionEvaluationProvider);
               await ref.read(salesPredictionProvider.future);
             },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.symmetric(
-                horizontal: 20 * s,
-                vertical: 20 * s,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  DashboardHeader(
-                    s: s,
-                    userName: user?.fullName ?? 'Usuario',
-                    imageUrl: user?.imagen,
-                    title: 'Resumen de Predicciones',
-                  ),
-                  SizedBox(height: 24 * s),
-                  predictionAsync.when(
-                    // No conserves un resumen anterior mientras FastAPI
-                    // responde a una recarga o actualización manual.
-                    skipLoadingOnRefresh: false,
-                    skipLoadingOnReload: false,
-                    loading: () => const PredictionSkeleton(),
-                    error: (err, stack) => Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              err.toString().toLowerCase().contains('timeout')
-                                  ? 'El servidor está tardando en responder. Intenta de nuevo en unos segundos.'
-                                  : 'No se pudieron cargar los datos de predicción.',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                            const SizedBox(height: 12),
-                            OutlinedButton.icon(
-                              onPressed: () =>
-                                  ref.invalidate(salesPredictionProvider),
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('Reintentar'),
-                            ),
-                          ],
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _handleScroll,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 20 * s,
+                  vertical: 20 * s,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DashboardHeader(
+                      s: s,
+                      userName: user?.fullName ?? 'Usuario',
+                      imageUrl: user?.imagen,
+                      title: 'Resumen de Predicciones',
+                    ),
+                    if (predictionAsync.isRefreshing)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Center(
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                          ),
                         ),
                       ),
+                    SizedBox(height: 24 * s),
+                    predictionAsync.when(
+                      // Una recarga manual no debe desmontar la predicción que
+                      // ya está visible; si falla, se conserva el último resumen.
+                      skipLoadingOnRefresh: true,
+                      skipLoadingOnReload: true,
+                      skipError: true,
+                      loading: () => const PredictionSkeleton(),
+                      error: (err, stack) => Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                err.toString().toLowerCase().contains('timeout')
+                                    ? 'El servidor está tardando en responder. Intenta de nuevo en unos segundos.'
+                                    : 'No se pudieron cargar los datos de predicción.',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.red),
+                              ),
+                              const SizedBox(height: 12),
+                              OutlinedButton.icon(
+                                onPressed: () =>
+                                    ref.invalidate(salesPredictionProvider),
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Reintentar'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      data: (data) => _DashboardContent(
+                        data: data,
+                        s: s,
+                        showGeneratedPrediction: _hasGeneratedPrediction,
+                        selectedMonth: _selectedMonth,
+                        onMonthSelected: _selectMonth,
+                        onPredictionLoaded: () {
+                          if (mounted) {
+                            setState(() => _hasGeneratedPrediction = true);
+                          }
+                        },
+                      ),
                     ),
-                    data: (data) => _DashboardContent(
-                      data: data,
-                      s: s,
-                      showGeneratedPrediction: _hasGeneratedPrediction,
-                      selectedMonth: _selectedMonth,
-                      onMonthSelected: _selectMonth,
-                      onPredictionGenerated: () {
-                        if (mounted) {
-                          setState(() => _hasGeneratedPrediction = true);
-                        }
-                      },
-                    ),
-                  ),
-                  SizedBox(height: 24 * s),
-                ],
+                    SizedBox(height: 24 * s),
+                  ],
+                ),
               ),
             ),
           ),
@@ -136,7 +171,7 @@ class _PredictionPageState extends ConsumerState<PredictionPage> {
 /// Compone las secciones del dashboard una vez cargados los datos.
 ///
 /// Recibe las decisiones de selección y visibilidad desde la página, y
-/// administra el horizonte elegido, el progreso de generación y los destinos
+/// administra el estado de consulta y los destinos
 /// de desplazamiento de las tarjetas KPI.
 class _DashboardContent extends ConsumerStatefulWidget {
   final SalesDashboardData data;
@@ -144,7 +179,7 @@ class _DashboardContent extends ConsumerStatefulWidget {
   final bool showGeneratedPrediction;
   final String? selectedMonth;
   final ValueChanged<String> onMonthSelected;
-  final VoidCallback onPredictionGenerated;
+  final VoidCallback onPredictionLoaded;
 
   const _DashboardContent({
     required this.data,
@@ -152,7 +187,7 @@ class _DashboardContent extends ConsumerStatefulWidget {
     required this.showGeneratedPrediction,
     required this.selectedMonth,
     required this.onMonthSelected,
-    required this.onPredictionGenerated,
+    required this.onPredictionLoaded,
   });
 
   @override
@@ -162,9 +197,6 @@ class _DashboardContent extends ConsumerStatefulWidget {
 class _DashboardContentState extends ConsumerState<_DashboardContent> {
   /// Indica si la solicitud de generación está en curso.
   bool _isGenerating = false;
-
-  /// Horizonte mensual enviado al servicio al recalcular la proyección.
-  int _meses = 12;
 
   /// Anclas de desplazamiento para navegar desde las tarjetas KPI.
   final _chartKey = GlobalKey();
@@ -183,49 +215,47 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
     );
   }
 
-  /// Solicita un nuevo pronóstico y vuelve a cargar los datos del dashboard.
-  ///
-  /// Envía `POST /admin/prediccion/generar` con seis años de historia y el
-  /// horizonte seleccionado en meses.
-  ///
-  /// Si el backend confirma la generación pero la respuesta refrescada no
-  /// contiene puntos de pronóstico, informa que la actualización visual falló
-  /// por separado de la generación.
+  /// Consulta el resumen de pronóstico que FastAPI guardó al iniciar.
   Future<void> _generar() async {
     setState(() => _isGenerating = true);
-    var generationCompleted = false;
     try {
-      final dio = ref.read(dioProvider);
-      await dio.post(
-        '/admin/prediccion/generar',
-        data: {'anios': 6, 'proyeccion_meses': _meses},
-      );
-      generationCompleted = true;
-
-      ref.invalidate(salesPredictionProvider);
-      ref.invalidate(salesPredictionEvaluationProvider);
-      final refreshedData = await ref.read(salesPredictionProvider.future);
-      final generatedPoints = refreshedData.proyeccionVentas
-          .where((point) => point.tipo == 'prediccion')
+      // Esta ruta devuelve el snapshot persistido del modelo mensual.
+      final response = await ref
+          .read(dioProvider)
+          .post('/admin/prediccion/generar');
+      if (response.data is! Map) {
+        throw StateError('El servidor devolvió un resumen inválido.');
+      }
+      final payload = Map<String, dynamic>.from(response.data as Map);
+      final pointsRaw = payload['proyeccion_ventas'] ?? payload['serie'];
+      if (pointsRaw is! List) {
+        throw StateError('La respuesta no contiene la proyección guardada.');
+      }
+      final generatedPoints = pointsRaw
+          .whereType<Map>()
+          .map((point) => Map<String, dynamic>.from(point))
+          .where((point) => point['tipo'] == 'prediccion')
           .toList();
       if (generatedPoints.isEmpty) {
-        throw StateError(
-          'El servicio no devolvio puntos de proyeccion despues del recalculo.',
-        );
+        throw StateError('El resumen guardado no contiene meses proyectados.');
       }
+
       final nuevo = generatedPoints.fold<double>(
         0,
-        (total, point) => total + point.prediccion,
+        (total, point) =>
+            total + ((point['prediccion'] as num?)?.toDouble() ?? 0),
       );
-      widget.onPredictionGenerated();
+      ref.invalidate(salesPredictionProvider);
+      ref.invalidate(salesPredictionEvaluationProvider);
+      widget.onPredictionLoaded();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: PredictionPalette.green,
             content: Text(
               nuevo > 0
-                  ? 'Proyeccion actualizada: ${formatCompactCop(nuevo)} en los proximos $_meses meses'
-                  : 'Proyeccion actualizada',
+                  ? 'Proyección guardada consultada: ${formatCompactCop(nuevo)} en los próximos 12 meses'
+                  : 'Proyección guardada consultada',
             ),
           ),
         );
@@ -234,11 +264,7 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              generationCompleted
-                  ? 'La prediccion se genero, pero no se pudo actualizar la grafica: $e'
-                  : 'Error al generar: $e',
-            ),
+            content: Text('Error al consultar la predicción guardada: $e'),
             backgroundColor: PredictionPalette.red,
           ),
         );
@@ -252,7 +278,8 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
   Widget build(BuildContext context) {
     final s = widget.s;
     final evaluation = ref.watch(salesPredictionEvaluationProvider);
-    final data = evaluation.whenOrNull(
+    final data =
+        evaluation.whenOrNull(
           data: (value) => widget.data.copyWith(evaluacion: value),
         ) ??
         widget.data;
@@ -341,9 +368,7 @@ class _DashboardContentState extends ConsumerState<_DashboardContent> {
           data: data,
           stats: stats,
           s: s,
-          meses: _meses,
           isGenerating: _isGenerating,
-          onMeses: (m) => setState(() => _meses = m.clamp(1, 12).toInt()),
           onGenerar: _generar,
         ),
       ],

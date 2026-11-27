@@ -64,7 +64,6 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
   _StatisticsReconnectFeedback? _reconnectFeedback;
   DateTime? _lastRefreshAttemptAt;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  Timer? _connectivityPoll;
 
   @override
   void initState() {
@@ -85,16 +84,11 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
         );
       },
     );
-    _connectivityPoll = Timer.periodic(
-      const Duration(seconds: 4),
-      (_) => unawaited(_checkConnectivity()),
-    );
     unawaited(_checkConnectivity());
   }
 
   @override
   void dispose() {
-    _connectivityPoll?.cancel();
     unawaited(_connectivitySubscription?.cancel());
     super.dispose();
   }

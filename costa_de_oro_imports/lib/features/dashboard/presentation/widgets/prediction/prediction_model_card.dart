@@ -7,11 +7,11 @@ import '../../../domain/sales_prediction_model.dart';
 import 'technical_details.dart';
 import 'prediction_palette.dart';
 
-/// Muestra el estado del modelo y los controles para generar un pronóstico.
+/// Muestra el estado del modelo y permite consultar el pronóstico guardado.
 ///
 /// El indicador combina WAPE, disponibilidad y antigüedad de los datos con
-/// las desviaciones recientes del backtest. El horizonte y la acción de
-/// generación son controlados por el componente padre mediante callbacks.
+/// las desviaciones recientes del backtest. La consulta se controla desde el
+/// componente padre.
 class PredictionModelCard extends StatelessWidget {
   /// Métricas y metadatos devueltos por los servicios de predicción.
   final SalesDashboardData data;
@@ -22,27 +22,19 @@ class PredictionModelCard extends StatelessWidget {
   /// Factor de escala visual aplicado por el layout de la aplicación.
   final double s;
 
-  /// Horizonte seleccionado en meses.
-  final int meses;
-
-  /// Deshabilita los controles mientras el servicio procesa la solicitud.
+  /// Deshabilita el botón mientras se consulta el resumen guardado.
   final bool isGenerating;
-
-  /// Notifica al padre el cambio de horizonte.
-  final ValueChanged<int> onMeses;
 
   /// Inicia la solicitud de generación en el componente padre.
   final VoidCallback onGenerar;
 
-  /// Crea la ficha de estado, horizonte, acción y detalles técnicos.
+  /// Crea la ficha de estado, acción de consulta y detalles técnicos.
   const PredictionModelCard({
     super.key,
     required this.data,
     required this.stats,
     required this.s,
-    required this.meses,
     required this.isGenerating,
-    required this.onMeses,
     required this.onGenerar,
   });
 
@@ -235,35 +227,14 @@ class PredictionModelCard extends StatelessWidget {
           ),
           Divider(color: Colors.grey.shade200, height: 28 * s),
 
-          // La generación queda bloqueada mientras la solicitud está activa.
+          // Flutter consulta la proyección persistida al iniciar FastAPI.
           Text(
-            'Horizonte de la nueva proyeccion',
+            'Proyección disponible: próximos 12 meses',
             style: TextStyle(
               fontSize: 11.5 * s,
               color: Colors.grey.shade700,
               fontWeight: FontWeight.w600,
             ),
-          ),
-          SizedBox(height: 8 * s),
-          Row(
-            children: [
-              for (final m in const [6, 12])
-                Padding(
-                  padding: EdgeInsets.only(right: 8 * s),
-                  child: ChoiceChip(
-                    label: Text('$m meses', style: TextStyle(fontSize: 11 * s)),
-                    selected: meses == m,
-                    showCheckmark: false,
-                    selectedColor: AppColors.brownDark,
-                    labelStyle: TextStyle(
-                      color: meses == m ? Colors.white : AppColors.brownDark,
-                    ),
-                    backgroundColor: const Color(0xFFF4EFE6),
-                    side: BorderSide.none,
-                    onSelected: isGenerating ? null : (_) => onMeses(m),
-                  ),
-                ),
-            ],
           ),
           SizedBox(height: 12 * s),
           SizedBox(
@@ -295,8 +266,8 @@ class PredictionModelCard extends StatelessWidget {
                     ),
               label: Text(
                 isGenerating
-                    ? 'Generando prediccion...'
-                    : 'Re-calcular prediccion',
+                    ? 'Consultando predicción guardada...'
+                    : 'Consultar predicción',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13 * s),
               ),
             ),

@@ -24,6 +24,11 @@ class SalesMapCard extends ConsumerStatefulWidget {
 }
 
 class _SalesMapCardState extends ConsumerState<SalesMapCard> {
+  static const _colombiaBounds = MapLatLngBounds(
+    MapLatLng(13.0, -66.0),
+    MapLatLng(-4.0, -79.5),
+  );
+
   late final MapZoomPanBehavior _zoomPanBehavior;
 
   @override
@@ -35,7 +40,8 @@ class _SalesMapCardState extends ConsumerState<SalesMapCard> {
       enableDoubleTapZooming: true,
       minZoomLevel: 1,
       maxZoomLevel: 10,
-      zoomLevel: 4.5, // Nivel inicial
+      zoomLevel: 1,
+      focalLatLng: const MapLatLng(4.5, -73.5),
     );
   }
 
@@ -111,14 +117,11 @@ class _SalesMapCardState extends ConsumerState<SalesMapCard> {
                 'assets/maps/colombia.json',
                 shapeDataField: 'NOMBRE_DPT',
               ),
-              color: const Color(0xFFFDF4DE),
-              strokeColor: const Color(0xFFD4AF37),
-              strokeWidth: 0.8,
+              color: const Color(0xFFF5E8C8),
+              strokeColor: const Color(0xFFB99742),
+              strokeWidth: 1.2,
               zoomPanBehavior: _zoomPanBehavior,
-              initialLatLngBounds: MapLatLngBounds(
-                const MapLatLng(-4.0, -79.5),
-                const MapLatLng(13.0, -66.0),
-              ),
+              initialLatLngBounds: _colombiaBounds,
               initialMarkersCount: cities.length,
               markerBuilder: (BuildContext context, int index) {
                 final city = cities[index];
@@ -136,6 +139,32 @@ class _SalesMapCardState extends ConsumerState<SalesMapCard> {
           ],
         ),
 
+        if (cities.isEmpty)
+          Positioned(
+            left: 12 * s,
+            right: 60 * s,
+            bottom: 12 * s,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.94),
+                borderRadius: BorderRadius.circular(10 * s),
+                border: Border.all(
+                  color: AppColors.gold.withValues(alpha: 0.4),
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(10 * s),
+                child: Text(
+                  'Aún no hay ventas pagadas asociadas a ciudades reconocidas.',
+                  style: AppFonts.style(
+                    size: 10.5 * s,
+                    color: AppColors.brownDark,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
         // 2. CONTROLES DE ZOOM Y CENTRADO
         Positioned(
           right: 12 * s,
@@ -147,8 +176,7 @@ class _SalesMapCardState extends ConsumerState<SalesMapCard> {
                 icon: Icons.add,
                 onTap: () {
                   if (_zoomPanBehavior.zoomLevel < 10) {
-                    _zoomPanBehavior.zoomLevel =
-                        _zoomPanBehavior.zoomLevel + 1;
+                    _zoomPanBehavior.zoomLevel = _zoomPanBehavior.zoomLevel + 1;
                   }
                 },
                 s: s,
@@ -158,8 +186,7 @@ class _SalesMapCardState extends ConsumerState<SalesMapCard> {
                 icon: Icons.remove,
                 onTap: () {
                   if (_zoomPanBehavior.zoomLevel > 1) {
-                    _zoomPanBehavior.zoomLevel =
-                        _zoomPanBehavior.zoomLevel - 1;
+                    _zoomPanBehavior.zoomLevel = _zoomPanBehavior.zoomLevel - 1;
                   }
                 },
                 s: s,
@@ -168,10 +195,8 @@ class _SalesMapCardState extends ConsumerState<SalesMapCard> {
               _controlButton(
                 icon: Icons.center_focus_strong,
                 onTap: () {
-                  // Centrar de nuevo y volver al zoom inicial
                   setState(() {
-                    _zoomPanBehavior.zoomLevel = 4.5;
-                    // Puedes ajustar el centro si es necesario
+                    _zoomPanBehavior.latLngBounds = _colombiaBounds;
                   });
                 },
                 s: s,
@@ -206,11 +231,7 @@ class _SalesMapCardState extends ConsumerState<SalesMapCard> {
           ],
           border: Border.all(color: Colors.grey.shade200),
         ),
-        child: Icon(
-          icon,
-          size: 20 * s,
-          color: AppColors.brownDark,
-        ),
+        child: Icon(icon, size: 20 * s, color: AppColors.brownDark),
       ),
     );
   }

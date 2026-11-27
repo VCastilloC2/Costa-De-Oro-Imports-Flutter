@@ -56,7 +56,7 @@ class DashboardPage extends ConsumerStatefulWidget {
 enum _ReconnectFeedback { refreshing, updated }
 
 class _DashboardPageState extends ConsumerState<DashboardPage>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   late AnimationController _entryController;
 
@@ -69,11 +69,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   bool _hasInitialConnectivity = false;
   bool? _hadNetworkConnection;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  Timer? _connectivityPoll;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     VisibilityDetectorController.instance.updateInterval = const Duration(
       milliseconds: 100,
@@ -95,10 +95,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
         );
       },
     );
-    _connectivityPoll = Timer.periodic(
-      const Duration(seconds: 4),
-      (_) => unawaited(_checkConnectivity()),
-    );
     unawaited(_checkConnectivity());
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -110,10 +106,19 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
   @override
   void dispose() {
-    _connectivityPoll?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     unawaited(_connectivitySubscription?.cancel());
     _entryController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Android puede recuperar internet sin cambiar el tipo de enlace (Wi-Fi
+      // sigue activo); al volver a la app probamos de nuevo el backend.
+      unawaited(_checkConnectivity(forceRecovery: true));
+    }
   }
 
   void _handleConnectivityChange(List<ConnectivityResult> results) {
@@ -123,7 +128,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     _recordConnectivity(hasNetwork);
   }
 
-  Future<void> _checkConnectivity() async {
+  Future<void> _checkConnectivity({bool forceRecovery = false}) async {
     try {
       final results = await Connectivity().checkConnectivity();
       _handleConnectivityChange(results);
@@ -144,8 +149,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
       if (needsRecovery &&
           !state.isLoading &&
-          retryDelayElapsed &&
+          (retryDelayElapsed || forceRecovery) &&
           !_reconnectRefreshInProgress) {
+        ref.read(dashboardProvider.notifier).markConnectionAvailable();
         unawaited(_refreshWhenConnectionReturns());
       }
     } catch (error, stackTrace) {
@@ -162,16 +168,44 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     if (!_hasInitialConnectivity) {
       _hasInitialConnectivity = true;
       _hadNetworkConnection = hasNetwork;
+      if (!hasNetwork) {
+        ref.read(dashboardProvider.notifier).markConnectionUnavailable();
+      }
       return;
     }
 
     final wasConnected = _hadNetworkConnection;
-    if (wasConnected == hasNetwork) return;
+    if (wasConnected == hasNetwork) {
+      // Un mismo Wi-Fi puede recuperar acceso a internet sin emitir un cambio
+      // de transporte. Si el último request quedó offline, vuelve a probar.
+      if (hasNetwork) _recoverDashboardOnAvailableNetwork();
+      return;
+    }
     _hadNetworkConnection = hasNetwork;
 
     if (!hasNetwork) {
       ref.read(dashboardProvider.notifier).markConnectionUnavailable();
     } else if (wasConnected == false) {
+      ref.read(dashboardProvider.notifier).markConnectionAvailable();
+      unawaited(_refreshWhenConnectionReturns());
+    }
+  }
+
+  void _recoverDashboardOnAvailableNetwork() {
+    final state = ref.read(dashboardProvider);
+    final needsRecovery =
+        state.syncStatus == DashboardSyncStatus.offline ||
+        state.syncStatus == DashboardSyncStatus.updateFailed;
+    final lastAttempt = _lastReconnectAttemptAt;
+    final retryDelayElapsed =
+        lastAttempt == null ||
+        DateTime.now().difference(lastAttempt) >= const Duration(seconds: 15);
+
+    if (needsRecovery &&
+        !state.isLoading &&
+        retryDelayElapsed &&
+        !_reconnectRefreshInProgress) {
+      ref.read(dashboardProvider.notifier).markConnectionAvailable();
       unawaited(_refreshWhenConnectionReturns());
     }
   }
@@ -236,46 +270,45 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     required String path,
     required IconData icon,
     bool selected = false,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Material(
-          color: selected ? AppColors.creamDark : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          child: ListTile(
-            dense: true,
-            visualDensity: const VisualDensity(vertical: -1),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-            leading: Icon(
-              icon,
-              size: 20,
-              color: selected ? AppColors.brownDark : AppColors.muted,
-            ),
-            title: Text(
-              title,
-              style: AppFonts.style(
-                size: 13,
-                weight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? AppColors.brownDark : AppColors.brown,
-              ),
-            ),
-            trailing: selected
-                ? Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: AppColors.goldDark,
-                      shape: BoxShape.circle,
-                    ),
-                  )
-                : null,
-            onTap: () {
-              _scaffoldKey.currentState?.closeDrawer();
-              context.push(path);
-            },
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Material(
+      color: selected ? AppColors.creamDark : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: ListTile(
+        dense: true,
+        visualDensity: const VisualDensity(vertical: -1),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+        leading: Icon(
+          icon,
+          size: 20,
+          color: selected ? AppColors.brownDark : AppColors.muted,
+        ),
+        title: Text(
+          title,
+          style: AppFonts.style(
+            size: 13,
+            weight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? AppColors.brownDark : AppColors.brown,
           ),
         ),
-      );
+        trailing: selected
+            ? Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: AppColors.goldDark,
+                  shape: BoxShape.circle,
+                ),
+              )
+            : null,
+        onTap: () {
+          _scaffoldKey.currentState?.closeDrawer();
+          context.push(path);
+        },
+      ),
+    ),
+  );
 
   Widget _drawerSection(String title) => Padding(
     padding: const EdgeInsets.fromLTRB(12, 18, 12, 7),
@@ -445,8 +478,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                   CircleAvatar(
                     radius: 20,
                     backgroundColor: AppColors.creamDark,
-                    backgroundImage: imageUrl != null &&
-                            imageUrl.startsWith('http')
+                    backgroundImage:
+                        imageUrl != null && imageUrl.startsWith('http')
                         ? NetworkImage(imageUrl)
                         : null,
                     child: imageUrl != null && imageUrl.startsWith('http')
@@ -491,9 +524,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                     tooltip: 'Cerrar sesión',
                     onPressed: () async {
                       _scaffoldKey.currentState?.closeDrawer();
-                      await ref
-                          .read(authControllerProvider.notifier)
-                          .logout();
+                      await ref.read(authControllerProvider.notifier).logout();
                     },
                     icon: const Icon(
                       Icons.logout_rounded,
@@ -528,6 +559,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
   Future<void> _refreshDashboard() async {
     final userId = ref.read(authControllerProvider).user?.id;
+    ref.read(dashboardProvider.notifier).markConnectionAvailable();
     await ref
         .read(dashboardProvider.notifier)
         .load(userId: userId, force: true);
@@ -612,11 +644,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
       return parts.isEmpty ? null : parts.first;
     }
 
-    final greetingName = firstNameOf(authUser?.nombres) ??
+    final greetingName =
+        firstNameOf(authUser?.nombres) ??
         firstNameOf(data.profile.name) ??
         'Usuario';
     final accountName = authUser?.fullName.trim() ?? '';
-    final displayUserName = accountName.isNotEmpty && accountName != authUser?.correo
+    final displayUserName =
+        accountName.isNotEmpty && accountName != authUser?.correo
         ? accountName
         : data.profile.name.trim().isNotEmpty
         ? data.profile.name.trim()
@@ -776,10 +810,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                         _reveal(
                           0.2,
                           0.5,
-                          WelcomeBanner(
-                            s: s,
-                            firstName: greetingName,
-                          ),
+                          WelcomeBanner(s: s, firstName: greetingName),
                         ),
                         SizedBox(height: 16 * s),
 

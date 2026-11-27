@@ -72,7 +72,6 @@ class _DashboardOfflineBannerState extends State<DashboardOfflineBanner>
   Widget build(BuildContext context) {
     final s = widget.s;
     final status = widget.status;
-    final isOffline = status == DashboardSyncStatus.offline;
     final isUnsaved = status == DashboardSyncStatus.cacheSaveFailed;
 
     final updated = widget.lastUpdated;
@@ -88,6 +87,7 @@ class _DashboardOfflineBannerState extends State<DashboardOfflineBanner>
     )!;
 
     final title = switch (status) {
+      DashboardSyncStatus.loading => 'ACTUALIZANDO',
       DashboardSyncStatus.offline => 'SIN CONEXIÓN',
       DashboardSyncStatus.cacheSaveFailed => 'SIN COPIA LOCAL',
       DashboardSyncStatus.updateFailed => 'ACTUALIZACIÓN PENDIENTE',
@@ -96,9 +96,16 @@ class _DashboardOfflineBannerState extends State<DashboardOfflineBanner>
 
     final body =
         widget.message ??
-        (isOffline
-            ? 'Estás viendo tu última reserva guardada.'
-            : 'Mostrando los últimos datos disponibles.');
+        switch (status) {
+          DashboardSyncStatus.loading => 'Buscando los datos más recientes…',
+          DashboardSyncStatus.offline =>
+            'Estás viendo tu última reserva guardada.',
+          DashboardSyncStatus.updateFailed =>
+            'Mostrando los últimos datos disponibles.',
+          DashboardSyncStatus.cacheSaveFailed =>
+            'La consulta terminó, pero no se pudo guardar una copia local.',
+          DashboardSyncStatus.synced => 'La información está actualizada.',
+        };
 
     final ageLine = widget.isLoading
         ? 'Buscando señal…'
